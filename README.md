@@ -1,5 +1,12 @@
 # Live World Map
 
+
+![Sample Full View](sample_full_view_no_clouds.png)
+![Sample Full View](sample_full_view.png)
+![Sample IIS](sample_iis_stream.png)
+![Sample North America](sample_north_america.png)
+
+
 A live situational-awareness wallpaper for KDE Plasma 6, with a companion panel widget.
 
 One equirectangular world map, and on it - each layer its own tick box - the day/night line and city
