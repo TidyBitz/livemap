@@ -1,11 +1,6 @@
 # Live World Map
 
-
-![Sample Full View](sample_full_view_no_clouds.png)
-![Sample Full View](sample_full_view.png)
-![Sample IIS](sample_iis_stream.png)
-![Sample North America](sample_north_america.png)
-
+![Full view with clouds, storms, satellites and the companion widget](docs/screenshots/full-view.webp)
 
 A live situational-awareness wallpaper for KDE Plasma 6, with a companion panel widget.
 
@@ -20,6 +15,13 @@ it has been stale for hours, the clouds fall back to imagery stitched locally fr
 satellites when the usual source is down, and a load guard pauses the animation - or hides the live
 layers entirely - when the CPU or GPU is busy with something else, so a game or a build never fights the
 wallpaper for frames.
+
+| | |
+|---|---|
+| ![Full view without clouds](docs/screenshots/full-view-no-clouds.webp) | ![North America, cropped framing](docs/screenshots/north-america.webp) |
+| *Clouds off: day/night, city lights, borders and every event layer* | *Cropped to North America: storm tracks, launches and quake labels up close* |
+| ![Companion widget, ISS live stream](docs/screenshots/widget-iss-stream.webp) | |
+| *The companion widget's Live tab with the ISS stream embedded* | |
 
 ## Features
 
