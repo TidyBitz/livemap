@@ -1,0 +1,50 @@
+name: checks and package
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: static checks
+        run: python3 scripts/check.py
+      - name: shell syntax
+        run: bash -n livemap.sh && bash livemap.sh help >/dev/null
+      - name: helper runs offline
+        run: python3 livemap/contents/helper/livemap-helper.py status --offline | python3 -m json.tool >/dev/null
+      - name: build livemap.zip
+        run: scripts/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: livemap.zip
+          path: livemap.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/package.sh
+      - name: release notes from CHANGELOG
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## /{p = ($2 == v)} p' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Release $v" > notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: livemap.zip
+          body_path: notes.md

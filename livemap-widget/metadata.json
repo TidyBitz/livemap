@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Website": "https://github.com/tidybitz/livemap",
+        "Authors": [ { "Name": "tidybitz" } ],
+        "Category": "Utilities",
+        "Description": "Latest events from the Live World Map wallpaper, with links to their sources, and quick controls for the map",
+        "Icon": "globe",
+        "Id": "io.github.tidybitz.livemap.events",
+        "License": "GPL-3.0-or-later",
+        "Name": "Live World Map Events",
+        "Version": "0.43"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

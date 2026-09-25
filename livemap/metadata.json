@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Website": "https://github.com/tidybitz/livemap",
+        "Authors": [ { "Name": "tidybitz" } ],
+        "Description": "Equirectangular world map with live layers you can switch on and off",
+        "Id": "io.github.tidybitz.livemap.wallpaper",
+        "License": "GPL-3.0-or-later",
+        "Name": "Live World Map",
+        "Version": "0.45"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
