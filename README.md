@@ -21,7 +21,27 @@ satellites when the usual source is down, and a load guard pauses the animation 
 layers entirely - when the CPU or GPU is busy with something else, so a game or a build never fights the
 wallpaper for frames.
 
-<!-- screenshots/overview.png, screenshots/storms.png, screenshots/widget.png -->
+## Features
+
+| | What you get | Where it comes from |
+|---|---|---|
+| **Base map** | NASA Blue Marble imagery blended month by month for the seasons, Black Marble city lights on the night side, dimming and framing (Stretch / Fit / Crop, "without Antarctica", "where people live", or your own limits) | NASA (downloaded once, ~350 MB with borders) |
+| **Day and night** | Terminator with twilight band, city lights glowing through the shade, recomputed locally every 2 min | Sun position, computed locally |
+| **Clouds** | Live cloud cover, adjustable opacity; when the usual source is down the helper stitches its own from five geostationary satellites | live-cloud-maps (EUMETSAT); GOES-East/West, Himawari, Meteosat |
+| **Geography** | Coastlines, country and state borders, country names with halo and de-clutter, time-zone outlines with UTC offsets; colour, opacity, thickness and detail per layer | Natural Earth (downloaded once) |
+| **Earthquakes** | Rings sized by magnitude, pulsing when new or strong, labels with place and age, ageing colour drift, magnitude filter | USGS, every 5 min |
+| **Volcanoes** | Hollow triangles coloured by alert level (yellow / orange / red), pulse on first report or level change, label with how long above normal | Smithsonian GVP eruption database and weekly report, USGS HANS, hourly |
+| **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and Pacific, every 30 min |
+| **Wildfires** | GDACS events as flames sized by burned area, plus MODIS hotspots clustered into half-degree cells and sized by fire power; level and size filters | GDACS, NASA FIRMS, hourly |
+| **Spacecraft** | ISS, Hubble and Tiangong as pictures or symbols moving once a second along a fading ground track (30 min, one or two orbits ahead), altitude in km, mi or nmi | CelesTrak elements, propagated locally (Kepler + J2) |
+| **Rocket launches** | Rocket on its pad with a live countdown; last ten minutes in mm:ss with a growing amber label, "LIFT-OFF" then a lift-off picture | The Space Devs Launch Library 2, hourly |
+| **Network activity** *(off by default)* | Arcs from your home city to every host this machine is connected to, animated packets, kernel round-trip times, first-time places highlighted, closed connections fading out; nothing leaves the machine | Local sockets via `ss`, DB-IP Lite offline geolocation, every 10 s |
+| **Labels** | One layout pass above every layer: real-width overlap avoidance, flip to the free side, leader lines, plates and per-type text colours, one-line / two-line / automatic | - |
+| **Life cycle** | Every event pulses while newly reported, sits steady while listed, then drifts to an aged colour and is removed; a change of status counts as new again | Helper memory (`events.json`) |
+| **Resilience** | Every feed keeps its last good data; a desktop notice only after a source has been stale for hours; HTTPS only, size-capped, parsed as data, rendered as plain text | - |
+| **Performance and power** | High performance / Balanced / Power saving profiles; 10-60 animation updates a second, stopped when idle; the still map cached as one texture; load guard pauses animation or unloads live layers when CPU or GPU is busy; on-battery policy | sysfs / nvidia-smi / CPU, polled every 20 s |
+| **Companion widget** | Newest events with source links, sorted by time, severity, kind or "what is next", NEW / SOON / LIVE tags; ISS and launch webcasts embedded, in mpv or in the browser; map controls (pause, plain map, hide layers, clouds on/off and opacity); status of every data source | Shares the wallpaper's helper and caches |
+| **Command line** | `livemap.sh` doctor / install / activate / deactivate / remove / purge / status, with per-distro install hints for Fedora, Arch, openSUSE and Debian/Ubuntu/neon | - |
 
 ## Install
 
