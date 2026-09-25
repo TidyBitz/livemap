@@ -42,7 +42,7 @@ wallpaper for frames.
 | **Life cycle** | Every event pulses while newly reported, sits steady while listed, then drifts to an aged colour and is removed; a change of status counts as new again | Helper memory (`events.json`) |
 | **Resilience** | Every feed keeps its last good data; a desktop notice only after a source has been stale for hours; HTTPS only, size-capped, parsed as data, rendered as plain text | - |
 | **Performance and power** | High performance / Balanced / Power saving profiles; 10-60 animation updates a second, stopped when idle; the still map cached as one texture; load guard pauses animation or unloads live layers when CPU or GPU is busy; on-battery policy | sysfs / nvidia-smi / CPU, polled every 20 s |
-| **Companion widget** | Newest events with source links, sorted by time, severity, kind or "what is next", NEW / SOON / LIVE tags; ISS and launch webcasts embedded, in mpv or in the browser; map controls (pause, plain map, hide layers, clouds on/off and opacity); status of every data source | Shares the wallpaper's helper and caches |
+| **Companion widget** | Newest events with source links, sorted by time, severity, kind or "what is next", NEW / SOON / LIVE tags; ISS and launch webcasts embedded, in mpv or in the browser; map controls (pause, plain map, hide layers, clouds on/off and opacity, full speed on demand for a set time); status of every data source | Shares the wallpaper's helper and caches |
 | **Command line** | `livemap.sh` doctor / install / activate / deactivate / remove / purge / status, with per-distro install hints for Fedora, Arch, openSUSE and Debian/Ubuntu/neon | - |
 
 ## Install
@@ -100,8 +100,9 @@ up on the desktop are filtered and rendered as plain text. The data folder is `~
 
 **Live World Map Events** lists the newest events with links to their sources (sorted by time, severity, kind
 or "what is next"; NEW / SOON / LIVE tags), embeds or opens the ISS and launch webcasts, controls the map
-(pause, plain map, hide layers, clouds on/off and opacity) and shows the status of every data source. It
-uses the wallpaper's helper and caches; nothing is fetched twice.
+(pause, plain map, hide layers, clouds on/off and opacity, and "full speed" to set aside the battery policy
+and load guard for an hour or a few) and shows the status of every data source. It uses the wallpaper's
+helper and caches; nothing is fetched twice.
 
 ## Repository layout
 

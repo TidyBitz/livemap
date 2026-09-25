@@ -53,7 +53,10 @@ PlasmoidItem {
     // Links come from the feeds: only plain web links are ever handed to the browser or a player.
     function webUrl(u) { u = String(u || "").trim(); return /^https?:\/\/[^\s'"<>]+$/.test(u) ? u : "" }
     function openWeb(u) { u = webUrl(u); if (u !== "") Qt.openUrlExternally(u) }
-    Timer { interval: 30000; running: root.expanded; repeat: true; onTriggered: root.nowSec = Date.now() / 1000 }
+    Timer { interval: 30000; running: root.expanded; repeat: true; onTriggered: {
+        root.nowSec = Date.now() / 1000;
+        if (root.mode.full && root.mode.full_until && root.nowSec >= root.mode.full_until) root.refreshMode();   // the helper drops a timed full-speed override when it is over
+    } }
     function isNew(it) { return !it.pin && !it.future && root.nowSec - it.when < root.newSeconds }
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
     readonly property var kindOrder: ({ launch: 0, storm: 1, volcano: 2, quake: 3, fire: 4, sat: 5 })
@@ -397,6 +400,31 @@ PlasmoidItem {
                     PC3.ToolTip.text: "Back to the wallpaper's own opacity"; PC3.ToolTip.visible: hovered
                     onClicked: root.setMode("--cloud-opacity auto")
                 }
+            }
+            PC3.Label { text: "Power:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+            RowLayout {
+                Layout.fillWidth: true
+                PC3.CheckBox {
+                    id: fullSpeed
+                    text: "Full speed"
+                    checked: !!root.mode.full
+                    onToggled: root.setMode(checked ? "--full on --full-hours " + [0, 1, 4, 8][fullHours.currentIndex] : "--full off")
+                    PC3.ToolTip.text: "Ignore the wallpaper's on-battery policy and its load guard for a while. Pause and Plain map above still apply."
+                    PC3.ToolTip.visible: hovered
+                }
+                PC3.ComboBox {
+                    id: fullHours
+                    model: ["until switched off", "for 1 hour", "for 4 hours", "for 8 hours"]
+                    currentIndex: 2
+                    enabled: !fullSpeed.checked
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                }
+            }
+            PC3.Label {
+                Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6
+                text: !root.mode.full ? "Battery policy and load guard as set in the wallpaper."
+                    : root.mode.full_until ? "Full speed until " + Qt.formatTime(new Date(root.mode.full_until * 1000), "hh:mm") + " (" + Math.max(1, Math.round((root.mode.full_until - root.nowSec) / 60)) + " min left), then back to the wallpaper's settings."
+                    : "Full speed until switched off here: the battery policy and the load guard are ignored."
             }
             RowLayout {
                 PC3.Button { text: "Clear all overrides"; icon.name: "edit-clear"; onClicked: root.setMode("--clear") }

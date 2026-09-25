@@ -31,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from collections import Counter, defaultdict
@@ -51,7 +52,7 @@ NASA = "https://assets.science.nasa.gov/content/dam/science/esd/eo/images"
 MONTHS = ["january", "february", "march", "april", "may", "june", "july",
           "august", "september", "october", "november", "december"]
 NIGHT_URL = NASA + "/imagerecords/144000/144898/BlackMarble_2016_3km.jpg"
-VERSION = "0.45"
+VERSION = "0.46"
 UA = {"User-Agent": "livemap-wallpaper/" + VERSION}
 NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
 BORDERS = DATA / "borders"
@@ -1926,7 +1927,8 @@ def stale_note(what, stale_h, err, limit_h):
 
 
 LOAD_STATE = DATA / "load-state.json"
-MODE = DATA / "mode.json"          # written by the companion widget: {"pause": bool, "plain": bool, "hide": [...]}
+MODE = DATA / "mode.json"          # written by the companion widget: {"pause": bool, "plain": bool, "hide": [...],
+                                   #   "clouds": bool, "cloud_opacity": 0-100, "full": bool, "full_until": epoch seconds}
 
 
 def cpu_busy():
@@ -1985,11 +1987,19 @@ def gpu_busy():
 
 
 def read_mode():
+    """The widget's overrides. A timed "full speed" override that has run out is dropped here, so both the
+    wallpaper and the widget see it end at the same moment (and the file is tidied on the next write)."""
     try:
         m = json.loads(MODE.read_text(encoding="utf-8"))
-        return m if isinstance(m, dict) else {}
+        if not isinstance(m, dict):
+            return {}
     except (OSError, ValueError):
         return {}
+    until = m.get("full_until")
+    if m.get("full") and isinstance(until, (int, float)) and time.time() >= until:
+        m.pop("full", None)
+        m.pop("full_until", None)
+    return m
 
 
 def cmd_power(args):
@@ -2000,8 +2010,21 @@ def cmd_power(args):
 
 def cmd_mode(args):
     """Companion widget -> wallpaper: set or clear the overrides. `mode --pause on`, `--plain off`, `--hide quakes,storms`,
-    `--clouds off`, `--cloud-opacity 40` (either `auto` to follow the wallpaper's own setting again)."""
+    `--clouds off`, `--cloud-opacity 40` (either `auto` to follow the wallpaper's own setting again),
+    `--full on [--full-hours 2]` (run at full speed: ignore the on-battery policy and the load guard, for that many
+    hours or until `--full off`; the widget's own pause / plain map still apply)."""
     m = read_mode()
+    if args.full is not None:
+        if args.full == "on":
+            m["full"] = True
+            hours = args.full_hours if args.full_hours is not None else 0
+            if hours > 0:
+                m["full_until"] = int(time.time() + hours * 3600)
+            else:
+                m.pop("full_until", None)
+        else:
+            m.pop("full", None)
+            m.pop("full_until", None)
     if args.pause is not None:
         m["pause"] = args.pause == "on"
     if args.plain is not None:
@@ -2423,6 +2446,7 @@ def main():
     mo = sub.add_parser("mode"); mo.add_argument("--pause", choices=["on", "off"]); mo.add_argument("--plain", choices=["on", "off"])
     mo.add_argument("--hide"); mo.add_argument("--clear", action="store_true")
     mo.add_argument("--clouds", choices=["on", "off", "auto"]); mo.add_argument("--cloud-opacity", dest="cloud_opacity")
+    mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
     fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60); fe.set_defaults(fn=cmd_feed)
     vo = sub.add_parser("volcanoes"); vo.add_argument("--table", action="store_true"); vo.add_argument("--keep", type=float, default=48)

@@ -3,6 +3,23 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.46 - 2026-09-25
+
+### Added
+- "Full speed" override from the companion widget: the wallpaper ignores its on-battery policy and the load
+  guard while it is set, so the map can be brought back on demand - for a talk, a stream, or just to look -
+  without touching the settings. Either until switched off or for 1 / 4 / 8 hours; a timed one is dropped by
+  the helper when its time is up, so a laptop cannot be left at full speed by accident. The widget's own
+  Pause and Plain map still apply on top. The corner notice says "Full speed from the widget" while it is
+  overriding something. `livemap-helper mode --full on|off [--full-hours N]`; `full` and `full_until` in
+  mode.json.
+
+## widget 0.44 - 2026-09-25
+
+### Added
+- Map controls: a "Power" section with a Full speed switch and a duration choice (until switched off, 1, 4
+  or 8 hours), with the time left while it runs.
+
 ## 0.45 - 2026-09-24
 
 ### Added

@@ -50,8 +50,11 @@ WallpaperItem {
     readonly property int guardLevel: powerLoader.item ? powerLoader.item.guardLevel : 0
     readonly property var mode: powerLoader.item ? powerLoader.item.mode : ({})
     readonly property int modeLevel: mode.plain ? 2 : mode.pause ? 1 : 0
-    // the strictest of: battery setting, load guard, the widget's request
-    readonly property int saving: Math.max(onBattery ? cfg.OnBattery : 0, guardLevel, modeLevel)
+    // "Full speed" from the widget: the battery policy and the load guard are ignored (the helper drops a
+    // timed one when its time is up); the widget's own pause / plain map still count
+    readonly property bool fullSpeed: !!mode.full
+    // otherwise the strictest of: battery setting, load guard, the widget's request
+    readonly property int saving: fullSpeed ? modeLevel : Math.max(onBattery ? cfg.OnBattery : 0, guardLevel, modeLevel)
     readonly property string savingWhy: saving === 0 ? "" : modeLevel >= saving ? "paused from the widget"
         : guardLevel >= saving ? "load guard: CPU " + (powerLoader.item.cpu < 0 ? "?" : powerLoader.item.cpu + " %") + ", GPU " + (powerLoader.item.gpu < 0 ? "?" : powerLoader.item.gpu + " %")
         : "on battery"
@@ -83,7 +86,7 @@ WallpaperItem {
 
     // A few lines in the journal so problems can be diagnosed without guessing.
     // (console.warn, because Fedora's default Qt logging rules hide console.log.)
-    Component.onCompleted: console.warn("livemap: 0.45 loaded - settings:", JSON.stringify({
+    Component.onCompleted: console.warn("livemap: 0.46 loaded - settings:", JSON.stringify({
         seasonal: cfg.Seasonal, fill: cfg.FillMode, dayNight: cfg.ShowDayNight, cityLights: cfg.ShowCityLights,
         clouds: cfg.ShowClouds, borders: cfg.ShowBorders, quakes: cfg.ShowQuakes, quakeFeed: cfg.QuakeFeed, network: cfg.ShowNetwork }))
 
@@ -226,7 +229,7 @@ WallpaperItem {
                     ctx.clearRect(0, 0, width, height);
                     var n = Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon,
                                            cfg.NightDarkness / 100, "3,5,14", cfg.Twilight);
-                    if (paints++ < 3) console.warn("livemap 0.45: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
+                    if (paints++ < 3) console.warn("livemap 0.46: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
                                  "- gradient columns:", n, "- map", Math.round(map.width) + "x" + Math.round(map.height));
                 }
                 onAvailableChanged: if (available) requestPaint()
@@ -442,6 +445,8 @@ WallpaperItem {
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",
             netLoader.item && netLoader.item.hint !== "" ? "Network: " + netLoader.item.hint : "",
             root.saving > 0 && root.savingWhy !== "on battery" ? (root.saving === 2 ? "Live layers off: " : "Animations paused: ") + root.savingWhy : "",
+            root.fullSpeed && root.saving === 0 && (root.guardLevel > 0 || (root.onBattery && cfg.OnBattery > 0))
+                ? "Full speed from the widget" + (root.guardLevel > 0 ? " (load guard overridden)" : " (on battery)") : "",
             cloudWatch.item && cloudWatch.item.note !== "" ? cloudWatch.item.note : ""
         ].filter(function (t) { return t !== "" })
         readonly property int corner: cfg.HintCorner          // 0 bottom right, 1 bottom left, 2 top right, 3 top left, 4 never
