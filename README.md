@@ -1,6 +1,6 @@
 # Live World Map
 
-![Full view with clouds, storms, satellites and the companion widget](docs/screenshots/full-view.webp)
+![Full view: clouds, day/night, storms, quakes, volcanoes, launches, satellites and the companion widget](docs/screenshots/full-view.webp)
 
 A live situational-awareness wallpaper for KDE Plasma 6, with a companion panel widget.
 
@@ -20,8 +20,8 @@ wallpaper for frames.
 |---|---|
 | ![Full view without clouds](docs/screenshots/full-view-no-clouds.webp) | ![North America, cropped framing](docs/screenshots/north-america.webp) |
 | *Clouds off: day/night, city lights, borders and every event layer* | *Cropped to North America: storm tracks, launches and quake labels up close* |
-| ![Companion widget, ISS live stream](docs/screenshots/widget-iss-stream.webp) | |
-| *The companion widget's Live tab with the ISS stream embedded* | |
+| ![Companion widget, Events tab](docs/screenshots/widget-events.webp) | |
+| *The companion widget's Events tab: launches, quakes and storms with NEW tags and source links* | |
 
 ## Features
 
