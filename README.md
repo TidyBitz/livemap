@@ -20,8 +20,8 @@ wallpaper for frames.
 |---|---|
 | ![Full view without clouds](docs/screenshots/full-view-no-clouds.webp) | ![North America, cropped framing](docs/screenshots/north-america.webp) |
 | *Clouds off: day/night, city lights, borders and every event layer* | *Cropped to North America: storm tracks, launches and quake labels up close* |
-| ![Companion widget, Events tab](docs/screenshots/widget-events.webp) | |
-| *The companion widget's Events tab: launches, quakes and storms with NEW tags and source links* | |
+| ![Companion widget, Events tab](docs/screenshots/widget-events.webp) | ![Wallpaper settings page](docs/screenshots/settings.webp) |
+| *The companion widget's Events tab: launches, quakes and storms with NEW tags and source links* | *The settings page: profile and layer switches, then one section per layer with the live state of its sources* |
 
 ## Features
 
