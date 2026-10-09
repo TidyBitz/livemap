@@ -155,6 +155,11 @@ Kirigami.FormLayout {
     property int cfg_RiverOpacity
     property int cfg_RiverWidth
     property alias cfg_ZoneLabels: zoneLabels.checked
+    property alias cfg_ZoneClock: zoneClock.currentIndex
+    property alias cfg_ZoneTextFollows: zoneTextFollows.checked
+    property alias cfg_ZoneTextColor: zoneTextColor.color
+    property alias cfg_ZoneLabelPlate: zonePlate.checked
+    property alias cfg_ZoneClock12: zoneClock12.checked
     property alias cfg_ZoneLabelSize: zoneLabelSize.value
     property alias cfg_ZoneLabelBold: zoneStyle.bold
     property alias cfg_ZoneLabelCaps: zoneStyle.caps
@@ -172,6 +177,20 @@ Kirigami.FormLayout {
     property alias cfg_PlateLineColor: plateLineColor.color
     property int cfg_PlateLineOpacity
     property int cfg_PlateLineWidth
+    property alias cfg_ShowInfra: infra.checked
+    property alias cfg_InfraMode: infraMode.currentIndex
+    property alias cfg_InfraPlatforms: infraPlatforms.checked
+    property alias cfg_InfraRefineries: infraRefineries.checked
+    property alias cfg_InfraColor: infraColor.color
+    property alias cfg_InfraSize: infraSize.value
+    property alias cfg_InfraLabels: infraLabels.currentIndex
+    property alias cfg_InfraNameThreatened: infraNameThreatened.checked
+    property alias cfg_InfraLabelSize: infraLabelSize.value
+    property alias cfg_InfraLabelBold: infraStyle.bold
+    property alias cfg_InfraLabelCaps: infraStyle.caps
+    property alias cfg_InfraLabelSpacing: infraStyle.letterSpacing
+    property alias cfg_InfraLabelOpacity: infraStyle.textOpacity
+    property alias cfg_InfraLabelHalo: infraStyle.halo
     property alias cfg_QuakeLabels: quakeLabels.currentIndex
     property alias cfg_QuakeLabelMin: quakeLabelMin.currentIndex
     property alias cfg_QuakeLabelSize: quakeLabelSize.value
@@ -196,6 +215,8 @@ Kirigami.FormLayout {
     property alias cfg_StormColor: stormColor.color
     property alias cfg_ShowStormCone: stormCone.checked
     property alias cfg_StormLabels: stormLabels.currentIndex
+    property alias cfg_StormLabelFacilities: stormLabelFacilities.checked
+    property alias cfg_StormLabelTwoLines: stormLabelTwoLines.checked
     property alias cfg_StormUnits: stormUnits.currentIndex
     property alias cfg_StormLabelSize: stormLabelSize.value
     property alias cfg_StormLabelPlate: stormPlate.checked
@@ -244,6 +265,15 @@ Kirigami.FormLayout {
     property alias cfg_LaunchMarkerStyle: launchMarkerStyle.currentIndex
     property alias cfg_LaunchPictureSize: launchPictureSize.value
     property alias cfg_LaunchLabels: launchLabels.currentIndex
+    property alias cfg_LaunchLabelTwoLines: launchLabelTwoLines.checked
+    property int cfg_QuakeLayerOpacity
+    property int cfg_InfraLayerOpacity
+    property int cfg_VolcanoLayerOpacity
+    property int cfg_StormLayerOpacity
+    property int cfg_FireLayerOpacity
+    property int cfg_SatLayerOpacity
+    property int cfg_LaunchLayerOpacity
+    property int cfg_NetLayerOpacity
     property alias cfg_LaunchLabelSize: launchLabelSize.value
     property alias cfg_LaunchLabelPlate: launchPlate.checked
     property alias cfg_LaunchTextFollows: launchFollows.checked
@@ -431,6 +461,15 @@ Kirigami.FormLayout {
                     icon.name: "download"
                     onClicked: statusLoader.item.run(command)
                 }
+                QQC2.ToolButton {                              // and when it is fine: a quiet way to refresh the data
+                    readonly property string command: statusLoader.item ? statusLoader.item.fetchCommand(modelData) : ""
+                    visible: command !== "" && check && check.state === "ok"
+                    enabled: statusLoader.item && !statusLoader.item.busy
+                    icon.name: "view-refresh"
+                    QQC2.ToolTip.text: "Download again (" + (statusLoader.item ? statusLoader.item.fetchLabel(modelData).replace("Download (", "").replace(")", "") : "") + ")"
+                    QQC2.ToolTip.visible: hovered
+                    onClicked: statusLoader.item.run(command)
+                }
                 QQC2.BusyIndicator {
                     visible: statusLoader.item && statusLoader.item.busy && check && check.state !== "ok" && statusLoader.item.fetchCommand(modelData) !== ""
                     running: visible
@@ -480,7 +519,7 @@ Kirigami.FormLayout {
         Pct { id: haloBox; to: 300; enabled: !style.plated; label: "Dark outline around the text (0 % = none); not drawn with a plate" }
     }
     component Px: QQC2.SpinBox {
-        from: 6; to: 28
+        from: 4; to: 28
         textFromValue: function (v) { return v + " px" }
         valueFromText: function (t) { return parseInt(t) || 10 }
     }
@@ -535,7 +574,7 @@ Kirigami.FormLayout {
         RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
         RowLayout { Mirror { twin: network; text: "Network" } Mirror { twin: timeZones; text: "Time zones" } Mirror { twin: countryNames; text: "Country names" } }
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
-        RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } }
+        RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
         RowLayout {
             QQC2.Button { text: "Expand all"; icon.name: "expand-all"; onClicked: form.setAllOpen(true) }
             QQC2.Button { text: "Collapse all"; icon.name: "collapse-all"; onClicked: form.setAllOpen(false) }
@@ -847,7 +886,7 @@ Kirigami.FormLayout {
     Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download." }
 
     // ============================================================== Time zones
-    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · UTC offsets " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
+    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
     Source { visible: sec5.open; names: ["Borders (Natural Earth)"] }
     QQC2.CheckBox { visible: sec5.open; id: timeZones; Kirigami.FormData.label: "Show:"; text: "Time zone outlines (Natural Earth)" }
     Note { visible: sec5.open; text: "The zone boundaries as drawn on the Natural Earth time zone map, with the UTC offset written in each zone that is wide enough. Part of the border download." }
@@ -872,10 +911,21 @@ Kirigami.FormLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone labels:"
         enabled: timeZones.checked
-        QQC2.CheckBox { id: zoneLabels; text: "UTC offsets" }
-        Px { id: zoneLabelSize; enabled: zoneLabels.checked; from: 6; to: 24 }
+        QQC2.CheckBox { id: zoneLabels; text: "Labels" }
+        QQC2.ComboBox { id: zoneClock; enabled: zoneLabels.checked; model: ["UTC offset", "Offset and local time", "Offset, time and date", "Local time", "Time and date"] }
+        QQC2.CheckBox { id: zoneClock12; enabled: zoneLabels.checked && zoneClock.currentIndex > 0; text: "12-hour clock" }
+        Px { id: zoneLabelSize; enabled: zoneLabels.checked; from: 4; to: 24 }
     }
-    LabelStyle { visible: sec5.open; id: zoneStyle; label: "Time zone label style:"; enabled: timeZones.checked && zoneLabels.checked; plated: false }
+    Note { visible: sec5.open && zoneClock.currentIndex > 0; text: "The clock is the real time of each zone's main place, summer time included, from the system's time zone database (the date goes on a second line). A zone that straddles places with different summer-time rules shows its main place's time. Updated every minute; the summer-time changes are known from the border download, so download again if a label looks an hour off." }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone label text:"
+        enabled: timeZones.checked && zoneLabels.checked
+        QQC2.CheckBox { id: zonePlate; text: "Plate" }
+        QQC2.CheckBox { id: zoneTextFollows; text: "Text follows the line colour" }
+        KQuickControls.ColorButton { id: zoneTextColor; enabled: !zoneTextFollows.checked; showAlphaChannel: false; dialogTitle: "Time zone label colour" }
+    }
+    LabelStyle { visible: sec5.open; id: zoneStyle; label: "Time zone label style:"; enabled: timeZones.checked && zoneLabels.checked; plated: zonePlate.checked }
     RowLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone label placement:"
@@ -887,7 +937,7 @@ Kirigami.FormLayout {
             valueFromText: function (t) { var n = parseInt(t) || 0; return /S/i.test(t) ? -Math.abs(n) : n }
         }
     }
-    Note { visible: sec5.open; text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every offset on one line of latitude, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
+    Note { visible: sec5.open; text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every zone on one line of latitude, placed before the country names and places, which make way for it, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
 
     // #################################################################### Natural events
     Group { text: "Natural events" }
@@ -897,6 +947,14 @@ Kirigami.FormLayout {
     Source { visible: sec6.open; names: ["Earthquake feed (USGS)"] }
 
     QQC2.CheckBox { visible: sec6.open; id: quakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes (USGS)" }
+    Amount {
+        visible: sec6.open
+        Kirigami.FormData.label: "Earthquake layer opacity:"
+        enabled: quakes.checked
+        from: 10; to: 100
+        value: form.cfg_QuakeLayerOpacity
+        onValueChanged: form.cfg_QuakeLayerOpacity = value
+    }
     QQC2.ComboBox {
         visible: sec6.open
         id: quakeFeed
@@ -909,7 +967,7 @@ Kirigami.FormLayout {
         visible: sec6.open
         Kirigami.FormData.label: "Earthquake ring size:"
         enabled: quakes.checked
-        from: 40; to: 250
+        from: 10; to: 250
         value: form.cfg_QuakeSize
         onValueChanged: form.cfg_QuakeSize = value
     }
@@ -919,7 +977,7 @@ Kirigami.FormLayout {
         enabled: quakes.checked
         QQC2.ComboBox { id: quakeLabels; model: ["None", "Magnitude", "Magnitude, place and age"] }
         QQC2.ComboBox { id: quakeLabelMin; enabled: quakeLabels.currentIndex > 0; model: ["for every quake", "from magnitude 5", "from magnitude 6"] }
-        Px { id: quakeLabelSize; enabled: quakeLabels.currentIndex > 0; from: 6; to: 24 }
+        Px { id: quakeLabelSize; enabled: quakeLabels.currentIndex > 0; from: 4; to: 24 }
     }
     RowLayout {
         visible: sec6.open
@@ -974,10 +1032,62 @@ Kirigami.FormLayout {
     }
     Note { visible: sec19.open; text: "The boundaries between the tectonic plates, where most earthquakes and volcanoes sit. Still lines under the borders; they cost nothing while idle." }
 
+    SectionHeader { id: sec20; title: "Oil and gas infrastructure"; sourceNames: ["Oil and gas infrastructure (BSEE, OpenStreetMap)"]; twin: infra; summary: infra.checked ? [infraPlatforms.checked ? "offshore platforms" : "", infraRefineries.checked ? "refineries" : ""].filter(function (t) { return t !== "" }).join(" and ") + (infraMode.currentIndex === 0 ? " · only what a storm threatens" : " · always") + " · " + infraSize.value + " px · labels: " + infraLabels.currentText.toLowerCase() + (infraNameThreatened.checked ? ", threatened named" : "") : "Off" }
+    Source { visible: sec20.open; names: ["Oil and gas infrastructure (BSEE, OpenStreetMap)"] }
+    QQC2.CheckBox { visible: sec20.open; id: infra; Kirigami.FormData.label: "Show:"; text: "Fixed offshore platforms and refineries" }
+    Amount {
+        visible: sec20.open
+        Kirigami.FormData.label: "Infrastructure layer opacity:"
+        enabled: infra.checked
+        from: 10; to: 100
+        value: form.cfg_InfraLayerOpacity
+        onValueChanged: form.cfg_InfraLayerOpacity = value
+    }
+    QQC2.ComboBox {
+        visible: sec20.open
+        id: infraMode
+        Kirigami.FormData.label: "Infrastructure shown:"
+        enabled: infra.checked
+        model: ["Only what a storm threatens (in its forecast cone, or near its track)", "Everything, all the time"]
+    }
+    Note { visible: sec20.open; text: "A threatened platform or refinery is drawn larger with a ring; the storm's own label counts what is in its cone and what it has crossed, and the Events widget lists them under the storm. With no storm near any facility, the first choice draws nothing." }
+    RowLayout {
+        visible: sec20.open
+        Kirigami.FormData.label: "Infrastructure kinds:"
+        enabled: infra.checked
+        QQC2.CheckBox { id: infraPlatforms; text: "Offshore platforms (squares)" }
+        QQC2.CheckBox { id: infraRefineries; text: "Refineries (triangles)" }
+    }
+    RowLayout {
+        visible: sec20.open
+        Kirigami.FormData.label: "Infrastructure marks:"
+        enabled: infra.checked
+        KQuickControls.ColorButton { id: infraColor; showAlphaChannel: false; dialogTitle: "Infrastructure colour" }
+        Px { id: infraSize; from: 3; to: 20 }
+    }
+    RowLayout {
+        visible: sec20.open
+        Kirigami.FormData.label: "Infrastructure labels:"
+        enabled: infra.checked
+        QQC2.ComboBox { id: infraLabels; model: ["None", "Refineries", "Refineries and named platforms"] }
+        Px { id: infraLabelSize; enabled: infraLabels.currentIndex > 0 || infraNameThreatened.checked; from: 5; to: 20 }
+    }
+    QQC2.CheckBox { visible: sec20.open; id: infraNameThreatened; Kirigami.FormData.label: "Infrastructure threatened:"; enabled: infra.checked; text: "Named on the map with their storm (the widget lists them under the storm either way)" }
+    LabelStyle { visible: sec20.open; id: infraStyle; label: "Infrastructure label style:"; enabled: infra.checked && (infraLabels.currentIndex > 0 || infraNameThreatened.checked); plated: false }
+    Note { visible: sec20.open; text: "Fixed structures only: every platform on the US Gulf of Mexico shelf from BSEE (public domain, updated monthly) and offshore platforms elsewhere plus refineries from OpenStreetMap (ODbL, (c) OpenStreetMap contributors). Mobile drilling rigs are in no free feed. Still marks under the events; the download takes a minute or two because OpenStreetMap's Overpass service is slow." }
+
     SectionHeader { id: sec7; title: "Volcanoes"; sourceNames: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)"]; twin: volcanoes; summary: volcanoes.checked ? "Weekly report and USGS levels" + (volcanoAlertColors.checked ? ", colour by level" : "") + " · labels: " + volcanoLabels.currentText.toLowerCase() + " · pulse: " + volcanoPulseMode.currentText.toLowerCase() : "Off" }
     Source { visible: sec7.open; names: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)"] }
 
     QQC2.CheckBox { visible: sec7.open; id: volcanoes; Kirigami.FormData.label: "Show:"; text: "Weekly report and USGS alert levels" }
+    Amount {
+        visible: sec7.open
+        Kirigami.FormData.label: "Volcano layer opacity:"
+        enabled: volcanoes.checked
+        from: 10; to: 100
+        value: form.cfg_VolcanoLayerOpacity
+        onValueChanged: form.cfg_VolcanoLayerOpacity = value
+    }
     Note { visible: sec7.open; text: "The Smithsonian / USGS Weekly Volcanic Activity Report comes out every Wednesday ('New' there means an eruption after at least three months of quiet). US volcanoes also carry the USGS alert level (Advisory, Watch, Warning), checked every hour, with the date the level was raised where USGS provides it." }
     KQuickControls.ColorButton { visible: sec7.open; id: volcanoColor; Kirigami.FormData.label: "Volcano colour:"; enabled: volcanoes.checked; showAlphaChannel: false; dialogTitle: "Volcano colour" }
     QQC2.CheckBox { visible: sec7.open; id: volcanoAlertColors; enabled: volcanoes.checked; text: "Colour by level (yellow, orange, red)" }
@@ -987,7 +1097,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Volcano labels:"
         enabled: volcanoes.checked
         QQC2.ComboBox { id: volcanoLabels; model: ["None", "New eruptions only", "All"] }
-        Px { id: volcanoLabelSize; from: 6; to: 24 }
+        Px { id: volcanoLabelSize; from: 4; to: 24 }
     }
     QQC2.CheckBox { visible: sec7.open; id: volcanoDetail; enabled: volcanoes.checked && volcanoLabels.currentIndex > 0; text: "Add how long it has been above normal" }
     Note { visible: sec7.open; text: "Label: the name, then how long the volcano has been above normal: USGS's date for a US alert level, else the eruption start date from the Smithsonian database. Nothing when neither is known. Colour, a bolder triangle and the pulse say the rest." }
@@ -1014,6 +1124,14 @@ Kirigami.FormLayout {
     Source { visible: sec8.open; names: ["Storms (GDACS)", "Storms, secondary (NHC)"] }
 
     QQC2.CheckBox { visible: sec8.open; id: storms; Kirigami.FormData.label: "Show:"; text: "Tropical storms with forecast track" }
+    Amount {
+        visible: sec8.open
+        Kirigami.FormData.label: "Storm layer opacity:"
+        enabled: storms.checked
+        from: 10; to: 100
+        value: form.cfg_StormLayerOpacity
+        onValueChanged: form.cfg_StormLayerOpacity = value
+    }
     Note { visible: sec8.open; text: "GDACS worldwide first (it is often slow: 20 s and a retry are allowed); when it does not answer, the US National Hurricane Center's list, forecast track and cone take over for the Atlantic and the eastern and central Pacific. A storm keeps its identity across the two." }
     RowLayout {
         visible: sec8.open
@@ -1040,10 +1158,18 @@ Kirigami.FormLayout {
         visible: sec8.open
         Kirigami.FormData.label: "Storm labels:"
         enabled: storms.checked
-        QQC2.ComboBox { id: stormLabels; model: ["None", "Name", "Name, type and wind"] }
-        QQC2.ComboBox { id: stormUnits; enabled: stormLabels.currentIndex === 2; model: ["km/h", "mph", "knots"] }
-        Px { id: stormLabelSize; from: 6; to: 24 }
+        QQC2.ComboBox { id: stormLabels; model: ["None", "Name", "Name, type and wind", "Name and wind"] }
+        QQC2.ComboBox { id: stormUnits; enabled: stormLabels.currentIndex >= 2; model: ["km/h", "mph", "knots"] }
+        Px { id: stormLabelSize; from: 4; to: 24 }
     }
+    RowLayout {
+        visible: sec8.open
+        Kirigami.FormData.label: "Storm label facilities:"
+        enabled: storms.checked && stormLabels.currentIndex >= 2
+        QQC2.CheckBox { id: stormLabelFacilities; text: "What it threatens (\"5 refineries in the cone · crossed 3 facilities\")" }
+        QQC2.CheckBox { id: stormLabelTwoLines; enabled: stormLabelFacilities.checked; text: "On a line of its own" }
+    }
+    Note { visible: sec8.open; text: "The icon already says the storm's class, so \"Name and wind\" leaves \"Hurricane cat 3\" out of the text. The facilities need the Oil and gas infrastructure data; the Events widget lists them under the storm whatever is chosen here." }
     RowLayout {
         visible: sec8.open
         Kirigami.FormData.label: "Storm label text:"
@@ -1067,6 +1193,14 @@ Kirigami.FormLayout {
     Source { visible: sec9.open; names: ["Wildfires (GDACS)", "Fire hotspots (NASA FIRMS)"] }
 
     QQC2.CheckBox { visible: sec9.open; id: fires; Kirigami.FormData.label: "Show:"; text: "Wildfires" }
+    Amount {
+        visible: sec9.open
+        Kirigami.FormData.label: "Wildfire layer opacity:"
+        enabled: fires.checked
+        from: 10; to: 100
+        value: form.cfg_FireLayerOpacity
+        onValueChanged: form.cfg_FireLayerOpacity = value
+    }
     QQC2.ComboBox {
         visible: sec9.open
         id: fireSource
@@ -1105,7 +1239,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Wildfire labels:"
         enabled: fires.checked
         QQC2.ComboBox { id: fireLabels; model: ["None", "Orange and red only", "All"] }
-        Px { id: fireLabelSize; from: 6; to: 24 }
+        Px { id: fireLabelSize; from: 4; to: 24 }
     }
     RowLayout {
         visible: sec9.open
@@ -1132,6 +1266,14 @@ Kirigami.FormLayout {
     SectionHeader { id: sec10; title: "Satellites"; sourceNames: ["Satellite elements (CelesTrak)"]; twin: sats; summary: sats.checked ? [satIss.checked ? "ISS" : "", satHubble.checked ? "Hubble" : "", satTiangong.checked ? "Tiangong" : ""].filter(function (t) { return t !== "" }).join(", ") + " · " + satMarkerStyle.currentText.toLowerCase() + " · track " + satTrackLength.currentText.toLowerCase() : "Off" }
     Source { visible: sec10.open; names: ["Satellite elements (CelesTrak)"] }
     QQC2.CheckBox { visible: sec10.open; id: sats; Kirigami.FormData.label: "Show:"; text: "Satellites and their ground track" }
+    Amount {
+        visible: sec10.open
+        Kirigami.FormData.label: "Satellite layer opacity:"
+        enabled: sats.checked
+        from: 10; to: 100
+        value: form.cfg_SatLayerOpacity
+        onValueChanged: form.cfg_SatLayerOpacity = value
+    }
     RowLayout {
         visible: sec10.open
         enabled: sats.checked
@@ -1161,7 +1303,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Satellite labels:"
         enabled: sats.checked
         QQC2.ComboBox { id: satLabels; model: ["None", "Name", "Name and altitude"] }
-        Px { id: satLabelSize; from: 6; to: 24 }
+        Px { id: satLabelSize; from: 4; to: 24 }
     }
     RowLayout {
         visible: sec10.open
@@ -1177,6 +1319,14 @@ Kirigami.FormLayout {
     SectionHeader { id: sec11; title: "Launches"; sourceNames: ["Launches (The Space Devs)"]; twin: launches; summary: launches.checked ? launchWindow.currentText + " · " + launchMarkerStyle.currentText.toLowerCase() + " · labels: " + launchLabels.currentText.toLowerCase() : "Off" }
     Source { visible: sec11.open; names: ["Launches (The Space Devs)"] }
     QQC2.CheckBox { visible: sec11.open; id: launches; Kirigami.FormData.label: "Show:"; text: "Upcoming rocket launches" }
+    Amount {
+        visible: sec11.open
+        Kirigami.FormData.label: "Launch layer opacity:"
+        enabled: launches.checked
+        from: 10; to: 100
+        value: form.cfg_LaunchLayerOpacity
+        onValueChanged: form.cfg_LaunchLayerOpacity = value
+    }
     QQC2.ComboBox {
         visible: sec11.open
         id: launchWindow
@@ -1199,8 +1349,9 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Launch labels:"
         enabled: launches.checked
         QQC2.ComboBox { id: launchLabels; model: ["None", "Countdown", "Rocket, mission and countdown"] }
-        Px { id: launchLabelSize; from: 6; to: 24 }
+        Px { id: launchLabelSize; from: 4; to: 24 }
     }
+    QQC2.CheckBox { visible: sec11.open; id: launchLabelTwoLines; Kirigami.FormData.label: "Launch label mission:"; enabled: launches.checked && launchLabels.currentIndex === 2; text: "On a line of its own, under the rocket and countdown" }
     RowLayout {
         visible: sec11.open
         Kirigami.FormData.label: "Launch label text:"
@@ -1220,6 +1371,14 @@ Kirigami.FormLayout {
     Source { visible: sec12.open; names: ["Connections (ss)", "GeoIP database (DB-IP)"] }
 
     QQC2.CheckBox { visible: sec12.open; id: network; Kirigami.FormData.label: "Show:"; text: "Arcs to the places this computer is connected to" }
+    Amount {
+        visible: sec12.open
+        Kirigami.FormData.label: "Network layer opacity:"
+        enabled: network.checked
+        from: 10; to: 100
+        value: form.cfg_NetLayerOpacity
+        onValueChanged: form.cfg_NetLayerOpacity = value
+    }
     Note { visible: sec12.open; text: "Read locally from the kernel's connection table and an offline GeoIP file; nothing about your connections leaves this machine." }
     Loader {
         visible: sec12.open

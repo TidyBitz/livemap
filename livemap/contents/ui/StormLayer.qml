@@ -46,7 +46,9 @@ Item {
     }
     function inkOf(st) { return intensityColors ? Qt.color(intensityPalette[levelOf(st)]) : ink }
     function labelInkOf(st) { return cfg && !cfg.StormTextFollows ? cfg.StormTextColor : inkOf(st) }
-    readonly property int labelMode: cfg ? cfg.StormLabels : 2          // 0 none, 1 name, 2 name, type and wind
+    readonly property int labelMode: cfg ? cfg.StormLabels : 2          // 0 none, 1 name, 2 name, type and wind, 3 name and wind
+    readonly property bool labelFacilities: cfg ? cfg.StormLabelFacilities : true
+    readonly property bool labelTwoLines: cfg ? cfg.StormLabelTwoLines : true
     readonly property int units: cfg ? cfg.StormUnits : 0               // 0 km/h, 1 mph, 2 knots
     readonly property bool showCone: cfg ? cfg.ShowStormCone : true
     // what pulses: 0 nothing, 1 newly tracked (first seen here less than pulseNewHours ago), 2 significant (hurricane strength, cat 1+), 3 either
@@ -79,7 +81,7 @@ Item {
     readonly property var labelSpecs: labelMode === 0 ? [] : storms.map(function (st) {
         // the label sits just off the marker: half the icon with the icon set, the category-sized ring otherwise
         return { x: px(st.lon), y: py(st.lat), gap: icons ? iconSize * 0.5 + 3 * unit : (5 + 2.2 * st.cat) * unit * markScale + 6 * unit, side: "right",
-                 text: labelFor(st), px: labelPx, color: Geo.mix(labelInkOf(st), agedColor, agedOf(st)), plate: labelPlate, bold: true, alpha: 1 - 0.4 * agedOf(st) };
+                 text: labelFor(st), px: labelPx, color: Geo.mix(labelInkOf(st), agedColor, agedOf(st)), plate: labelPlate, bold: false, alpha: 1 - 0.4 * agedOf(st) };   // the Storm label style's Bold decides
     }).concat(originMark ? storms.filter(function (st) {
         // a small note where the storm was first fixed, when that is far enough from the storm itself
         var tr = st.track || [];
@@ -106,11 +108,25 @@ Item {
     function windText(kmh) {
         return units === 1 ? Math.round(kmh * 0.621) + " mph" : units === 2 ? Math.round(kmh * 0.54) + " kt" : kmh + " km/h";
     }
+    function impactText(im) {
+        if (!im) return "";
+        var parts = [];
+        if (im.platforms) parts.push(im.platforms + (im.platforms === 1 ? " platform" : " platforms"));
+        if (im.refineries) parts.push(im.refineries + (im.refineries === 1 ? " refinery" : " refineries"));
+        var ahead = parts.length ? parts.join(", ") + (im.how === "cone" ? " in the cone" : " near the track") : "";
+        var crossed = im.crossed_n ? "crossed " + im.crossed_n + (im.crossed_n === 1 ? " facility" : " facilities") : "";
+        return ahead && crossed ? ahead + " \u00b7 " + crossed : ahead || crossed;
+    }
     function labelFor(st) {
         // GDACS only knows a storm's peak wind over its episode; NHC gives the wind now (Atlantic, east Pacific)
-        var text = labelMode === 1 ? st.name : st.name + " \u00b7 " + st.kind + (st.cat > 0 ? " cat " + st.cat : "") + " \u00b7 " + (st.wind_is_peak ? "peak " : "") + windText(st.wind);
-        return st.gone ? text + " \u00b7 no longer tracked" : text;
+        var text = labelMode === 1 ? st.name : st.name + (labelMode === 2 ? " \u00b7 " + st.kind + (st.cat > 0 ? " cat " + st.cat : "") : "")
+                 + " \u00b7 " + (st.wind_is_peak ? "peak " : "") + windText(st.wind);
+        if (st.gone) return text + " \u00b7 no longer tracked";
+        if (labelMode >= 2 && labelFacilities && st.impact) return text + (labelTwoLines ? "\n" : " \u00b7 ") + impactText(st.impact);
+        return text;
     }
+    // platforms and refineries inside a storm's cone or near its track: [lon, lat, kind, name, storm]; InfraLayer draws them
+    property var impacted: []
 
     P5Support.DataSource {
         id: exec
@@ -125,7 +141,7 @@ Item {
                     overlay.note = r.note;
                     return;
                 }
-                overlay.storms = r.storms || [];
+                overlay.impacted = r.impacted || []; overlay.storms = r.storms || [];
                 overlay.note = r.note || "";
                 console.warn("livemap storms:", overlay.storms.length, "active -", overlay.storms.map(function (s) { return s.name }).join(", "), overlay.note);
             } catch (e) { overlay.note = "Storms: the helper did not answer properly"; }

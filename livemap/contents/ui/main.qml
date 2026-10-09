@@ -44,9 +44,15 @@ WallpaperItem {
             item.guardEnabled = Qt.binding(function () { return cfg.GuardEnabled });
             item.pauseAt = Qt.binding(function () { return cfg.GuardPause });
             item.plainAt = Qt.binding(function () { return cfg.GuardPlain });
+            item.layers = Qt.binding(function () { return root.shownLayers });
+            item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
+    // the event layers switched on, for the companion widget (it can list only what the map shows)
+    readonly property string shownLayers: [cfg.ShowQuakes ? "quakes" : "", cfg.ShowVolcanoes ? "volcanoes" : "", cfg.ShowStorms ? "storms" : "",
+                                           cfg.ShowFires ? "fires" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
+                                           cfg.ShowNetwork ? "network" : ""].filter(function (l) { return l !== ""; }).join(",")
     readonly property int guardLevel: powerLoader.item ? powerLoader.item.guardLevel : 0
     readonly property var mode: powerLoader.item ? powerLoader.item.mode : ({})
     readonly property int modeLevel: mode.plain ? 2 : mode.pause ? 1 : 0
@@ -320,6 +326,19 @@ WallpaperItem {
                 }
                 onStatusChanged: if (status === Loader.Error) console.warn("livemap: plate layer failed to load")
             }
+            Loader {                                       // oil and gas infrastructure, still marks
+                anchors.fill: parent
+                id: infraLoader
+                opacity: cfg.InfraLayerOpacity / 100                // the marks and lines; labels have their own opacity
+                active: cfg.ShowInfra
+                source: "InfraLayer.qml"
+                onLoaded: {
+                    item.cfg = root.cfg;
+                    item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+                    item.impacted = Qt.binding(function () { return stormLoader.item ? stormLoader.item.impacted : [] });
+                }
+                onStatusChanged: if (status === Loader.Error) console.warn("livemap: infrastructure layer failed to load")
+            }
             Loader {
                 anchors.fill: parent
                 id: borderLoader
@@ -336,6 +355,7 @@ WallpaperItem {
         // -- live overlays (the only things that animate) --------------------------
         Loader {
             id: volcanoLoader
+            opacity: cfg.VolcanoLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             active: cfg.ShowVolcanoes && root.saving < 2 && !root.hidden("volcanoes")
             source: "VolcanoLayer.qml"
@@ -348,6 +368,7 @@ WallpaperItem {
         }
         Loader {
             id: stormLoader
+            opacity: cfg.StormLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             active: cfg.ShowStorms && root.saving < 2 && !root.hidden("storms")
             source: "StormLayer.qml"
@@ -361,6 +382,7 @@ WallpaperItem {
         }
         Loader {
             id: satLoader
+            opacity: cfg.SatLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             z: 1                                    // in orbit: above every ground-level layer (labels stay on top of all)
             active: cfg.ShowSats && root.saving < 2 && !root.hidden("sats")
@@ -375,6 +397,7 @@ WallpaperItem {
         }
         Loader {
             id: launchLoader
+            opacity: cfg.LaunchLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             active: cfg.ShowLaunches && root.saving < 2 && !root.hidden("launches")
             source: "LaunchLayer.qml"
@@ -388,6 +411,7 @@ WallpaperItem {
         }
         Loader {
             id: fireLoader
+            opacity: cfg.FireLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             active: cfg.ShowFires && root.saving < 2 && !root.hidden("fires")
             source: "FireLayer.qml"
@@ -401,6 +425,7 @@ WallpaperItem {
         }
         Loader {
             id: quakeLoader
+            opacity: cfg.QuakeLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
             active: cfg.ShowQuakes && root.saving < 2 && !root.hidden("quakes")
             source: "QuakeLayer.qml"
@@ -410,6 +435,7 @@ WallpaperItem {
         Loader {
             anchors.fill: parent
             id: netLoader
+            opacity: cfg.NetLayerOpacity / 100                // the marks and lines; labels have their own opacity
             active: cfg.ShowNetwork && root.saving < 2 && !root.hidden("network")
             source: "NetLayer.qml"
             onLoaded: {
@@ -435,6 +461,7 @@ WallpaperItem {
             launchSpecs: launchLoader.item ? launchLoader.item.labelSpecs : []
             quakeSpecs: quakeLoader.item ? quakeLoader.item.labelSpecs : []
             volcanoSpecs: volcanoLoader.item ? volcanoLoader.item.labelSpecs : []
+            infraSpecs: infraLoader.item ? infraLoader.item.labelSpecs : []
             view: Qt.rect(-map.x, -map.y, root.width, root.height)     // the screen, in map pixels
         }
     }
@@ -450,6 +477,7 @@ WallpaperItem {
             lights.wanted && lights.status === Image.Error ? "City lights not downloaded" : "",
             borderLoader.item && borderLoader.item.hint !== "" ? borderLoader.item.hint : "",
             plateLoader.item && plateLoader.item.hint !== "" ? plateLoader.item.hint : "",
+            infraLoader.item && infraLoader.item.hint !== "" ? infraLoader.item.hint : "",
             stormLoader.item && stormLoader.item.hint !== "" ? stormLoader.item.hint : "",
             fireLoader.item && fireLoader.item.hint !== "" ? fireLoader.item.hint : "",
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",

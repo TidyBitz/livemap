@@ -18,6 +18,7 @@ Item {
     readonly property real windowHours: [24, 48, 72, 168][cfg ? cfg.LaunchWindow : 2] || 72
     readonly property int labelMode: cfg ? cfg.LaunchLabels : 2          // 0 none, 1 countdown, 2 rocket, mission and countdown
     readonly property int labelPx: Math.round((cfg ? cfg.LaunchLabelSize : 10) * unit)
+    readonly property bool twoLines: cfg ? cfg.LaunchLabelTwoLines : true
     readonly property bool labelPlate: cfg ? cfg.LaunchLabelPlate : true
     readonly property color labelColor: cfg && !cfg.LaunchTextFollows ? cfg.LaunchTextColor : ink
     readonly property bool pulseSoon: cfg ? cfg.LaunchPulse : true
@@ -44,11 +45,16 @@ Item {
     }
     function soon(L) { return L.net - now < 3600 && L.net - now > -1800 }
     // one marker per pad: the earliest launch there; keep a launch for half an hour after lift-off
+    // Pads are grouped by site (the Cape's and Vandenberg's several pads are a few km apart and would print over
+    // each other); the earliest launch is the marker and its label says how many more are queued there.
     readonly property var shown: (function () {
-        var byPad = {}, out = [];
+        var bySite = {}, out = [];
         launches.filter(function (L) { return L.net - now > -1800 && L.net - now < windowHours * 3600; })
             .sort(function (a, b) { return a.net - b.net; })
-            .forEach(function (L) { var k = L.lat.toFixed(2) + "/" + L.lon.toFixed(2); if (!byPad[k]) { byPad[k] = true; out.push(L); } });
+            .forEach(function (L) {
+                var k = (L.site || "") !== "" ? L.site : L.lat.toFixed(1) + "/" + L.lon.toFixed(1);
+                if (!bySite[k]) { bySite[k] = L; L.more = 0; out.push(L); } else bySite[k].more++;
+            });
         return out;
     })()
     function px(lon) { return (lon + 180) / 360 * width }
@@ -62,8 +68,9 @@ Item {
     }
     function imminent(L) { return L.net - now < 600 && L.net - now > -120 }
     function describe(L) {
-        var text = labelMode === 2 ? L.rocket + (L.mission !== "" ? " · " + L.mission : "") + " · " : "";
-        return text + countdown(L) + (L.status !== "Go" && L.status !== "" ? " (" + L.status + ")" : "");
+        // rocket and countdown on the first line; the mission (often a long payload name) on a line of its own
+        var text = countdown(L) + (L.status !== "Go" && L.status !== "" ? " (" + L.status + ")" : "") + (L.more > 0 ? " · +" + L.more + " more here" : "");
+        return labelMode === 2 ? L.rocket + " · " + text + (L.mission !== "" ? (twoLines ? "\n" : " · ") + L.mission : "") : text;
     }
     readonly property var labelSpecs: labelMode === 0 ? [] : shown.map(function (L) {
         return { x: px(L.lon), y: py(L.lat), gap: mark + 4 * unit, side: "right",

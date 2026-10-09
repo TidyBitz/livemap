@@ -37,9 +37,9 @@ ColumnLayout {
     readonly property var fetchFor: ({
         "Seasonal maps (NASA Blue Marble)": "maps", "City lights (NASA Black Marble)": "maps",
         "Borders (Natural Earth)": "fetch-borders", "Plate boundaries (PB2002)": "fetch-borders",
-        "GeoIP database (DB-IP)": "fetch-geoip"
+        "GeoIP database (DB-IP)": "fetch-geoip", "Oil and gas infrastructure (BSEE, OpenStreetMap)": "fetch-infrastructure"
     })
-    readonly property var fetchSize: ({ "maps": "about 35 MB", "fetch-borders": "about 7 MB", "fetch-geoip": "about 20 MB" })
+    readonly property var fetchSize: ({ "maps": "about 35 MB", "fetch-borders": "about 12 MB", "fetch-geoip": "about 20 MB", "fetch-infrastructure": "a few MB, a minute or two" })
     function fetchCommand(name) {
         var c = fetchFor[name] || "";
         if (c === "maps") c = "fetch-maps" + (oceanFrom.charAt(0) === "/" ? " --ocean-from '" + oceanFrom.replace(/'/g, "'\\''") + "'" : "");

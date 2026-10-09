@@ -2,9 +2,26 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
+import org.kde.plasma.plasma5support as P5Support
 
 Kirigami.FormLayout {
+    id: page
     property alias cfg_QuakeFeed: quakeFeed.editText
+    property alias cfg_FollowMap: followMap.checked
+    property string cfg_Sound
+    property alias cfg_SoundFile: soundFile.text
+    property alias cfg_SoundSevere: soundSevere.checked
+    property alias cfg_SoundLaunch: soundLaunch.checked
+    property alias cfg_SoundLaunchMinutes: soundLaunchMinutes.value
+    readonly property var soundIds: ["none", "pop", "chime", "zing", "custom"]
+    // the same shell line the widget plays with: pw-play (PipeWire), then paplay, then aplay
+    function playCommand(id, file) {
+        var f = id === "custom" ? file : String(Qt.resolvedUrl("../sounds/" + id + ".wav")).replace(/^file:\/\//, "");
+        if (id === "none" || f === "") return "";
+        var q = "'" + f.replace(/'/g, "'\\''") + "'";
+        return "f=" + q + "; pw-play \"$f\" 2>/dev/null || paplay \"$f\" 2>/dev/null || aplay -q \"$f\" 2>/dev/null";
+    }
+    P5Support.DataSource { id: player; engine: "executable"; connectedSources: []; onNewData: (source, data) => disconnectSource(source) }
     property alias cfg_RefreshMinutes: refresh.value
     property alias cfg_ShowQuakes: showQuakes.checked
     property alias cfg_ShowVolcanoes: showVolcanoes.checked
@@ -31,6 +48,7 @@ Kirigami.FormLayout {
         textFromValue: function (v) { return v + " min" }
         valueFromText: function (t) { return parseInt(t) || 5 }
     }
+    QQC2.CheckBox { id: followMap; Kirigami.FormData.label: "Events listed:"; text: "Only the kinds the wallpaper shows (its Show switches)" }
     QQC2.CheckBox { id: showQuakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes" }
     QQC2.CheckBox { id: showVolcanoes; text: "Volcanoes" }
     QQC2.CheckBox { id: showStorms; text: "Storms" }
@@ -44,6 +62,36 @@ Kirigami.FormLayout {
         textFromValue: function (v) { return v + " min" }
         valueFromText: function (t) { return parseInt(t) || 60 }
     }
+    Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Notification sound" }
+    RowLayout {
+        Kirigami.FormData.label: "Sound:"
+        QQC2.ComboBox {
+            id: sound
+            model: ["Off", "Bubble pop", "Chime", "Zing", "A sound file of my own…"]
+            currentIndex: Math.max(0, page.soundIds.indexOf(page.cfg_Sound))
+            onActivated: page.cfg_Sound = page.soundIds[currentIndex]
+        }
+        QQC2.Button {
+            text: "Play"
+            icon.name: "media-playback-start"
+            enabled: sound.currentIndex > 0 && (sound.currentIndex < 4 || soundFile.text !== "")
+            onClicked: { var c = page.playCommand(page.soundIds[sound.currentIndex], soundFile.text); if (c !== "") player.connectSource(c + " # " + Date.now()); }
+        }
+    }
+    QQC2.TextField { id: soundFile; Kirigami.FormData.label: "Sound file:"; Layout.fillWidth: true; visible: sound.currentIndex === 4; placeholderText: "/home/me/Music/alert.ogg - anything pw-play or paplay can play (wav, ogg, flac, mp3)" }
+    QQC2.CheckBox { id: soundSevere; Kirigami.FormData.label: "Play for:"; enabled: sound.currentIndex > 0; text: "A severe event arriving: a magnitude 6+ quake, a category 3+ storm, a red alert" }
+    RowLayout {
+        enabled: sound.currentIndex > 0
+        QQC2.CheckBox { id: soundLaunch; text: "A launch about to happen, within" }
+        QQC2.SpinBox { id: soundLaunchMinutes; enabled: soundLaunch.checked; from: 1; to: 120; textFromValue: function (v) { return v + " min" }; valueFromText: function (t) { return parseInt(t) || 15 } }
+    }
+    QQC2.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        opacity: 0.7
+        text: "One sound per refresh however many events arrive at once; nothing plays for what was already on the list when the widget started. Played with pw-play, paplay or aplay, whichever is installed."
+    }
+    Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Live" }
     QQC2.TextField { id: liveUrl; Kirigami.FormData.label: "Live stream:"; Layout.fillWidth: true; placeholderText: "YouTube URL of the stream" }
     QQC2.TextArea {
         id: liveExtra

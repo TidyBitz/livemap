@@ -12,7 +12,13 @@
     <entry name="ShowFires" type="Bool"><default>true</default></entry>
     <entry name="ShowLaunches" type="Bool"><default>true</default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
+    <entry name="FollowMap" type="Bool"><default>true</default></entry>
     <entry name="SortMode" type="Int"><default>0</default></entry>
+    <entry name="Sound" type="String"><default>none</default></entry>          <!-- none, pop, chime, zing, custom -->
+    <entry name="SoundFile" type="String"><default></default></entry>
+    <entry name="SoundSevere" type="Bool"><default>true</default></entry>
+    <entry name="SoundLaunch" type="Bool"><default>true</default></entry>
+    <entry name="SoundLaunchMinutes" type="Int"><default>15</default></entry>
     <entry name="NewMinutes" type="Int"><default>60</default></entry>
     <entry name="LiveUrl" type="String"><default>https://www.youtube.com/watch?v=awQzjn72bI0</default></entry>
     <entry name="LiveExtra" type="String"><default>NASA TV | https://www.youtube.com/@NASA/live

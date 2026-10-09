@@ -62,6 +62,11 @@
     <entry name="RiverOpacity" type="Int"><default>50</default></entry>
     <entry name="RiverWidth" type="Int"><default>80</default></entry>
     <entry name="ShowTimeZones" type="Bool"><default>false</default></entry>
+    <entry name="ZoneClock" type="Int"><default>0</default></entry>          <!-- 0 UTC offset, 1 offset and time, 2 offset, time and date, 3 time, 4 time and date -->
+    <entry name="ZoneClock12" type="Bool"><default>false</default></entry>
+    <entry name="ZoneTextFollows" type="Bool"><default>true</default></entry>
+    <entry name="ZoneTextColor" type="Color"><default>#8fd3ff</default></entry>
+    <entry name="ZoneLabelPlate" type="Bool"><default>false</default></entry>
     <entry name="ZoneColor" type="Color"><default>#8fd3ff</default></entry>
     <entry name="ZoneOpacity" type="Int"><default>35</default></entry>
     <entry name="ZoneWidth" type="Int"><default>80</default></entry>
@@ -197,6 +202,21 @@
     <entry name="PlateLineColor" type="Color"><default>#ff7a59</default></entry>
     <entry name="PlateLineOpacity" type="Int"><default>45</default></entry>
     <entry name="PlateLineWidth" type="Int"><default>100</default></entry>
+    <!-- oil and gas infrastructure: fixed offshore platforms and refineries (BSEE, OpenStreetMap) -->
+    <entry name="ShowInfra" type="Bool"><default>false</default></entry>
+    <entry name="InfraMode" type="Int"><default>0</default></entry>         <!-- 0 only facilities a storm threatens, 1 all of them -->
+    <entry name="InfraPlatforms" type="Bool"><default>true</default></entry>
+    <entry name="InfraRefineries" type="Bool"><default>true</default></entry>
+    <entry name="InfraColor" type="Color"><default>#c9b3ff</default></entry>
+    <entry name="InfraSize" type="Int"><default>4</default></entry>
+    <entry name="InfraLabels" type="Int"><default>0</default></entry>        <!-- 0 none, 1 refineries, 2 refineries and named platforms -->
+    <entry name="InfraNameThreatened" type="Bool"><default>false</default></entry>
+    <entry name="InfraLabelSize" type="Int"><default>8</default></entry>
+    <entry name="InfraLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="InfraLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="InfraLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="InfraLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="InfraLabelHalo" type="Int"><default>100</default></entry>
     <entry name="QuakeLabels" type="Int"><default>2</default></entry>
     <entry name="QuakeLabelMin" type="Int"><default>0</default></entry>
     <entry name="QuakeLabelSize" type="Int"><default>10</default></entry>
@@ -214,6 +234,18 @@
     <entry name="StormUnits" type="Int"><default>0</default></entry>
     <entry name="StormLabelSize" type="Int"><default>10</default></entry>
     <entry name="ShowStormCone" type="Bool"><default>true</default></entry>
+    <entry name="StormLabelFacilities" type="Bool"><default>true</default></entry>
+    <entry name="StormLabelTwoLines" type="Bool"><default>true</default></entry>
+    <entry name="LaunchLabelTwoLines" type="Bool"><default>true</default></entry>
+    <entry name="QuakeLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="InfraLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="VolcanoLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="StormLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="FireLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="SatLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="LaunchLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="NetLayerOpacity" type="Int"><default>100</default></entry>
+
     <!-- This machine -->
     <entry name="ShowProxyNote" type="Bool"><default>false</default></entry>
     <entry name="ShowNetwork" type="Bool"><default>false</default></entry>

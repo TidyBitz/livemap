@@ -42,10 +42,45 @@ PlasmoidItem {
 
     readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", launch: "↑", sat: "◆" })
     readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", launch: "Launch", sat: "Satellite" })
+    readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", launch: "launches", sat: "sats" })
+    property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
     function wanted(kind) {
         var c = Plasmoid.configuration;
-        return kind === "quake" ? c.ShowQuakes : kind === "volcano" ? c.ShowVolcanoes : kind === "storm" ? c.ShowStorms
-             : kind === "fire" ? c.ShowFires : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
+        var own = kind === "quake" ? c.ShowQuakes : kind === "volcano" ? c.ShowVolcanoes : kind === "storm" ? c.ShowStorms
+                : kind === "fire" ? c.ShowFires : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
+        if (!own) return false;
+        if (c.FollowMap && layers !== null && layerOf[kind]) return layers.indexOf(layerOf[kind]) >= 0;   // only what the map shows
+        return true;
+    }
+    // ---- notification sound: one per refresh, for a severe event arriving or a launch in its last minutes ----
+    property var alerted: ({})                    // keys already sounded for (or on the list when the widget started)
+    property bool primed: false
+    function soundCommand() {
+        var c = Plasmoid.configuration, id = c.Sound || "none";
+        var f = id === "custom" ? String(c.SoundFile || "").trim() : String(Qt.resolvedUrl("../sounds/" + id + ".wav")).replace(/^file:\/\//, "");
+        if (id === "none" || !/^(pop|chime|zing|custom)$/.test(id) || f === "") return "";
+        var q = "'" + f.replace(/'/g, "'\\''") + "'";
+        return "f=" + q + "; pw-play \"$f\" 2>/dev/null || paplay \"$f\" 2>/dev/null || aplay -q \"$f\" 2>/dev/null";
+    }
+    function alertKeys() {
+        var c = Plasmoid.configuration, out = [], mins = Math.max(1, c.SoundLaunchMinutes || 15) * 60;
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            if (it.pin || !wanted(it.kind)) continue;
+            if (c.SoundSevere && !it.future && (it.level || 0) >= 3 && isNew(it)) out.push(it.key || (it.kind + ":" + it.when));
+            if (c.SoundLaunch && it.future && it.when - nowSec <= mins && it.when - nowSec > -120) out.push("soon:" + (it.key || it.when));
+        }
+        return out;
+    }
+    function alertCheck() {
+        var keys = alertKeys(), fresh = false, seen = alerted;
+        for (var i = 0; i < keys.length; i++) {
+            if (!seen[keys[i]]) { seen[keys[i]] = true; fresh = true; }
+        }
+        alerted = seen;
+        if (!primed) { primed = true; return; }     // what was there when the widget started is not news
+        var cmd = soundCommand();
+        if (fresh && cmd !== "") exec.connectSource(cmd + " # " + Date.now());
     }
     readonly property int sortMode: Plasmoid.configuration.SortMode      // 0 newest, 1 severity, 2 kind, 3 soonest launch
     // Past events: 0 live (what is on the map now), 1 past 24 h, 2 past 7 days, 3 past 30 days, 4 custom dates.
@@ -77,6 +112,9 @@ PlasmoidItem {
     // Links come from the feeds: only plain web links are ever handed to the browser or a player.
     function webUrl(u) { u = String(u || "").trim(); return /^https?:\/\/[^\s'"<>]+$/.test(u) ? u : "" }
     function openWeb(u) { u = webUrl(u); if (u !== "") Qt.openUrlExternally(u) }
+    // a launch slides into its last minutes between two refreshes: look again every minute, no helper call
+    Timer { interval: 60000; running: Plasmoid.configuration.SoundLaunch && (Plasmoid.configuration.Sound || "none") !== "none"; repeat: true
+            onTriggered: { root.nowSec = Date.now() / 1000; root.alertCheck(); } }
     Timer { interval: 30000; running: root.expanded; repeat: true; onTriggered: {
         root.nowSec = Date.now() / 1000;
         if (root.mode.full && root.mode.full_until && root.nowSec >= root.mode.full_until) root.refreshMode();   // the helper drops a timed full-speed override when it is over
@@ -100,6 +138,31 @@ PlasmoidItem {
     })()
     // launches with a webcast, for the Live tab
     readonly property var webcasts: items.filter(function (it) { return it.kind === "launch" && it.videos && it.videos.length > 0; })
+    // Rows under a storm for its facilities: a heading per group, then each named facility, unnamed ones counted.
+    function facilityRows(f) {
+        if (!f) return [];
+        var rows = [];
+        function group(list, crossed, label) {
+            if (!list || list.length === 0) return;
+            var n = 0;
+            for (var i = 0; i < list.length; i++) n += list[i].count || 1;
+            rows.push({ head: true, crossed: crossed, text: label + " · " + n + (n === 1 ? " facility" : " facilities") });
+            var shown = 0;
+            for (var j = 0; j < list.length; j++) {
+                if (shown >= 10 && j < list.length - 1 && !list[j].count) {
+                    var rest = 0;
+                    for (var k = j; k < list.length; k++) rest += list[k].count || 1;
+                    rows.push({ head: false, crossed: crossed, kind: "", text: "+" + rest + " more" });
+                    break;
+                }
+                rows.push({ head: false, crossed: crossed, kind: list[j].kind, text: list[j].name + (list[j].count ? "" : list[j].kind === "refinery" ? " · refinery" : " · platform") });
+                shown++;
+            }
+        }
+        group(f.crossed, true, "Crossed");
+        group(f.ahead, false, "In its path");
+        return rows;
+    }
     function ago(t) {
         var s = Date.now() / 1000 - t;
         if (s < 0) return "in " + (-s < 3600 ? Math.round(-s / 60) + " min" : -s < 172800 ? Math.round(-s / 3600) + " h" : Math.round(-s / 86400) + " d");
@@ -124,12 +187,15 @@ PlasmoidItem {
                 try {
                     var r = JSON.parse(data.stdout);
                     root.items = r.items || [];
+                    root.layers = r.layers === undefined ? null : r.layers;
                     root.problems = r.problems || [];
                     root.version = r.version || "";
                     root.problem = "";
                     var newest = 0;
                     for (var i = 0; i < root.items.length; i++) if (!root.items[i].pin && !root.items[i].future && root.items[i].when > newest) newest = root.items[i].when;
                     root.unread = root.items.filter(function (it) { return !it.pin && !it.future && it.when > root.lastSeen && root.wanted(it.kind); }).length;
+                    root.nowSec = Date.now() / 1000;
+                    root.alertCheck();
                 } catch (e) {
                     root.problem = "The helper did not answer: " + String(data.stderr || data.stdout).trim().split("\n").pop();
                 }
@@ -320,6 +386,30 @@ PlasmoidItem {
                                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                                     text: (root.kindName[modelData.kind] || "") + " · " + (modelData.pin ? modelData.detail
                                           : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " · " + modelData.detail)
+                                }
+                                // a storm's oil and gas facilities: what it has crossed, then what lies in its path
+                                Repeater {
+                                    model: root.facilityRows(modelData.facilities)
+                                    RowLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: Kirigami.Units.gridUnit * 0.6
+                                        spacing: Kirigami.Units.smallSpacing
+                                        PC3.Label {
+                                            text: modelData.head ? (modelData.crossed ? "✓" : "→") : (modelData.kind === "refinery" ? "▲" : "■")
+                                            opacity: modelData.head ? 0.8 : 0.55
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.9
+                                            horizontalAlignment: Text.AlignHCenter
+                                        }
+                                        PC3.Label {
+                                            Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
+                                            text: modelData.text
+                                            opacity: modelData.head ? 0.8 : 0.65
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.italic: modelData.head
+                                        }
+                                    }
                                 }
                             }
                             Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)

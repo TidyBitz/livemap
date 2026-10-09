@@ -39,8 +39,9 @@ Item {
     readonly property int labelPx: Math.round((cfg ? cfg.QuakeLabelSize : 10) * unit)
     readonly property int pulseMs: cfg ? cfg.PulseDuration : 2800
     readonly property int periodMs: (cfg ? cfg.PulsePeriod : 5) * 1000
-    // ring radius: M4 about 11 px, M6 about 28 px, M7 about 45 px on a 1920-wide screen (times the size setting)
-    function reachOf(mag) { return Math.pow(1.6, mag) * 1.6 * unit * sizeScale }
+    // ring radius: M4 about 7 px, M6 about 17 px, M7 about 26 px, M8 about 38 px on a 1920-wide screen (times the
+    // size setting). 0.46 halved the old curve, which drew an M6 the size of a small country.
+    function reachOf(mag) { return Math.pow(1.5, mag) * 1.4 * unit * sizeScale }
     function labelFor(e) {
         return "M" + e.mag.toFixed(1) + (labelMode === 2 ? (e.place !== "" ? " \u00b7 " + e.place : "") + " \u00b7 " + Geo.ageText(e.hours) : "");
     }
@@ -126,7 +127,7 @@ Item {
                 readonly property real s: Geo.pulse(overlay.clock, q.index, overlay.pulseMs, overlay.periodMs)
                 visible: q.pulsing && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
-                width: q.reach * 2 * (1 + 1.6 * Math.max(0, s)); height: width; radius: width / 2
+                width: q.reach * 2 * (1 + 0.9 * Math.max(0, s)); height: width; radius: width / 2   // ripples out to about twice the ring
                 color: "transparent"
                 border.color: Qt.rgba(q.toneLight.r, q.toneLight.g, q.toneLight.b, (1 - Math.max(0, s)) * 0.8)
                 border.width: 1.5 * overlay.unit

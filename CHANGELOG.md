@@ -6,6 +6,27 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.46 - 2026-09-25
 
 ### Added
+- Oil and gas infrastructure: fixed offshore platforms (every structure on the US Gulf of Mexico shelf from
+  BSEE, public domain; elsewhere from OpenStreetMap) and refineries (OpenStreetMap), as still marks - a
+  square, a triangle on a base - with names through the label pass, own colour, size and label style. Off by
+  default; its own section and switch; "Download" on its source line (a minute or two, Overpass is slow).
+  Fixed structures only: mobile rigs are in no free feed. `livemap-helper fetch-infrastructure`, `infrastructure`;
+  Status row "Oil and gas infrastructure (BSEE, OpenStreetMap)".
+- Storms and infrastructure: for every active storm the helper finds the platforms and refineries inside its
+  forecast cone (or, for a storm without a cone, within 120 km of its position and forecast track). The
+  storm's label says "· 14 platforms, 2 refineries in the cone · crossed 3 facilities", the widget's row too;
+  a threatened facility is drawn larger with a ring, and faintly ringed once the storm has passed it. The
+  split is what the storm has already crossed (within 100 km of its past track or its position now) and
+  what lies in its path; the widget lists both under the storm's row, facility by facility - refineries by
+  name, platforms by name where they have one, the rest counted - and keeps the list on a storm that has
+  gone. "Infrastructure shown" chooses between only what a storm threatens (the default: with no storm near
+  any facility nothing is drawn) and everything always; "Infrastructure threatened: Named on the map with
+  their storm" (off by default) prints "Pascagoula Refinery · Isaias" beside the mark. `storms --table`
+  prints THREATENS lines. The Status row counts the platforms by region (Gulf of Mexico, North Sea,
+  Mediterranean, West Africa, Persian Gulf, Asia-Pacific) so an incomplete download is plain to see.
+- A source that downloaded fine shows a small refresh button on its Source line to download it again (the
+  infrastructure file is worth refreshing monthly); an incomplete download is a yellow row with the Download
+  button, not a green one.
 - Under Countries: state and province names (Natural Earth's admin-1 label points, 4 600 regions, with a
   density choice) and places - country capitals (a ringed dot), state and province capitals (a dot) and
   cities over 500 000 / 1 / 5 / 10 million people (a small dot, or one sized by population). Each of the four
@@ -15,6 +36,11 @@ release notes written at the time; their dates are the day the version was hande
   6 MB); existing installs show a Download button on the Countries source line.
 - Rivers: a new section under Geographic layers - Natural Earth's major rivers and lake centrelines at the
   Countries detail level, own colour, opacity and thickness, under the coastlines.
+- Time zone labels can carry the clock: "Time zone labels" chooses UTC offset / offset and local time /
+  offset, time and date / local time / time and date (the date on a second line), 24- or 12-hour. The time is
+  the real one of each zone's main place, summer time included: the helper takes the place Natural Earth
+  names for the zone (`tz_name1st`) and asks the system's tz database for its offset now and the next
+  change, so the labels flip on the night of the change without any download. Updated every minute.
 - Every row on the settings page says what it changes: "Border line colour", "Tectonic line thickness",
   "Earthquake ring size", "Storm label style", "Time zone label placement" and so on, the same pattern in
   every section, instead of "Colour", "Labels" and "Line thickness" meaning something different each time.
@@ -34,6 +60,24 @@ release notes written at the time; their dates are the day the version was hande
   "past events" view reads this, so it fills from the moment this version first runs.
 
 ### Fixed
+- Time zone labels in one row went missing wherever the row ran through a country name or a city (UTC to
+  UTC+3 across Africa at the equator): they were fitted last and lost. The row is placed first now, and the
+  names and places make way for it; a zone too narrow for its label at that latitude still gets one unless a
+  neighbour's label is in the way. "Time zone label text" row: a plate, the text following the line colour
+  or its own colour; the label opacity is the style row's alone, no longer tied to the line opacity.
+- The widget ignored the wallpaper's units: a storm read "194 km/h" with the map set to mph, a fire "5 032 ha"
+  with the map in acres. The wallpaper hands its Units and Storm wind choices to the helper with the layers
+  (`power --units`), and the feed's titles follow them.
+- The widget's live list lost the storms: the feed kept the 60 newest items, and a storm first seen three
+  days ago fell off the end behind a day of quakes and fire clusters, although it was still on the map.
+  Storms, volcanoes, launches and satellites now always stay; the cap falls on quakes and fires only.
+- Oil and gas infrastructure drawn from the first download for ever: the layer only re-read the file while
+  it had nothing, so a second Download (the one that brought the North Sea and the Mediterranean) changed
+  the Status line and not the map until plasmashell restarted. It looks again every five minutes (every
+  minute while empty) and redraws when the file's own timestamp has changed.
+- Launches: a site with several launches queued (Vandenberg, the Cape) showed only the earliest with nothing
+  to say the others existed; the label now ends "· +2 more here", and pads are grouped by site so the Cape's
+  neighbouring pads do not print over each other.
 - The Countries "Line thickness" slider also set the time zone lines (they had no thickness of their own);
   time zones have "Time zone line thickness" now.
 - `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new
@@ -44,6 +88,24 @@ release notes written at the time; their dates are the day the version was hande
   the data folder is shared.
 
 ### Changed
+- Earthquake rings are half the size they were: an M6 is about 16 px across on a 1920-wide screen (it was
+  28), an M4 about 7, and the ripple runs out to twice the ring instead of two and a half times. The
+  "Earthquake ring size" percentage still scales from there, and now goes down to 10 % (it stopped at 40).
+- Storm labels put the facilities on a second line ("Isaias · Hurricane cat 3 · 120 mph" over "5 refineries
+  in the cone · crossed 13 facilities"), and launch labels put the mission on one ("Falcon 9 Block 5 ·
+  T−13 h 06 min · +2 more here" over "SDA Tranche 1 Transport Layer A"): one line had grown too long to read.
+  Both are settings: "Storm label facilities" (what it threatens, and whether on a line of its own) and
+  "Launch label mission: on a line of its own". Storm labels have a fourth choice, "Name and wind", for
+  when the icon already says the class; storm labels follow the style row's Bold instead of always being
+  bold; every label size goes down to 4 px (it stopped at 6).
+- Every event layer has a "layer opacity" row - Earthquake, Volcano, Storm, Wildfire, Satellite, Launch,
+  Network and Infrastructure - for the marks, tracks and rings as a whole (10-100 %); the labels keep their
+  own text opacity. A storm track and icon at 50 % sits back behind the rest.
+- Gulf of Mexico platforms are named the way the Gulf names them, "MC 807 A" (area, block, structure),
+  instead of the bare structure letter or number BSEE's file carries ("A", "1"); download the
+  infrastructure again to pick the names up.
+- The wallpaper tells the helper which event layers it shows (`power --layers`, `layers.json`) so the
+  widget can list only those.
 - The settings page folds: every section is one line - a switch (its Show box), the name, and a sentence
   saying what it is set to ("Magnitude 4.5+, past day · rings 100 % · labels: magnitude, place and age · pulse:
   newly reported or significant · tectonic plates") with a dot for the state of its sources - and opens to
@@ -61,9 +123,21 @@ release notes written at the time; their dates are the day the version was hande
 ### Added
 - Map controls: a "Power" section with a Full speed switch and a duration choice (until switched off, 1, 4
   or 8 hours), with the time left while it runs.
+- A storm's row lists the oil and gas facilities it has crossed ("✓ Crossed · 2 facilities") and those in its
+  path ("→ In its path · 5 facilities"), each refinery and named platform on its own line, unnamed platforms
+  counted; the list stays on the storm once it has gone, so the record says what it hit.
 - Past events: a range chooser next to the sort order - on the map now, past 24 hours, 7 days, 30 days, or
   two dates - lists what has already left the map (quakes that aged out, storms that dissipated, launches
   that flew) with the date and time of each, from the helper's own 90-day record.
+
+- Notification sound: off, a bubble pop, a chime, a zing, or a sound file of your own, played when a severe
+  event arrives (a magnitude 6+ quake, a category 3+ storm, a red alert - the red rows) or a launch is within
+  its last minutes (15 by default). One sound per refresh however many arrive together; nothing for what was
+  already on the list when the widget started. Played with pw-play, paplay or aplay, whichever is there;
+  "Play" on the settings page tries it.
+- "Events listed: only the kinds the wallpaper shows" (on by default): a kind switched off in the wallpaper's
+  settings - wildfires, say - is left out of the list, so the widget matches the map. The widget's own Show
+  boxes still apply on top; with it off the list shows every kind as before.
 
 ### Changed
 - Status tab: the list of sources is there at once (grey dot, "checking…" on each row) instead of an empty tab

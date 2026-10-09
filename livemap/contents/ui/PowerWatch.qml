@@ -24,6 +24,8 @@ Item {
     property int highRuns: 0
     property int lowRuns: 0
     property var mode: ({})                       // {pause, plain, hide: []} from the widget
+    property string layers: ""                    // "quakes,storms,...": the event layers switched on, for the widget
+    property string units: "0,0"                  // distance, wind: the Units and Storm wind choices, for the widget
     property bool helperOk: true
 
     P5Support.DataSource {
@@ -66,6 +68,6 @@ Item {
         running: watch.helper !== ""
         repeat: true
         triggeredOnStart: true
-        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power # " + Date.now())
+        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " # " + Date.now())
     }
 }

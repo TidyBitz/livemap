@@ -37,6 +37,26 @@ Item {
     readonly property bool showZoneLabels: cfg ? cfg.ZoneLabels : true
     readonly property int zonePx: Math.round((cfg ? cfg.ZoneLabelSize : 9) * unit)
     readonly property int zonePlacement: cfg ? cfg.ZonePlacement : 0           // 0 inside each zone, 1 one row
+    readonly property int zoneClock: cfg ? cfg.ZoneClock : 0                   // 0 offset, 1 offset and time, 2 offset, time and date, 3 time, 4 time and date
+    readonly property bool zoneClock12: cfg ? cfg.ZoneClock12 : false
+    property real clockMs: Date.now()                                          // ticks every minute while the clocks show
+    Timer { interval: 60000; running: overlay.showZones && overlay.showZoneLabels && overlay.zoneClock > 0; repeat: true; triggeredOnStart: true
+            onTriggered: overlay.clockMs = Date.now() }
+    // The label for one zone: z = [text, lon, lat, width, offset now, next change (epoch s), offset after it].
+    // The offset is the real one of the zone's main place (summer time included) while the data is fresh.
+    function zoneText(z) {
+        if (zoneClock === 0 || z.length < 7) return z[0];
+        var off = z[5] > 0 && clockMs / 1000 >= z[5] ? z[6] : z[4];
+        var d = new Date(clockMs + off * 3600000);
+        var h = d.getUTCHours(), m = d.getUTCMinutes();
+        var time = zoneClock12 ? ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " am" : " pm") : (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        var date = days[d.getUTCDay()] + " " + d.getUTCDate() + " " + months[d.getUTCMonth()];
+        var first = zoneClock <= 2 ? z[0] + " \u00b7 " + time : time;
+        return (zoneClock === 2 || zoneClock === 4) ? first + "\n" + date : first;
+    }
+    function longestLine(t) { var parts = t.split("\n"), n = 0; for (var i = 0; i < parts.length; i++) n = Math.max(n, parts[i].length); return n; }
+    function lineCount(t) { return t.split("\n").length }
     readonly property int zoneRowLat: cfg ? cfg.ZoneRowLat : -55
     property var zoneLines: []
     property var zoneLabels: []
@@ -133,17 +153,30 @@ Item {
     // one label per zone polygon, only where the polygon is wide enough for it; biggest polygons first
     // Zone labels: widest areas first, only where the area is wide enough for the text, never over a country
     // name (the fitted names go into the overlap test first, as boxes that are already taken).
-    readonly property var fittedZones: (function () {
+    // Inside each zone: fitted after the country names, places and state names, and only where the zone is
+    // wide enough. In one row: the row was asked for, so every zone's label is placed first (only its
+    // neighbours in the row can push it out) and the names make way for it instead.
+    function zoneBox(z) {
+        var tw = longestLine(z.text) * zonePx * 0.65, th = zonePx * 1.3 * lineCount(z.text);
+        return { x: z.x - tw / 2, y: z.y - th / 2, w: tw, h: th };
+    }
+    readonly property var wantedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
+        var tick = clockMs;                                   // so the clocks re-fit every minute
+        return zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
+            .map(function (z) { return { text: zoneText(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
+    })()
+    readonly property var rowZones: (function () {             // one-row mode: the row first, among itself
+        if (zonePlacement !== 1) return [];
+        var keep = Geo.declutter(wantedZones.map(zoneBox), 3 * unit);
+        return wantedZones.filter(function (_z, k) { return keep[k]; });
+    })()
+    readonly property var rowZoneBoxes: rowZones.map(zoneBox)
+    readonly property var fittedZones: (function () {
+        if (zonePlacement === 1) return rowZones;
         var taken = nameBoxes.concat(placeBoxes, stateBoxes);
-        var wanted = zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
-            .filter(function (z) { return z[3] * width / 360 > z[0].length * zonePx * 0.7; })
-            .map(function (z) { return { text: z[0], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
-        var boxes = taken.concat(wanted.map(function (z) {
-            var tw = z.text.length * zonePx * 0.65, th = zonePx * 1.3;
-            return { x: z.x - tw / 2, y: z.y - th / 2, w: tw, h: th };
-        }));
-        var keep = Geo.declutter(boxes, 3 * unit);
+        var wanted = wantedZones.filter(function (z) { return z.w * width / 360 > longestLine(z.text) * zonePx * 0.7; });
+        var keep = Geo.declutter(taken.concat(wanted.map(zoneBox)), 3 * unit);
         return wanted.filter(function (_z, k) { return keep[taken.length + k]; });
     })()
 
@@ -192,8 +225,8 @@ Item {
     // so "All" means "as many as fit on this screen" instead of a pile of letters over Europe.
     readonly property int namePx: Math.round((cfg ? cfg.NameSize : 10) * unit)
     readonly property real nameStrength: (cfg ? cfg.NameOpacity : 85) / 100
-    function fitNames(list, w, h, rankLimit, px) {
-        var wanted = [], boxes = [];
+    function fitNames(list, w, h, rankLimit, px, taken) {
+        var wanted = [], boxes = (taken || []).slice(), skip = boxes.length;
         for (var i = 0; i < list.length; i++) {
             var n = list[i];
             if (n[3] > rankLimit) continue;
@@ -204,9 +237,9 @@ Item {
             boxes.push({ x: x - tw / 2, y: y - th / 2, w: tw, h: th });
         }
         var keep = Geo.declutter(boxes, 2 * overlay.unit);
-        return wanted.filter(function (_n, k) { return keep[k]; });
+        return wanted.filter(function (_n, k) { return keep[skip + k]; });
     }
-    readonly property var fittedNames: showBorders && showNames ? fitNames(countryNames, width, height, nameRank, namePx) : []
+    readonly property var fittedNames: showBorders && showNames ? fitNames(countryNames, width, height, nameRank, namePx, rowZoneBoxes) : []
     function boxOf(x, y, text, px, bold) {
         var tw = text.length * (px * (bold ? 0.72 : 0.62) + overlay.unit), th = px * 1.3;
         return { x: x - tw / 2, y: y - th / 2, w: tw, h: th };
@@ -222,9 +255,9 @@ Item {
             var named = st.marks !== 1;
             return { name: p[0], x: x, y: y, kind: p[4], dot: dot, named: named, px: st.px, lx: x + dot + 3 * unit, ly: y };
         });
-        var boxes = nameBoxes.concat(wanted.map(function (p) { return placeBox(p); }));
-        var keep = Geo.declutter(boxes, 2 * unit);
-        return wanted.filter(function (_p, k) { return keep[nameBoxes.length + k]; });
+        var taken = rowZoneBoxes.concat(nameBoxes);
+        var keep = Geo.declutter(taken.concat(wanted.map(function (p) { return placeBox(p); })), 2 * unit);
+        return wanted.filter(function (_p, k) { return keep[taken.length + k]; });
     })()
     function placeBox(p) {
         if (!p.named) return { x: p.x - p.dot, y: p.y - p.dot, w: 2 * p.dot, h: 2 * p.dot };
@@ -236,7 +269,7 @@ Item {
         if (!showStateNames) return [];
         var wanted = stateNames.filter(function (n) { return n[3] <= stateRank; })
             .map(function (n) { return { name: n[0], x: (n[1] + 180) / 360 * width, y: (90 - n[2]) / 180 * height }; });
-        var taken = nameBoxes.concat(placeBoxes);
+        var taken = rowZoneBoxes.concat(nameBoxes, placeBoxes);
         var boxes = taken.concat(wanted.map(function (n) { return boxOf(n.x, n.y, n.name, statePx, cfg ? cfg.StateNameLabelBold : false); }));
         var keep = Geo.declutter(boxes, 2 * unit);
         return wanted.filter(function (_n, k) { return keep[taken.length + k]; });
@@ -250,10 +283,11 @@ Item {
             x: modelData.x - width / 2
             y: modelData.y - height / 2
             text: modelData.text
-            textColor: overlay.zoneInk
-            textOpacity: Math.min(1, overlay.zoneStrength * 2) * (cfg ? cfg.ZoneLabelOpacity : 100) / 100
-            plate: false
+            textColor: cfg && !cfg.ZoneTextFollows ? cfg.ZoneTextColor : overlay.zoneInk
+            textOpacity: (cfg ? cfg.ZoneLabelOpacity : 100) / 100
+            plate: cfg ? cfg.ZoneLabelPlate : false
             plateColor: cfg ? cfg.PlateColor : "#000510"
+            plateOpacity: (cfg ? cfg.PlateOpacity : 60) / 100
             px: overlay.zonePx
             bold: cfg ? cfg.ZoneLabelBold : false
             caps: cfg ? cfg.ZoneLabelCaps : false
