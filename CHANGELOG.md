@@ -100,6 +100,11 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.42 - 2026-09-23
 
 ### Fixed
+- A storm that was renamed when it strengthened (GDACS and NHC call a depression "Twenty-E" or "Nine" and
+  then "Rachel" or "Isaias") no longer splits into an old name that ages out as "no longer tracked" and a
+  new one that starts from scratch: the two feeds' event ids travel with the storm, a storm is matched by
+  id (or, when the feeds rename at different moments, by position within 250 km), the memory - first seen,
+  breadcrumbs - moves to the new name, and the NHC name wins. The widget says "was Twenty-E" for a while.
 - Satellite labels jumped every 20 seconds while the picture glided: the label is still laid out against the
   20-second position (a full label relayout is the expensive part), but between relayouts it now slides with
   the marker, recomputed once a second from a handful of numbers. Leader lines follow too.

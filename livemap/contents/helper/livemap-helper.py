@@ -428,7 +428,7 @@ HISTORY = DATA / "history.json"      # every event the widget's feed has shown, 
 HISTORY_DAYS = 90                    # older entries are dropped on the next write
 
 
-def remember_events(kind, items, key_of, keep_hours, now=None, sig_of=None, raised_of=None, trail_of=None):
+def remember_events(kind, items, key_of, keep_hours, now=None, sig_of=None, raised_of=None, trail_of=None, ident_of=None):
     """Track first/last sighting of each item of `kind`. Adds first_hours (since this machine first saw it) and
     gone=False to every item; appends items that dropped out of the feed within keep_hours as gone=True with
     hours = time since last seen. With sig_of, a change of the item's signature (an alert level, a status)
@@ -483,10 +483,32 @@ def remember_events(kind, items, key_of, keep_hours, now=None, sig_of=None, rais
     bucket = mem.setdefault(kind, {})
     baseline = not bucket                          # first look ever: what is there now was there before we looked
     present = set()
+    if ident_of:                                   # entries from before ids were kept: derive them from the stored item
+        for oe in bucket.values():                 # (a GDACS id is a number, an NHC id looks like AL092026)
+            if isinstance(oe, dict) and "ids" not in oe and (oe.get("item") or {}).get("id"):
+                iid = str(oe["item"]["id"])
+                oe["ids"] = [("nhc:%s" if (oe["item"].get("source") == "NHC" or not iid.isdigit()) else "gdacs:%s") % iid]
     for it in items:
         k = str(key_of(it))
         present.add(k)
         old = bucket.get(k)
+        if ident_of:                               # the same thing under a new key (a storm renamed on upgrade): carry
+            ids = [str(i) for i in (ident_of(it) or [])]   # its memory over instead of ageing the old name out as gone
+            for ok, oe in list(bucket.items()):
+                if ok == k or not isinstance(oe, dict) or not set(oe.get("ids") or []) & set(ids):
+                    continue
+                if old is None:
+                    old = bucket[k] = bucket.pop(ok)
+                else:                              # both exist (the new name was seen before the link was known): merge
+                    oe_first, o_first = oe.get("first"), old.get("first")
+                    old["first"] = None if oe_first is None or o_first is None else min(oe_first, o_first)
+                    if len(oe.get("trail") or []) > len(old.get("trail") or []):
+                        old["trail"] = oe["trail"]
+                    bucket.pop(ok)
+                it["was_named"] = it.get("was_named") or ok
+            if old is None:
+                old = bucket[k] = {"first": None if baseline else now}
+            old["ids"] = list(dict.fromkeys((old.get("ids") or []) + ids))[-8:]
         if old is None:
             old = bucket[k] = {"first": None if baseline else now}
         sig, prev_sig = (sig_of(it) if sig_of else None), old.get("sig")
@@ -536,6 +558,13 @@ def remember_events(kind, items, key_of, keep_hours, now=None, sig_of=None, rais
     except OSError:
         pass
     return out
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    import math
+    p1, p2, dl = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 6371.0 * 2 * math.asin(math.sqrt(a))
 
 
 # --------------------------------------------------------------- storms -----
@@ -855,12 +884,31 @@ def fetch_storms_merged(debug=False):
         errors.append("NHC - %s" % e)
     if not storms and not nhc:
         raise RuntimeError("; ".join(errors))
+    for st in storms:
+        st["ids"] = ["gdacs:%s" % st["id"]] if st.get("id") else []
+    for n in nhc:
+        n["ids"] = ["nhc:%s" % n["id"]] if n.get("id") else []
     by_name = {st["name"].lower(): st for st in storms}
+    matched = set()
     for n in nhc:
         st = by_name.get(n["name"].lower())
+        if st is None:                                  # the two feeds rename a storm at different moments ("Twenty-E" ->
+            best, best_km = None, 250                   # "Rachel"): the same storm is the one within 250 km that no name matched
+            for cand in storms:
+                if id(cand) in matched or cand.get("source", "").endswith("NHC"):
+                    continue
+                km = haversine_km(cand["lat"], cand["lon"], n["lat"], n["lon"])
+                if km < best_km:
+                    best, best_km = cand, km
+            st = best
         if st is None:
             storms.append(n)
             continue
+        matched.add(id(st))
+        st["ids"] = list(dict.fromkeys((st.get("ids") or []) + (n.get("ids") or [])))
+        if st["name"].lower() != n["name"].lower():
+            st["was_named"] = st["name"]                # the NHC name is the official one
+            st["name"] = n["name"]
         st.update(wind=n["wind"], kind=n["kind"], cat=n["cat"], wind_is_peak=False, source=(st.get("source") or "GDACS") + "+NHC")
         if n.get("hours") is not None and (st.get("hours") is None or n["hours"] < st["hours"]):
             st["hours"] = n["hours"]
@@ -887,7 +935,8 @@ def cmd_storms(args):
         note = "Storms: GDACS unreachable, showing NHC (Atlantic and Pacific only)" if args.stale <= 0 else ""
     try:
         storms = remember_events("storm", storms, lambda st: st["name"].lower(), args.keep,
-                                 trail_of=lambda st: [round(st["lon"], 2), round(st["lat"], 2), None if st.get("wind_is_peak") else st.get("wind"), 1])
+                                 trail_of=lambda st: [round(st["lon"], 2), round(st["lat"], 2), None if st.get("wind_is_peak") else st.get("wind"), 1],
+                                 ident_of=lambda st: st.get("ids") or [])
     except Exception as e:
         note = note or "Storms: %s" % e
     import time
@@ -2108,7 +2157,8 @@ def cmd_feed(args):
         mem = {}
     for kind, url_of, title_of in (
             ("storm", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=TC" % it.get("id", ""),
-             lambda it: "%s \u00b7 %s%s \u00b7 %s km/h" % (it.get("name", "?"), it.get("kind", ""), " cat %d" % it["cat"] if it.get("cat") else "", it.get("wind", 0))),
+             lambda it: "%s \u00b7 %s%s \u00b7 %s km/h%s" % (it.get("name", "?"), it.get("kind", ""), " cat %d" % it["cat"] if it.get("cat") else "", it.get("wind", 0),
+                                                         " \u00b7 was %s" % str(it["was_named"]).title() if it.get("was_named") else "")),
             ("volcano", lambda it: "https://volcano.si.edu/search_volcano.cfm?keyword=%s" % urllib.request.quote(it.get("name", "")),
              lambda it: "%s \u00b7 %s" % (it.get("name", "?"), (it.get("level") + " (" + it.get("alert", "") + ")") if it.get("alert") else "new eruption" if it.get("status") == "new" else "active")),
             ("fire", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=WF" % it.get("id", ""),
