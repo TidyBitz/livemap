@@ -13,6 +13,10 @@ release notes written at the time; their dates are the day the version was hande
   Pause and Plain map still apply on top. The corner notice says "Full speed from the widget" while it is
   overriding something. `livemap-helper mode --full on|off [--full-hours N]`; `full` and `full_until` in
   mode.json.
+- Fault lines: the tectonic plate boundaries (Peter Bird's PB2002 model, GeoJSON by Hugo Ahlenius / Nordpil,
+  ODC-By) as still vector lines under the borders, with their own colour, opacity and thickness - under
+  Earthquakes in the settings, where they explain the ring clusters. Off by default. The file (about 0.2 MB)
+  comes down with "Download border data"; Status row "Plate boundaries (PB2002)"; `livemap-helper plates`.
 
 ### Fixed
 - `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new

@@ -15,8 +15,9 @@
 #   livemap.sh status                      what is installed, running and stored
 #   livemap.sh help [command]
 #
-# Options:  --force   install even when a required dependency is missing (you are on your own)
-#           --yes     do not ask before purge
+# Options:  --force        install even when a required dependency is missing (you are on your own)
+#           --yes          do not ask before purge
+#           --no-restart   install: do not restart plasmashell afterwards (the update then shows after a re-login)
 #
 # The install stops when a required dependency is missing and prints the package names to install for
 # your distribution. Run `livemap.sh doctor` at any time to see the same list.
@@ -31,7 +32,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"
 WP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/wallpapers/$WALLPAPER_ID"
 WG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids/$WIDGET_ID"
 APPLETSRC="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-FORCE=0; YES=0
+FORCE=0; YES=0; NO_RESTART=0
 
 # ---- output ---------------------------------------------------------------------------------------
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; D=$'\033[2m'; N=$'\033[0m'; else B=; G=; Y=; R=; D=; N=; fi
@@ -419,6 +420,15 @@ PY
 
 stop_shell()  { have kquitapp6 && kquitapp6 plasmashell >/dev/null 2>&1; sleep 2; }
 start_shell() { (setsid kstart plasmashell >/dev/null 2>&1 &) ; sleep 1; }
+restart_shell() {
+    # plasmashell only reads a package's settings schema and QML when it starts: without this, an updated map
+    # keeps running the old code and the settings page cannot save new settings. Takes a few seconds; open
+    # windows are not touched (plasmashell is the desktop, panels and wallpaper, not the window manager).
+    if systemctl --user is-active plasma-plasmashell.service >/dev/null 2>&1; then
+        systemctl --user restart plasma-plasmashell.service && return 0
+    fi
+    stop_shell; start_shell
+}
 
 # ---- commands ---------------------------------------------------------------------------------
 cmd_install() {
@@ -442,8 +452,13 @@ cmd_install() {
     note "wallpaper $(version_of "$WP_DIR" || echo '-') / widget $(version_of "$WG_DIR" || echo '-')"
     migrate_old_ids
     echo
-    if grep -qs "\[Wallpaper\]\[$WALLPAPER_ID\]" "$APPLETSRC"; then
-        say "Done. The map is already in use: re-apply it (Desktop settings > Apply) or run:  $0 activate"
+    if grep -qs "\[Wallpaper\]\[$WALLPAPER_ID\]\|plugin=$WIDGET_ID" "$APPLETSRC"; then
+        if [ "$NO_RESTART" = 1 ]; then
+            say "Done. The map is in use: the update shows after plasmashell restarts (log out and in, or: systemctl --user restart plasma-plasmashell)"
+        else
+            say "Done. Restarting plasmashell so the update is live (a few seconds; your windows stay open)"
+            restart_shell && note "plasmashell restarted" || warn "could not restart plasmashell: log out and in to see the update"
+        fi
     else
         say "Done. Next:"
         note "1. $0 activate                       - make it the wallpaper on every desktop"
@@ -519,8 +534,9 @@ cmd_help() {
         doctor)   echo "doctor [--report]: checks Plasma, the tools, python, every QML module the packages import, and the optional extras;"
                   echo "  prints the install command for your distribution when something is missing. --report adds versions, GPU,"
                   echo "  screens, the helper's status and the last log lines, for a bug report." ;;
-        install|update) echo "install [livemap.zip] [--force]: runs doctor first and stops when a required dependency is missing; then"
-                  echo "  installs or updates the wallpaper and the widget from the zip (looked for in ., then ~/Downloads)." ;;
+        install|update) echo "install [livemap.zip] [--force] [--no-restart]: runs doctor first and stops when a required dependency is missing;"
+                  echo "  then installs or updates the wallpaper and the widget from the zip (looked for in ., then ~/Downloads)."
+                  echo "  When the map is in use, plasmashell is restarted so the update is live (--no-restart skips that)." ;;
         activate) echo "activate: sets Live World Map as the wallpaper on every desktop, through plasmashell's scripting interface." ;;
         deactivate) echo "deactivate: sets the stock image wallpaper on every desktop; nothing is uninstalled." ;;
         remove)   echo "remove: deactivate, remove the widget from every panel and desktop, uninstall both packages. Data and settings stay." ;;
@@ -537,6 +553,7 @@ for a in "$@"; do
     case "$a" in
         --force) FORCE=1 ;;
         --yes|-y) YES=1 ;;
+        --no-restart) NO_RESTART=1 ;;
         *) ARGS+=("$a") ;;
     esac
 done

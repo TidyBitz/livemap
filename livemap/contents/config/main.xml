@@ -137,6 +137,11 @@
     <entry name="QuakeFeed" type="Int"><default>1</default></entry>
     <entry name="QuakeColor" type="Color"><default>#ffa640</default></entry>
     <entry name="QuakeSize" type="Int"><default>100</default></entry>
+    <!-- tectonic plate boundaries (PB2002), drawn under the political lines; shown with the Earthquakes settings -->
+    <entry name="ShowPlates" type="Bool"><default>false</default></entry>
+    <entry name="PlateLineColor" type="Color"><default>#ff7a59</default></entry>
+    <entry name="PlateLineOpacity" type="Int"><default>45</default></entry>
+    <entry name="PlateLineWidth" type="Int"><default>100</default></entry>
     <entry name="QuakeLabels" type="Int"><default>2</default></entry>
     <entry name="QuakeLabelMin" type="Int"><default>0</default></entry>
     <entry name="QuakeLabelSize" type="Int"><default>10</default></entry>

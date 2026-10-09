@@ -82,6 +82,10 @@ Kirigami.FormLayout {
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
     property alias cfg_QuakeColor: quakeColor.color
     property int cfg_QuakeSize
+    property alias cfg_ShowPlates: plates.checked
+    property alias cfg_PlateLineColor: plateLineColor.color
+    property int cfg_PlateLineOpacity
+    property int cfg_PlateLineWidth
     property alias cfg_QuakeLabels: quakeLabels.currentIndex
     property alias cfg_QuakeLabelMin: quakeLabelMin.currentIndex
     property alias cfg_QuakeLabelSize: quakeLabelSize.value
@@ -267,6 +271,20 @@ Kirigami.FormLayout {
                     elide: Text.ElideNone
                     opacity: 0.8
                     font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize - 1)
+                }
+                // the fix next to the problem: a source that only needs downloading gets its button right here
+                QQC2.Button {
+                    readonly property string command: statusLoader.item ? statusLoader.item.fetchCommand(modelData) : ""
+                    visible: command !== "" && check && check.state !== "ok"
+                    enabled: statusLoader.item && !statusLoader.item.busy
+                    text: statusLoader.item ? statusLoader.item.fetchLabel(modelData) : "Download"
+                    icon.name: "download"
+                    onClicked: statusLoader.item.run(command)
+                }
+                QQC2.BusyIndicator {
+                    visible: statusLoader.item && statusLoader.item.busy && check && check.state !== "ok" && statusLoader.item.fetchCommand(modelData) !== ""
+                    running: visible
+                    implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight
                 }
             }
         }
@@ -599,7 +617,7 @@ Kirigami.FormLayout {
 
     // ============================================================ Earthquakes
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Earthquakes" }
-    Source { names: ["Earthquake feed (USGS)"] }
+    Source { names: ["Earthquake feed (USGS)", "Plate boundaries (PB2002)"] }
 
     QQC2.CheckBox { id: quakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes (USGS)" }
     QQC2.ComboBox {
@@ -648,6 +666,23 @@ Kirigami.FormLayout {
         }
     }
     Note { text: "Newly reported = it happened less than the 'Newly reported' hours ago (under Ageing and pulses). Quakes age from the moment they happened." }
+    QQC2.CheckBox { id: plates; Kirigami.FormData.label: "Fault lines:"; text: "Tectonic plate boundaries (PB2002)" }
+    KQuickControls.ColorButton { id: plateLineColor; Kirigami.FormData.label: "Line colour:"; enabled: plates.checked; showAlphaChannel: false; dialogTitle: "Plate boundary colour" }
+    Amount {
+        Kirigami.FormData.label: "Line opacity:"
+        enabled: plates.checked
+        from: 5
+        value: form.cfg_PlateLineOpacity
+        onValueChanged: form.cfg_PlateLineOpacity = value
+    }
+    Amount {
+        Kirigami.FormData.label: "Line thickness:"
+        enabled: plates.checked
+        from: 30; to: 400
+        value: form.cfg_PlateLineWidth
+        onValueChanged: form.cfg_PlateLineWidth = value
+    }
+    Note { text: "The boundaries between the tectonic plates, where most earthquakes and volcanoes sit. Still lines under the borders; they cost nothing while idle." }
 
     // ============================================================== Volcanoes
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Volcanoes" }

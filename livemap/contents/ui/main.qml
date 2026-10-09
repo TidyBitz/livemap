@@ -309,6 +309,17 @@ WallpaperItem {
             // -- overlay layers ---------------------------------------------------
             // Each lives in its own file and is only instantiated while enabled, so a
             // disabled layer costs nothing and a broken one cannot take the map down.
+            Loader {                                       // plate boundaries, under the political lines
+                anchors.fill: parent
+                id: plateLoader
+                active: cfg.ShowPlates
+                source: "PlateLayer.qml"
+                onLoaded: {
+                    item.cfg = root.cfg;
+                    item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+                }
+                onStatusChanged: if (status === Loader.Error) console.warn("livemap: plate layer failed to load")
+            }
             Loader {
                 anchors.fill: parent
                 id: borderLoader
@@ -438,6 +449,7 @@ WallpaperItem {
             cfg.Seasonal && !root.seasonalOk ? "Seasonal maps not downloaded (showing the fallback image)" : "",
             lights.wanted && lights.status === Image.Error ? "City lights not downloaded" : "",
             borderLoader.item && borderLoader.item.hint !== "" ? borderLoader.item.hint : "",
+            plateLoader.item && plateLoader.item.hint !== "" ? plateLoader.item.hint : "",
             stormLoader.item && stormLoader.item.hint !== "" ? stormLoader.item.hint : "",
             fireLoader.item && fireLoader.item.hint !== "" ? fireLoader.item.hint : "",
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",

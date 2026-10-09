@@ -13,7 +13,9 @@
   livemap-helper status              JSON health report on every data source (the settings page calls this)
   livemap-helper make-lights         turn night.jpg into lights.png: only the lights, transparent elsewhere (numpy + pillow)
   livemap-helper fetch-borders       download Natural Earth coastlines, country and state borders (~6 MB, public domain)
+                                     and the PB2002 plate boundaries (~1 MB, ODC-By)
   livemap-helper borders             the border lines as compact JSON (the wallpaper calls this)
+  livemap-helper plates              tectonic plate boundaries (PB2002) as compact JSON (the wallpaper calls this)
   livemap-helper fetch-geoip         download the free DB-IP City Lite database (~20 MB, monthly)
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
@@ -59,6 +61,10 @@ BORDERS = DATA / "borders"
 NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries",
             "ne_50m_coastline", "ne_50m_admin_0_boundary_lines_land", "ne_50m_admin_1_states_provinces_lines",
             "ne_10m_time_zones", "ne_10m_populated_places_simple"]     # time zone polygons; cities for the home search
+# Tectonic plate boundaries: Peter Bird's PB2002 model (2003), GeoJSON conversion by Hugo Ahlenius (Nordpil),
+# Open Data Commons Attribution licence. Downloaded with the border data, drawn under the Earthquakes settings.
+PLATES_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
+PLATES_FILE = "PB2002_boundaries"                                     # stored next to the Natural Earth files
 
 
 # ------------------------------------------------------------------ net -----
@@ -359,15 +365,31 @@ def cmd_borders(args):
 
 def cmd_fetch_borders(_args):
     failed = []
-    for name in NE_FILES:
+    for name, url in [(n, NE + n + ".geojson") for n in NE_FILES] + [(PLATES_FILE, PLATES_URL)]:
         try:
-            download(NE + name + ".geojson", BORDERS / (name + ".geojson"))
+            download(url, BORDERS / (name + ".geojson"))
         except Exception as e:
             failed.append(name)
             print("  failed: %s" % e)
     if failed:
         sys.exit("Could not download: %s" % ", ".join(failed))
-    print("Done. Made with Natural Earth (public domain), naturalearthdata.com")
+    print("Done. Made with Natural Earth (public domain), naturalearthdata.com; plate boundaries PB2002 (Peter Bird, "
+          "Hugo Ahlenius / Nordpil, ODC-By)")
+
+
+def cmd_plates(_args):
+    """Tectonic plate boundaries as flat polylines for the wallpaper (same shape as `borders`)."""
+    lines = _lines(PLATES_FILE, 0.0)
+    emit({"plates": lines or [],
+          "note": "" if lines is not None else "Plate boundaries: no data yet - press 'Download border data' in the "
+                                               "settings, or run: livemap-helper fetch-borders"})
+
+
+def chk_plates():
+    f = BORDERS / (PLATES_FILE + ".geojson")
+    if f.exists():
+        return "ok", "PB2002 plate boundaries (%.1f MB)" % (f.stat().st_size / 1e6)
+    return "warn", "not downloaded - press 'Download border data' (or run: livemap-helper fetch-borders)"
 
 
 def cmd_where_city(args):
@@ -2288,7 +2310,7 @@ def wallpaper_log():
 def cmd_status(args):
     from concurrent.futures import ThreadPoolExecutor
     jobs = [("Seasonal maps (NASA Blue Marble)", chk_maps), ("City lights (NASA Black Marble)", chk_night),
-            ("Borders (Natural Earth)", chk_borders), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
+            ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
         jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
@@ -2439,6 +2461,7 @@ def main():
     st.add_argument("--offline", action="store_true"); st.set_defaults(fn=cmd_status)
     sub.add_parser("fetch-geoip").set_defaults(fn=cmd_fetch_geoip)
     sub.add_parser("fetch-borders").set_defaults(fn=cmd_fetch_borders)
+    sub.add_parser("plates").set_defaults(fn=cmd_plates)
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     sub.add_parser("power").set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")

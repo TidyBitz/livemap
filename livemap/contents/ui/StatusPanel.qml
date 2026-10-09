@@ -33,6 +33,19 @@ ColumnLayout {
         exec.connectSource("python3 '" + helper + "' " + args + " # " + Date.now());
     }
     function check() { run("status --feed " + quakeFeed) }
+    // What a section's "Download" button runs for a source that is not there yet: "" when there is nothing to download.
+    readonly property var fetchFor: ({
+        "Seasonal maps (NASA Blue Marble)": "maps", "City lights (NASA Black Marble)": "maps",
+        "Borders (Natural Earth)": "fetch-borders", "Plate boundaries (PB2002)": "fetch-borders",
+        "GeoIP database (DB-IP)": "fetch-geoip"
+    })
+    readonly property var fetchSize: ({ "maps": "about 35 MB", "fetch-borders": "about 7 MB", "fetch-geoip": "about 20 MB" })
+    function fetchCommand(name) {
+        var c = fetchFor[name] || "";
+        if (c === "maps") c = "fetch-maps" + (oceanFrom.charAt(0) === "/" ? " --ocean-from '" + oceanFrom.replace(/'/g, "'\\''") + "'" : "");
+        return c;
+    }
+    function fetchLabel(name) { var c = fetchFor[name] || ""; return c ? "Download (" + (fetchSize[c] || "") + ")" : ""; }
     function report() {
         var out = ["Live World Map " + version + " status, " + new Date().toString()];
         for (var i = 0; i < checks.length; i++)
@@ -102,8 +115,7 @@ ColumnLayout {
     QQC2.Button {
         text: "Download NASA maps and city lights (about 35 MB, takes a minute or two)"
         icon.name: "download"; enabled: !panel.busy
-        onClicked: panel.run("fetch-maps" + (panel.oceanFrom.charAt(0) === "/"
-                             ? " --ocean-from '" + panel.oceanFrom.replace(/'/g, "'\\''") + "'" : ""))
+        onClicked: panel.run(panel.fetchCommand("Seasonal maps (NASA Blue Marble)"))
     }
     RowLayout {
         QQC2.Button { text: "Check again"; icon.name: "view-refresh"; enabled: !panel.busy; onClicked: panel.check() }
