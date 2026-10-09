@@ -170,6 +170,7 @@ Kirigami.FormLayout {
     property alias cfg_FireMinArea: fireMinArea.currentIndex
     property alias cfg_FireSource: fireSource.currentIndex
     property alias cfg_HotspotMinCount: hotspotMinCount.currentIndex
+    property alias cfg_HotspotTier: hotspotTier.currentIndex
     property alias cfg_FireLabels: fireLabels.currentIndex
     property alias cfg_FireLabelSize: fireLabelSize.value
     property alias cfg_FireLabelPlate: firePlate.checked
@@ -826,12 +827,19 @@ Kirigami.FormLayout {
         QQC2.ComboBox { id: fireMinArea; model: ["Any size", "1 000 ha and up", "10 000 ha and up", "50 000 ha and up"] }
     }
     QQC2.ComboBox {
-        id: hotspotMinCount
+        id: hotspotTier
         Kirigami.FormData.label: "Hotspots:"
         enabled: fires.checked && fireSource.currentIndex !== 0
+        model: ["Needs attention only", "Notable and up", "Everything"]
+    }
+    Note { text: "Needs attention: on a GDACS orange or red event, near a city, burning for days in isolation, very large, or a usually quiet cell flaring up. Notable: 25+ detections or 1 GW, a smaller fire near a town, on a GDACS event; drawn as dots, labelled only with 'All' labels. Regional burning seasons (a carpet of burning cells, the savanna and harvest fires) stay notable at most, so the map is not covered in them." }
+    QQC2.ComboBox {
+        id: hotspotMinCount
+        Kirigami.FormData.label: "Everything:"
+        enabled: fires.checked && fireSource.currentIndex !== 0 && hotspotTier.currentIndex === 2
         model: ["3+ detections per cell", "10+ detections per cell", "25+ detections per cell", "50+ detections per cell"]
     }
-    Note { text: "GDACS rates most fires green (it scores humanitarian impact, not size), so a GDACS flame's size follows the burned area and only its colour the level. A hotspot cell with 25+ detections or 1 GW of fire power counts as significant: it is labelled and pulses." }
+    Note { text: "GDACS rates most fires green (it scores humanitarian impact, not size), so a GDACS flame's size follows the burned area and only its colour the level. A hotspot cell that needs attention gets the flame, a label saying why, and the pulse." }
     KQuickControls.ColorButton { id: fireColor; Kirigami.FormData.label: "Colour:"; enabled: fires.checked; showAlphaChannel: false; dialogTitle: "Wildfire colour" }
     QQC2.CheckBox { id: fireAlertColors; enabled: fires.checked; text: "GDACS colours by alert level (green, orange, red)" }
     RowLayout {

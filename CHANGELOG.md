@@ -64,6 +64,15 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.44 - 2026-09-23
 
 ### Changed
+- Wildfire hotspots are rated instead of counted. The helper gives every half-degree cell a tier - needs
+  attention, notable, background - from what makes a fire matter: sitting on a GDACS orange or red event,
+  being near a city, burning for days in isolation, being very large, or a usually quiet cell flaring far
+  above its own month. A burning season (a carpet of burning cells: savanna, harvest) is recognised on the
+  first day by its neighbourhood and stays notable at most, so it no longer covers the map in "N detections"
+  labels; with a fortnight of history a cell that burns most days counts the same way. "Hotspots" under
+  Wildfires chooses Needs attention only (default) / Notable and up / Everything; attention cells get the
+  flame, the pulse and a label that says why ("29 km from Sydney · 3 d · 1.3 GW"); notable ones are dots.
+  The widget lists attention clusters as events. `hotspots --min-tier`, `--table` shows the rating.
 - Package ids are now `io.github.tidybitz.livemap.wallpaper` and `io.github.tidybitz.livemap.events`
   (reverse-DNS of the project's home, as Plasma packages are expected to be). This is a new package as far as
   Plasma is concerned: run `livemap.sh purge` (or `remove` to keep the data folder) before installing 0.44,

@@ -1031,6 +1031,129 @@ def cmd_fires(args):
 
 FIRMS = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv"
 HOTSPOTS = DATA / "hotspots.csv"
+HOTSPOT_MEMORY = DATA / "hotspot-days.json"    # per half-degree cell: which of the last 30 days it burned, and how hard
+
+
+def _places_index(min_pop=50000):
+    """Populated places (Natural Earth, already downloaded for the home search) with at least min_pop people,
+    bucketed by whole degree so a cluster only looks at its neighbourhood. None when the file is missing."""
+    f = BORDERS / "ne_10m_populated_places_simple.geojson"
+    if not f.exists():
+        return None
+    idx = {}
+    try:
+        for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+            p = feat.get("properties") or {}
+            pop = int(p.get("pop_max") or 0)
+            if pop < min_pop:
+                continue
+            c = (feat.get("geometry") or {}).get("coordinates") or [p.get("longitude"), p.get("latitude")]
+            lat, lon = float(c[1]), float(c[0])
+            idx.setdefault((int(lat // 1), int(lon // 1)), []).append((lat, lon, pop, str(p.get("name") or "")))
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
+    return idx
+
+
+def _nearest_place(idx, lat, lon, within_km=50):
+    best = None
+    bi, bj = int(lat // 1), int(lon // 1)
+    for i in (bi - 1, bi, bi + 1):
+        for j in (bj - 1, bj, bj + 1):
+            for plat, plon, pop, name in idx.get((i, j), ()):
+                km = haversine_km(lat, lon, plat, plon)
+                if km <= within_km and (best is None or km < best[0]):
+                    best = (km, pop, name)
+    return best
+
+
+def rate_hotspots(cells, fires=None, now=None):
+    """Which satellite fire clusters deserve attention. Adds to each cell: tier (2 attention, 1 notable,
+    0 background), why (a short reason), days (how many of the last 7 it burned), chronic, near (a city).
+
+    Attention: on a GDACS orange/red event; or near a city of 100k+ with real power; or burning for days without
+    being a chronic (field / savanna) cell; or very large and not chronic; or a chronic cell flaring well above
+    its own month. Notable: the old threshold (25+ detections or 1 GW), a smaller fire near a town, or on a
+    GDACS green event. Everything else is the daily background of agricultural burning."""
+    import time
+    from datetime import datetime, timezone
+    now = now or time.time()
+    today = datetime.fromtimestamp(now, timezone.utc).strftime("%Y%m%d")
+    try:
+        mem = json.loads(HOTSPOT_MEMORY.read_text(encoding="utf-8"))
+        if not isinstance(mem, dict):
+            mem = {}
+    except (OSError, ValueError):
+        mem = {}
+    cutoff = datetime.fromtimestamp(now - 30 * 86400, timezone.utc).strftime("%Y%m%d")
+    recent = datetime.fromtimestamp(now - 7 * 86400, timezone.utc).strftime("%Y%m%d")
+    places = _places_index()
+    seen_days = set()
+    for e in mem.values():
+        if isinstance(e, dict):
+            seen_days.update(d for d in e.get("days", []) if d >= cutoff)
+    observed = len(seen_days | {today})                      # how many distinct days this machine has looked, within the month
+    # Regional burning (a savanna or harvest season) comes as a carpet of burning cells; a wildfire is isolated.
+    # This is known on the first day, before any history exists.
+    burning = {(int(c["lat"] // 0.5), int(c["lon"] // 0.5)) for c in cells}
+    def neighbours(c):
+        i, j = int(c["lat"] // 0.5), int(c["lon"] // 0.5)
+        return sum(1 for di in range(-3, 4) for dj in range(-3, 4) if (di or dj) and (i + di, j + dj) in burning)
+    for c in cells:
+        key = "%d,%d" % (int(c["lat"] // 0.5), int(c["lon"] // 0.5))
+        e = mem.get(key)
+        if not isinstance(e, dict):
+            e = mem[key] = {"days": [], "frp": []}
+        if today not in e["days"]:
+            e["days"].append(today); e["frp"].append(c["frp"])
+        else:
+            e["frp"][-1] = max(e["frp"][-1], c["frp"])
+        keep = [i for i, d in enumerate(e["days"]) if d >= cutoff]
+        e["days"], e["frp"] = [e["days"][i] for i in keep], [e["frp"][i] for i in keep]
+        days7 = min(7, sum(1 for d in e["days"] if d >= recent))
+        month = len(e["days"])
+        avg = sum(e["frp"][:-1]) / max(1, len(e["frp"]) - 1) if len(e["frp"]) > 1 else 0
+        regional = neighbours(c) >= 10                       # 10+ of the 48 surrounding half-degree cells also burning
+        chronic = regional or (observed >= 14 and month >= 12)   # or burning most days once there is a fortnight to judge by
+        flare = chronic and avg > 0 and c["frp"] >= 4 * avg
+        near = _nearest_place(places, c["lat"], c["lon"]) if places else None
+        on_event = None
+        for fr in fires or []:
+            if haversine_km(c["lat"], c["lon"], fr["lat"], fr["lon"]) <= 75:
+                if on_event is None or {"red": 3, "orange": 2}.get(fr["alert"], 1) > {"red": 3, "orange": 2}.get(on_event["alert"], 1):
+                    on_event = fr
+        why = []
+        tier = 0
+        if on_event and on_event["alert"] in ("orange", "red"):
+            tier = 2; why.append("%s (GDACS %s)" % (on_event["name"], on_event["alert"]))
+        elif near and near[1] >= 100000 and c["frp"] >= (2000 if regional else 300):    # in a burning season a city needs more
+            tier = 2; why.append("%d km from %s" % (round(near[0]), near[2]))
+        elif days7 >= 3 and c["frp"] >= 2000 and not chronic:
+            tier = 2; why.append("%d days running" % days7)
+        elif c["frp"] >= 10000 and not chronic:
+            tier = 2; why.append("very large")
+        elif flare and c["frp"] >= 5000:
+            tier = 2; why.append("flaring %dx its month" % round(c["frp"] / avg))
+        elif c["n"] >= 25 or c["frp"] >= 1000 or (near and c["frp"] >= 100) or on_event:
+            tier = 1
+            if on_event: why.append(on_event["name"])
+            elif near: why.append("%d km from %s" % (round(near[0]), near[2]))
+            if chronic: why.append("regional burning" if regional else "burns most days")
+        if days7 >= 2 and "days running" not in " ".join(why):
+            why.append("%d d" % days7)
+        c.update(tier=tier, why=" \u00b7 ".join(why), days=days7, chronic=chronic, near=near[2] if near else "",
+                 event=on_event["id"] if on_event else None)
+    stale = [k for k, e in mem.items() if not isinstance(e, dict) or not e.get("days") or e["days"][-1] < cutoff]
+    for k in stale:
+        mem.pop(k, None)
+    try:
+        HOTSPOT_MEMORY.parent.mkdir(parents=True, exist_ok=True)
+        tmp = HOTSPOT_MEMORY.with_suffix(".tmp%d" % os.getpid())
+        tmp.write_text(json.dumps(mem, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(HOTSPOT_MEMORY)
+    except OSError:
+        pass
+    return cells
 
 
 def fetch_hotspots(max_age_h=3):
@@ -1078,13 +1201,20 @@ def cluster_hotspots(csv_text, cell=0.5, min_conf=50, now=None):
 def cmd_hotspots(args):
     note, spots = "", []
     try:
-        spots = [c for c in cluster_hotspots(fetch_hotspots()) if c["n"] >= args.min_count]
+        spots = cluster_hotspots(fetch_hotspots())
+        try:
+            fires, _h, _e = last_good("fires", fetch_fires)          # GDACS events, for the linkage; its own cache
+        except Exception:
+            fires = None
+        spots = rate_hotspots(spots, fires or [])
+        spots = [c for c in spots if c["tier"] >= args.min_tier and (c["tier"] > 0 or c["n"] >= args.min_count)]
     except Exception as e:
         note = "Fire hotspots: %s" % e
     if args.table:
-        print(note or "%d hotspot clusters (0.5 degree cells, at least %d detections, NASA FIRMS MODIS 24 h)" % (len(spots), args.min_count))
-        for c in spots[:40]:
-            print("  %7.2f, %7.2f  %4d detections  %6d MW  newest %.0f h ago" % (c["lat"], c["lon"], c["n"], c["frp"], c["hours"]))
+        print(note or "%d hotspot clusters (0.5 degree cells, tier %d and up, NASA FIRMS MODIS 24 h)" % (len(spots), args.min_tier))
+        for c in spots[:60]:
+            print("  %7.2f, %7.2f  %4d detections  %6d MW  newest %.0f h ago  %s  %s" % (
+                c["lat"], c["lon"], c["n"], c["frp"], c["hours"], ["background", "notable", "ATTENTION"][c["tier"]], c["why"]))
     else:
         emit({"hotspots": spots, "note": note})
 
@@ -2174,6 +2304,17 @@ def cmd_feed(args):
             items.append({"kind": kind, "when": when, "title": title, "detail": "GDACS" if kind != "volcano" else "Smithsonian / USGS",
                           "url": url_of(it), "lat": it.get("lat"), "lon": it.get("lon"), "key": "%s:%s:%s" % (kind, key, int(when)),
                           "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1})
+    # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
+    try:
+        fires_now, _h, _e = last_good("fires", fetch_fires)
+        for c in rate_hotspots(cluster_hotspots(fetch_hotspots()), fires_now or []):
+            if c["tier"] < 2:
+                continue
+            items.append({"kind": "fire", "when": now - c["hours"] * 3600, "title": "Fire hotspots \u00b7 %s \u00b7 %s" % (c["why"], "%.1f GW" % (c["frp"] / 1000) if c["frp"] >= 1000 else "%d MW" % c["frp"]),
+                          "detail": "NASA FIRMS \u00b7 %d detections" % c["n"], "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@%.2f,%.2f,7z" % (c["lon"], c["lat"]),
+                          "lat": c["lat"], "lon": c["lon"], "level": 2, "key": "hot:%d,%d" % (int(c["lat"] // 0.5), int(c["lon"] // 0.5))})
+    except Exception as e:
+        problems.append("hotspots: %s" % e)
     # launches
     try:
         for L in fetch_launches():
@@ -2597,6 +2738,7 @@ def main():
     la = sub.add_parser("launches"); la.add_argument("--table", action="store_true"); la.add_argument("--stale", type=float, default=6)
     la.set_defaults(fn=cmd_launches)
     hs = sub.add_parser("hotspots"); hs.add_argument("--table", action="store_true"); hs.add_argument("--min-count", type=int, default=3)
+    hs.add_argument("--min-tier", type=int, default=0, choices=[0, 1, 2])     # 0 everything, 1 notable and up, 2 needs attention
     hs.set_defaults(fn=cmd_hotspots)
     m = sub.add_parser("fetch-maps"); m.add_argument("--ocean-from"); m.add_argument("--hires", action="store_true")
     m.set_defaults(fn=cmd_fetch_maps)

@@ -25,9 +25,13 @@ Item {
     function inkOf(fr) { return alertColors && alertPalette[fr.alert] ? Qt.color(alertPalette[fr.alert]) : ink }
     readonly property int feedChoice: cfg ? cfg.FireSource : 2                // 0 GDACS events, 1 NASA hotspots, 2 both
     readonly property int hotMinCount: [3, 10, 25, 50][cfg ? cfg.HotspotMinCount : 1] || 10
+    // 0 needs attention only, 1 notable and up, 2 everything: the helper rates every cell (tier 2 / 1 / 0) from
+    // persistence, isolation, nearby cities and GDACS events, so a burning season does not cover the map
+    readonly property int hotTier: cfg ? cfg.HotspotTier : 0
+    readonly property int hotMinTier: [2, 1, 0][hotTier] === undefined ? 2 : [2, 1, 0][hotTier]
     property var hotspots: []
-    function hotSignificant(c) { return c.n >= 25 || c.frp >= 1000 }
-    readonly property var shownHot: feedChoice === 0 ? [] : hotspots.filter(function (c) { return c.n >= hotMinCount; })
+    function hotSignificant(c) { return c.tier === undefined ? (c.n >= 25 || c.frp >= 1000) : c.tier >= 2 }
+    readonly property var shownHot: feedChoice === 0 ? [] : hotspots.filter(function (c) { return (c.tier === undefined ? 0 : c.tier) >= hotMinTier && (c.tier > 0 || c.n >= hotMinCount); })
     readonly property int minLevel: cfg ? cfg.FireMinLevel : 0            // 0 all, 1 orange and red, 2 red only
     readonly property real minArea: [0, 1000, 10000, 50000][cfg ? cfg.FireMinArea : 0] || 0
     function levelOf(fr) { return fr.alert === "red" ? 2 : fr.alert === "orange" ? 1 : 0 }
@@ -84,9 +88,9 @@ Item {
                  text: describe(fr), px: labelPx, color: Geo.mix(labelInkOf(fr), agedColor, agedOf(fr)), plate: labelPlate,
                  bold: significant(fr), alpha: 1 - 0.4 * agedOf(fr) };
     }).concat(shownHot.filter(function (c) { return labelMode === 2 ? c.n >= 10 : hotSignificant(c); }).map(function (c) {
-        // "38 detections · 1.3 GW · 4 h": what the satellites saw in that half-degree cell
+        // "29 km from Sydney · 3 d · 1.3 GW": why it matters, then what the satellites saw in that half-degree cell
         return { x: px(c.lon), y: py(c.lat), gap: mark * 0.5, side: "right",
-                 text: c.n + " detections \u00b7 " + powerText(c.frp) + " \u00b7 " + Geo.spanText(c.hours), px: labelPx,
+                 text: (c.why ? c.why + " \u00b7 " : "") + powerText(c.frp) + " \u00b7 " + c.n + " det. \u00b7 " + Geo.spanText(c.hours), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: hotSignificant(c), alpha: 1 };
     }))
 
@@ -137,9 +141,10 @@ Item {
         running: overlay.helper !== "" && overlay.feedChoice !== 0
         repeat: true
         triggeredOnStart: true
-        onTriggered: hotExec.connectSource("python3 '" + overlay.helper + "' hotspots --min-count " + overlay.hotMinCount + " # " + Date.now())
+        onTriggered: hotExec.connectSource("python3 '" + overlay.helper + "' hotspots --min-tier " + overlay.hotMinTier + " --min-count " + overlay.hotMinCount + " # " + Date.now())
     }
-    onHotMinCountChanged: if (helper !== "" && feedChoice !== 0) hotExec.connectSource("python3 '" + helper + "' hotspots --min-count " + hotMinCount + " # " + Date.now())
+    onHotMinCountChanged: if (helper !== "" && feedChoice !== 0) hotExec.connectSource("python3 '" + helper + "' hotspots --min-tier " + hotMinTier + " --min-count " + hotMinCount + " # " + Date.now())
+    onHotMinTierChanged: if (helper !== "" && feedChoice !== 0) hotExec.connectSource("python3 '" + helper + "' hotspots --min-tier " + hotMinTier + " --min-count " + hotMinCount + " # " + Date.now())
 
     Repeater {                                    // satellite hotspots: small flames, the fire colour, sized by power
         model: overlay.shownHot
