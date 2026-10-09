@@ -2317,6 +2317,9 @@ def cmd_status(args):
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
+    if args.names:                                  # just the rows, at once: the widget shows them while the checks run
+        emit({"version": VERSION, "names": [j[0] for j in jobs]})
+        return
 
     def run(job):
         try:
@@ -2458,7 +2461,7 @@ def main():
     w = sub.add_parser("where"); w.add_argument("hosts", nargs="+"); w.set_defaults(fn=cmd_where)
     sub.add_parser("forget").set_defaults(fn=cmd_forget)
     st = sub.add_parser("status"); st.add_argument("--feed", default="4.5_day")
-    st.add_argument("--offline", action="store_true"); st.set_defaults(fn=cmd_status)
+    st.add_argument("--offline", action="store_true"); st.add_argument("--names", action="store_true"); st.set_defaults(fn=cmd_status)
     sub.add_parser("fetch-geoip").set_defaults(fn=cmd_fetch_geoip)
     sub.add_parser("fetch-borders").set_defaults(fn=cmd_fetch_borders)
     sub.add_parser("plates").set_defaults(fn=cmd_plates)

@@ -32,6 +32,11 @@ release notes written at the time; their dates are the day the version was hande
 - Map controls: a "Power" section with a Full speed switch and a duration choice (until switched off, 1, 4
   or 8 hours), with the time left while it runs.
 
+### Changed
+- Status tab: the list of sources is there at once (grey dot, "checking…" on each row) instead of an empty tab
+  while every source is contacted, and a re-check keeps the last answers on screen, dimmed, until the new
+  ones arrive. `livemap-helper status --names` lists the rows without running anything.
+
 ## 0.45 - 2026-09-24
 
 ### Added

@@ -107,6 +107,14 @@ PlasmoidItem {
                 refreshMode();
             } else if (source.indexOf('" power ') >= 0) {
                 try { root.mode = JSON.parse(data.stdout).mode || ({}); } catch (e) {}
+            } else if (source.indexOf('" status --names') >= 0) {
+                // the rows, before any check has run: each shows "checking" until its own answer arrives
+                try {
+                    var nm = JSON.parse(data.stdout);
+                    if (root.checks.length === 0)
+                        root.checks = (nm.names || []).map(function (n) { return { name: n, state: "", detail: "" }; });
+                    root.statusVersion = nm.version || root.statusVersion;
+                } catch (e) {}
             } else if (source.indexOf('" status ') >= 0) {
                 root.statusBusy = false;
                 try {
@@ -130,6 +138,7 @@ PlasmoidItem {
     function checkStatus() {
         if (statusBusy) return;
         statusBusy = true;
+        if (checks.length === 0) exec.connectSource(helperShell + "status --names # " + Date.now());   // rows first, answers later
         exec.connectSource(helperShell + "status --feed " + feedName + " # " + Date.now());
     }
     function markSeen() { lastSeen = Date.now() / 1000; unread = 0; }
@@ -443,7 +452,7 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 PC3.Label {
                     Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7
-                    text: root.statusBusy ? "Checking every source\u2026" : root.checks.length === 0 ? "Not checked yet"
+                    text: root.statusBusy ? (root.statusAt > 0 ? "Checking again\u2026 (last answers shown)" : "Checking every source\u2026") : root.checks.length === 0 ? "Not checked yet"
                         : (root.checks.filter(function (c) { return c.state === "error" }).length + " problems, "
                            + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
                            + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
@@ -463,16 +472,22 @@ PlasmoidItem {
                         required property var modelData
                         width: ListView.view.width
                         spacing: Kirigami.Units.smallSpacing
+                        readonly property bool pending: modelData.state === ""          // no answer yet
                         Rectangle {
                             Layout.alignment: Qt.AlignTop; Layout.topMargin: 5
                             width: 9; height: 9; radius: 4.5
-                            color: modelData.state === "ok" ? Kirigami.Theme.positiveTextColor : modelData.state === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.negativeTextColor
+                            color: pending ? Kirigami.Theme.disabledTextColor : modelData.state === "ok" ? Kirigami.Theme.positiveTextColor : modelData.state === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.negativeTextColor
+                            opacity: root.statusBusy ? 0.5 : 1
                         }
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 0
-                            PC3.Label { Layout.fillWidth: true; text: modelData.name; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: modelData.state !== "ok" }
-                            PC3.Label { Layout.fillWidth: true; text: modelData.detail; textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                PC3.Label { Layout.fillWidth: true; text: modelData.name; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: !pending && modelData.state !== "ok" }
+                                PC3.Label { visible: root.statusBusy; text: "checking\u2026"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            }
+                            PC3.Label { Layout.fillWidth: true; visible: !pending; text: modelData.detail; textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: root.statusBusy ? 0.4 : 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                         }
                     }
                 }
