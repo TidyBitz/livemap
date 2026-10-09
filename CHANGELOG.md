@@ -26,6 +26,12 @@ release notes written at the time; their dates are the day the version was hande
   ids are still in use. Settings start from the defaults under the new id (Plasma keys them by package id);
   the data folder is shared.
 
+### Changed
+- Label style is the same for every label type: one "Label style" row - Bold, Capitals, letter spacing (with
+  capitals), text opacity and the dark outline drawn when there is no plate - under Earthquakes, Volcanoes,
+  Storms, Wildfires, Satellites, Launches, Network activity and Time zones, exactly the five choices country
+  names had. The country-name controls are the same row now. Defaults keep every label as it was.
+
 ## widget 0.44 - 2026-09-25
 
 ### Added

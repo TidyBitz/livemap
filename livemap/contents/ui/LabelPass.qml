@@ -31,7 +31,23 @@ Item {
     readonly property real textOpacity: (cfg ? cfg.TextOpacity : 100) / 100
     readonly property int lines: cfg ? cfg.LabelLines : 0                 // 0 one line, 1 name above details, 2 automatic
 
-    readonly property var specs: [].concat(netSpecs, satSpecs, launchSpecs, stormSpecs, fireSpecs, quakeSpecs, volcanoSpecs)
+    // Per-layer label style (Label style row of each section): bold, capitals, letter spacing, opacity, outline.
+    function style(prefix) {
+        return cfg ? { bold: !!cfg[prefix + "LabelBold"], caps: !!cfg[prefix + "LabelCaps"],
+                       spacing: (cfg[prefix + "LabelSpacing"] === undefined ? 100 : cfg[prefix + "LabelSpacing"]) / 100,
+                       alpha: (cfg[prefix + "LabelOpacity"] === undefined ? 100 : cfg[prefix + "LabelOpacity"]) / 100,
+                       halo: (cfg[prefix + "LabelHalo"] === undefined ? 100 : cfg[prefix + "LabelHalo"]) / 100 }
+                   : { bold: false, caps: false, spacing: 1, alpha: 1, halo: 1 };
+    }
+    property var styles: ({ net: style("Net"), sat: style("Sat"), launch: style("Launch"), storm: style("Storm"),
+                            fire: style("Fire"), quake: style("Quake"), volcano: style("Volcano") })
+    // Dotted reads, so QML re-evaluates this when any of the 35 settings changes; the styles are rebuilt from it.
+    readonly property string styleKey: !cfg ? "" : [cfg.NetLabelBold, cfg.NetLabelCaps, cfg.NetLabelSpacing, cfg.NetLabelOpacity, cfg.NetLabelHalo, cfg.SatLabelBold, cfg.SatLabelCaps, cfg.SatLabelSpacing, cfg.SatLabelOpacity, cfg.SatLabelHalo, cfg.LaunchLabelBold, cfg.LaunchLabelCaps, cfg.LaunchLabelSpacing, cfg.LaunchLabelOpacity, cfg.LaunchLabelHalo, cfg.StormLabelBold, cfg.StormLabelCaps, cfg.StormLabelSpacing, cfg.StormLabelOpacity, cfg.StormLabelHalo, cfg.FireLabelBold, cfg.FireLabelCaps, cfg.FireLabelSpacing, cfg.FireLabelOpacity, cfg.FireLabelHalo, cfg.QuakeLabelBold, cfg.QuakeLabelCaps, cfg.QuakeLabelSpacing, cfg.QuakeLabelOpacity, cfg.QuakeLabelHalo, cfg.VolcanoLabelBold, cfg.VolcanoLabelCaps, cfg.VolcanoLabelSpacing, cfg.VolcanoLabelOpacity, cfg.VolcanoLabelHalo].join(",")
+    onStyleKeyChanged: { styles = { net: style("Net"), sat: style("Sat"), launch: style("Launch"), storm: style("Storm"),
+                                    fire: style("Fire"), quake: style("Quake"), volcano: style("Volcano") }; relayout(); }
+    function tag(list, kind) { return list.map(function (s) { var t = Object.assign({}, s); t.kind = kind; return t; }); }
+    readonly property var specs: [].concat(tag(netSpecs, "net"), tag(satSpecs, "sat"), tag(launchSpecs, "launch"), tag(stormSpecs, "storm"),
+                                           tag(fireSpecs, "fire"), tag(quakeSpecs, "quake"), tag(volcanoSpecs, "volcano"))
 
     // Real text sizes, so the layout uses the width each label will actually have. Done in a handler,
     // not a binding: setting the meter's text inside a binding would re-trigger that same binding.
@@ -41,9 +57,11 @@ Item {
     // relayouts (a satellite moved, a quake aged), so sizes are remembered per text, size and weight.
     property var sizeCache: ({})
     property int sizeCacheCount: 0
-    function measure(text, px, bold) {             // TextMetrics knows one line; a two-line label is measured line by line
-        var key = px + (bold ? "b" : "n") + text, hit = sizeCache[key];
+    function measure(text, px, bold, caps, spacing) {   // TextMetrics knows one line; a two-line label is measured line by line
+        var key = px + (bold ? "b" : "n") + (caps ? "C" + spacing : "") + text, hit = sizeCache[key];
         if (hit) return hit;
+        meter.font.capitalization = caps ? Font.AllUppercase : Font.MixedCase;
+        meter.font.letterSpacing = caps ? unit * spacing : 0;
         var parts = text.split("\n"), w = 0, h = 0;
         for (var i = 0; i < parts.length; i++) {
             meter.text = parts[i];
@@ -59,9 +77,10 @@ Item {
             var s = specs[i];
             if (lines > 0 && !s.text2) { s = Object.assign({}, s); s.text2 = Geo.twoLine(s.text); }
             list.push(s);
+            var st = styles[s.kind] || styles.quake, bold = !!s.bold || st.bold;
             meter.font.pixelSize = s.px;
-            meter.font.bold = !!s.bold;
-            var one = measure(s.text, s.px, !!s.bold), two = s.text2 ? measure(s.text2, s.px, !!s.bold) : one;
+            meter.font.bold = bold;
+            var one = measure(s.text, s.px, bold, st.caps, st.spacing), two = s.text2 ? measure(s.text2, s.px, bold, st.caps, st.spacing) : one;
             sizes.push({ w: one.w, h: one.h, w2: two.w, h2: two.h });
         }
         places = Geo.placeLabels(list, sizes, { x: view.x, y: view.y, w: view.width, h: view.height }, unit, lines);
@@ -96,14 +115,18 @@ Item {
             visible: at.show
             x: at.x + pass.shiftX(modelData)
             y: at.y + pass.shiftY(modelData)
+            readonly property var st: pass.styles[modelData.kind] || pass.styles.quake
             text: at.text || modelData.text
             textColor: modelData.color
-            textOpacity: pass.textOpacity * (modelData.alpha === undefined ? 1 : modelData.alpha)
+            textOpacity: pass.textOpacity * st.alpha * (modelData.alpha === undefined ? 1 : modelData.alpha)
             plate: modelData.plate
             plateColor: pass.plateColor
             plateOpacity: pass.plateOpacity
             px: modelData.px
-            bold: !!modelData.bold
+            bold: !!modelData.bold || st.bold
+            caps: st.caps
+            haloScale: st.halo
+            letterScale: st.spacing
             unit: pass.unit
         }
     }

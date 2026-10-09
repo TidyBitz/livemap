@@ -154,10 +154,14 @@ Item {
             y: modelData.y - height / 2
             text: modelData.text
             textColor: overlay.zoneInk
-            textOpacity: Math.min(1, overlay.zoneStrength * 2)
+            textOpacity: Math.min(1, overlay.zoneStrength * 2) * (cfg ? cfg.ZoneLabelOpacity : 100) / 100
             plate: false
             plateColor: cfg ? cfg.PlateColor : "#000510"
             px: overlay.zonePx
+            bold: cfg ? cfg.ZoneLabelBold : false
+            caps: cfg ? cfg.ZoneLabelCaps : false
+            haloScale: (cfg ? cfg.ZoneLabelHalo : 100) / 100
+            letterScale: (cfg ? cfg.ZoneLabelSpacing : 100) / 100
             unit: overlay.unit
         }
     }

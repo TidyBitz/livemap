@@ -60,6 +60,11 @@
     <entry name="ZoneOpacity" type="Int"><default>35</default></entry>
     <entry name="ZoneLabels" type="Bool"><default>true</default></entry>
     <entry name="ZoneLabelSize" type="Int"><default>9</default></entry>
+    <entry name="ZoneLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="ZoneLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="ZoneLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="ZoneLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="ZoneLabelHalo" type="Int"><default>100</default></entry>
     <entry name="HomeCity" type="String"><default></default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="SatIss" type="Bool"><default>true</default></entry>
@@ -181,5 +186,41 @@
     <entry name="ArcGlow" type="Bool"><default>true</default></entry>
     <entry name="PacketSpeed" type="Int"><default>100</default></entry>
     <entry name="LabelSize" type="Int"><default>11</default></entry>
+    <!-- label style per layer: the same five choices country names have -->
+    <entry name="QuakeLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="QuakeLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="QuakeLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="QuakeLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="QuakeLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="VolcanoLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="VolcanoLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="VolcanoLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="VolcanoLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="VolcanoLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="StormLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="StormLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="StormLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="StormLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="StormLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="FireLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="FireLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="FireLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="FireLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="FireLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="SatLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="SatLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="SatLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="SatLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="SatLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="LaunchLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="LaunchLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="LaunchLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="LaunchLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="LaunchLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="NetLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="NetLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="NetLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="NetLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="NetLabelHalo" type="Int"><default>100</default></entry>
   </group>
 </kcfg>

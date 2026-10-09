@@ -63,20 +63,60 @@ Kirigami.FormLayout {
     property alias cfg_ShowCountryNames: countryNames.checked
     property alias cfg_NameDensity: nameDensity.currentIndex
     property alias cfg_NameSize: nameSize.value
-    property int cfg_NameOpacity
+    property alias cfg_NameOpacity: nameStyle.textOpacity
     property alias cfg_NamePlate: namePlate.checked
     property alias cfg_NameTextFollows: nameFollows.checked
     property alias cfg_NameTextColor: nameTextColor.color
-    property int cfg_NameHalo
-    property alias cfg_NameBold: nameBold.checked
-    property alias cfg_NameCaps: nameCaps.checked
-    property int cfg_NameSpacing
+    property alias cfg_NameHalo: nameStyle.halo
+    property alias cfg_NameBold: nameStyle.bold
+    property alias cfg_NameCaps: nameStyle.caps
+    property alias cfg_NameSpacing: nameStyle.letterSpacing
+    property alias cfg_QuakeLabelBold: quakeStyle.bold
+    property alias cfg_QuakeLabelCaps: quakeStyle.caps
+    property alias cfg_QuakeLabelSpacing: quakeStyle.letterSpacing
+    property alias cfg_QuakeLabelOpacity: quakeStyle.textOpacity
+    property alias cfg_QuakeLabelHalo: quakeStyle.halo
+    property alias cfg_VolcanoLabelBold: volcanoStyle.bold
+    property alias cfg_VolcanoLabelCaps: volcanoStyle.caps
+    property alias cfg_VolcanoLabelSpacing: volcanoStyle.letterSpacing
+    property alias cfg_VolcanoLabelOpacity: volcanoStyle.textOpacity
+    property alias cfg_VolcanoLabelHalo: volcanoStyle.halo
+    property alias cfg_StormLabelBold: stormStyle.bold
+    property alias cfg_StormLabelCaps: stormStyle.caps
+    property alias cfg_StormLabelSpacing: stormStyle.letterSpacing
+    property alias cfg_StormLabelOpacity: stormStyle.textOpacity
+    property alias cfg_StormLabelHalo: stormStyle.halo
+    property alias cfg_FireLabelBold: fireStyle.bold
+    property alias cfg_FireLabelCaps: fireStyle.caps
+    property alias cfg_FireLabelSpacing: fireStyle.letterSpacing
+    property alias cfg_FireLabelOpacity: fireStyle.textOpacity
+    property alias cfg_FireLabelHalo: fireStyle.halo
+    property alias cfg_SatLabelBold: satStyle.bold
+    property alias cfg_SatLabelCaps: satStyle.caps
+    property alias cfg_SatLabelSpacing: satStyle.letterSpacing
+    property alias cfg_SatLabelOpacity: satStyle.textOpacity
+    property alias cfg_SatLabelHalo: satStyle.halo
+    property alias cfg_LaunchLabelBold: launchStyle.bold
+    property alias cfg_LaunchLabelCaps: launchStyle.caps
+    property alias cfg_LaunchLabelSpacing: launchStyle.letterSpacing
+    property alias cfg_LaunchLabelOpacity: launchStyle.textOpacity
+    property alias cfg_LaunchLabelHalo: launchStyle.halo
+    property alias cfg_NetLabelBold: netStyle.bold
+    property alias cfg_NetLabelCaps: netStyle.caps
+    property alias cfg_NetLabelSpacing: netStyle.letterSpacing
+    property alias cfg_NetLabelOpacity: netStyle.textOpacity
+    property alias cfg_NetLabelHalo: netStyle.halo
     // time zones
     property alias cfg_ShowTimeZones: timeZones.checked
     property alias cfg_ZoneColor: zoneColor.color
     property int cfg_ZoneOpacity
     property alias cfg_ZoneLabels: zoneLabels.checked
     property alias cfg_ZoneLabelSize: zoneLabelSize.value
+    property alias cfg_ZoneLabelBold: zoneStyle.bold
+    property alias cfg_ZoneLabelCaps: zoneStyle.caps
+    property alias cfg_ZoneLabelSpacing: zoneStyle.letterSpacing
+    property alias cfg_ZoneLabelOpacity: zoneStyle.textOpacity
+    property alias cfg_ZoneLabelHalo: zoneStyle.halo
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
@@ -300,6 +340,33 @@ Kirigami.FormLayout {
     component Hours: QQC2.SpinBox {
         textFromValue: function (v) { return v + " h" }
         valueFromText: function (t) { return parseInt(t) || 0 }
+    }
+    // One row of label style, the same for every layer (country names have the same five under Countries):
+    // bold, capitals, letter spacing (with capitals), text opacity, and the dark outline drawn when there is no plate.
+    component Pct: QQC2.SpinBox {
+        property string label: ""
+        from: 0; to: 400; stepSize: 5
+        textFromValue: function (v) { return v + " %" }
+        valueFromText: function (t) { return parseInt(t) || 0 }
+        QQC2.ToolTip.text: label; QQC2.ToolTip.visible: hovered
+    }
+    component LabelStyle: RowLayout {
+        id: style
+        property alias bold: boldBox.checked
+        property alias caps: capsBox.checked
+        property alias letterSpacing: spacingBox.value
+        property alias textOpacity: opacityBox.value
+        property alias halo: haloBox.value
+        property bool plated: false                  // the outline only shows without a plate
+        Kirigami.FormData.label: "Label style:"
+        QQC2.CheckBox { id: boldBox; text: "Bold" }
+        QQC2.CheckBox { id: capsBox; text: "Capitals" }
+        QQC2.Label { text: "Spacing"; opacity: 0.8; enabled: capsBox.checked }
+        Pct { id: spacingBox; enabled: capsBox.checked; label: "Letter spacing, with capitals (100 % = normal)" }
+        QQC2.Label { text: "Opacity"; opacity: 0.8 }
+        Pct { id: opacityBox; from: 20; to: 100; label: "Text opacity" }
+        QQC2.Label { text: "Outline"; opacity: 0.8; enabled: !style.plated }
+        Pct { id: haloBox; to: 300; enabled: !style.plated; label: "Dark outline around the text (0 % = none); not drawn with a plate" }
     }
     component Px: QQC2.SpinBox {
         from: 6; to: 28
@@ -556,34 +623,7 @@ Kirigami.FormLayout {
         Px { id: nameSize; from: 5; to: 40 }
     }
     Note { text: "The largest countries are printed a quarter bigger than the size chosen." }
-    RowLayout {
-        Kirigami.FormData.label: "Name style:"
-        enabled: borders.checked && countryNames.checked
-        QQC2.CheckBox { id: nameBold; text: "Bold" }
-        QQC2.CheckBox { id: nameCaps; text: "Capitals" }
-    }
-    Amount {
-        Kirigami.FormData.label: "Letter spacing:"
-        enabled: borders.checked && countryNames.checked && nameCaps.checked
-        from: 0; to: 400
-        value: form.cfg_NameSpacing
-        onValueChanged: form.cfg_NameSpacing = value
-    }
-    Amount {
-        Kirigami.FormData.label: "Name opacity:"
-        enabled: borders.checked && countryNames.checked
-        from: 20
-        value: form.cfg_NameOpacity
-        onValueChanged: form.cfg_NameOpacity = value
-    }
-    Amount {
-        Kirigami.FormData.label: "Text outline:"
-        enabled: borders.checked && countryNames.checked && !namePlate.checked
-        from: 0; to: 300
-        value: form.cfg_NameHalo
-        onValueChanged: form.cfg_NameHalo = value
-    }
-    Note { text: "The dark outline around each name (0 % = none); with a plate behind the names the outline is not drawn." }
+    LabelStyle { id: nameStyle; enabled: borders.checked && countryNames.checked; plated: namePlate.checked }
     RowLayout {
         Kirigami.FormData.label: "Name text:"
         enabled: borders.checked && countryNames.checked
@@ -611,6 +651,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: zoneLabels; text: "UTC offsets" }
         Px { id: zoneLabelSize; enabled: zoneLabels.checked; from: 6; to: 24 }
     }
+    LabelStyle { id: zoneStyle; enabled: timeZones.checked && zoneLabels.checked; plated: false }
 
     // #################################################################### Natural events
     Group { text: "Natural events" }
@@ -648,6 +689,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: quakeFollows; text: "Text follows the ring colour" }
         KQuickControls.ColorButton { id: quakeTextColor; enabled: !quakeFollows.checked; showAlphaChannel: false; dialogTitle: "Earthquake label colour" }
     }
+    LabelStyle { id: quakeStyle; enabled: quakes.checked && quakeLabels.currentIndex > 0; plated: quakePlate.checked }
     QQC2.ComboBox {
         id: quakePulseMode
         Kirigami.FormData.label: "Pulse:"
@@ -708,6 +750,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: volcanoFollows; text: "Text follows the volcano colour" }
         KQuickControls.ColorButton { id: volcanoTextColor; enabled: !volcanoFollows.checked; showAlphaChannel: false; dialogTitle: "Volcano label colour" }
     }
+    LabelStyle { id: volcanoStyle; enabled: volcanoes.checked && volcanoLabels.currentIndex > 0; plated: volcanoPlate.checked }
     QQC2.ComboBox {
         id: volcanoPulseMode
         Kirigami.FormData.label: "Pulse:"
@@ -755,6 +798,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: stormFollows; text: "Text follows the storm colour" }
         KQuickControls.ColorButton { id: stormTextColor; enabled: !stormFollows.checked; showAlphaChannel: false; dialogTitle: "Storm label colour" }
     }
+    LabelStyle { id: stormStyle; enabled: storms.checked && stormLabels.currentIndex > 0; plated: stormPlate.checked }
     QQC2.ComboBox {
         id: stormPulseMode
         Kirigami.FormData.label: "Pulse:"
@@ -803,6 +847,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: fireFollows; text: "Text follows the fire colour" }
         KQuickControls.ColorButton { id: fireTextColor; enabled: !fireFollows.checked; showAlphaChannel: false; dialogTitle: "Wildfire label colour" }
     }
+    LabelStyle { id: fireStyle; enabled: fires.checked && fireLabels.currentIndex > 0; plated: firePlate.checked }
     QQC2.ComboBox {
         id: firePulseMode
         Kirigami.FormData.label: "Pulse:"
@@ -852,6 +897,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: satFollows; text: "Text follows the satellite colour" }
         KQuickControls.ColorButton { id: satTextColor; enabled: !satFollows.checked; showAlphaChannel: false; dialogTitle: "Satellite label colour" }
     }
+    LabelStyle { id: satStyle; enabled: sats.checked && satLabels.currentIndex > 0; plated: satPlate.checked }
 
     // =============================================================== Launches
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Launches" }
@@ -885,6 +931,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: launchFollows; text: "Text follows the marker colour" }
         KQuickControls.ColorButton { id: launchTextColor; enabled: !launchFollows.checked; showAlphaChannel: false; dialogTitle: "Launch label colour" }
     }
+    LabelStyle { id: launchStyle; enabled: launches.checked && launchLabels.currentIndex > 0; plated: launchPlate.checked }
     QQC2.CheckBox { id: launchPulse; Kirigami.FormData.label: "Pulse:"; enabled: launches.checked; text: "In the last hour before lift-off" }
 
     // #################################################################### Network and connectivity
@@ -968,6 +1015,7 @@ Kirigami.FormLayout {
         QQC2.Label { text: "Text colour" }
         KQuickControls.ColorButton { id: netTextColor; showAlphaChannel: false; dialogTitle: "Network label colour" }
     }
+    LabelStyle { id: netStyle; enabled: network.checked && netLabels.checked; plated: netPlate.checked }
     RowLayout {
         Kirigami.FormData.label: "Closed connections:"
         enabled: network.checked
