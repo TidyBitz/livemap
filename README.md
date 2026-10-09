@@ -43,7 +43,7 @@ where the storm was first fixed.*
 | **Base map** | NASA Blue Marble imagery blended month by month for the seasons, Black Marble city lights on the night side, dimming and framing (Stretch / Fit / Crop, "without Antarctica", "where people live", or your own limits) | NASA (downloaded once, ~350 MB with borders) |
 | **Day and night** | Terminator with twilight band, city lights glowing through the shade, recomputed locally every 2 min | Sun position, computed locally |
 | **Clouds** | Live cloud cover, adjustable opacity; when the usual source is down the helper stitches its own from five geostationary satellites | live-cloud-maps (EUMETSAT); GOES-East/West, Himawari, Meteosat |
-| **Geography** | Coastlines, country and state borders, country names with halo and de-clutter, time-zone outlines with UTC offsets; colour, opacity, thickness and detail per layer | Natural Earth (downloaded once) |
+| **Geography** | Coastlines, country and state borders, country names with halo and de-clutter, state and province names, country and state capitals and cities by population as dots with names, time-zone outlines with UTC offsets; colour, opacity, thickness and detail per layer | Natural Earth (downloaded once) |
 | **Earthquakes** | Rings sized by magnitude, pulsing when new or strong, labels with place and age, ageing colour drift, magnitude filter; tectonic plate boundaries as fault lines in their own colour, opacity and thickness | USGS, every 5 min; PB2002 plate model (downloaded once) |
 | **Volcanoes** | Hollow triangles coloured by alert level (yellow / orange / red), pulse on first report or level change, label with how long above normal | Smithsonian GVP eruption database and weekly report, USGS HANS, hourly |
 | **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and Pacific, every 30 min |
@@ -97,7 +97,7 @@ QtWebEngine for the embedded ISS and launch streams in the widget, Pillow for fa
 | Base map, seasons, city lights | NASA Blue Marble Next Generation, Black Marble (downloaded once) | monthly blend, computed locally |
 | Day / night, twilight | computed locally from the sun's position | every 2 min |
 | Clouds | Matt Eason's live-cloud-maps (EUMETSAT); fallback stitched from GOES-East/West, Himawari (NASA GIBS) and Meteosat (EUMETView) | every 3 h |
-| Borders, coasts, names, time zones | Natural Earth (downloaded once) | - |
+| Borders, coasts, names, capitals and cities, time zones | Natural Earth (downloaded once) | - |
 | Earthquakes | USGS Earthquake Hazards Program | every 5 min |
 | Plate boundaries | PB2002 (Peter Bird 2003; GeoJSON by Hugo Ahlenius / Nordpil, ODC-By), downloaded with the borders | - |
 | Volcanoes | Smithsonian Global Volcanism Program (eruption database, weekly report), USGS alert levels (HANS) | hourly |

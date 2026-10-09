@@ -61,7 +61,8 @@ NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geoj
 BORDERS = DATA / "borders"
 NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries",
             "ne_50m_coastline", "ne_50m_admin_0_boundary_lines_land", "ne_50m_admin_1_states_provinces_lines",
-            "ne_10m_time_zones", "ne_10m_populated_places_simple"]     # time zone polygons; cities for the home search
+            "ne_10m_time_zones", "ne_10m_populated_places_simple",    # time zone polygons; cities, capitals, home search
+            "ne_10m_admin_1_label_points"]                              # state and province names (label points with a rank)
 # Tectonic plate boundaries: Peter Bird's PB2002 model (2003), GeoJSON conversion by Hugo Ahlenius (Nordpil),
 # Open Data Commons Attribution licence. Downloaded with the border data, drawn under the Earthquakes settings.
 PLATES_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
@@ -345,6 +346,52 @@ def _spans_at(ring, lat):
     return [(xs[i], xs[i + 1]) for i in range(0, len(xs) - 1, 2)]
 
 
+def _state_names():
+    """State and province names: [name, lon, lat, rank] from Natural Earth's admin-1 label points, one per
+    region (the file gives big regions several points; the best-ranked one is kept). Rank 2 is a major
+    region, 10 a minor one."""
+    f = BORDERS / "ne_10m_admin_1_label_points.geojson"
+    if not f.exists():
+        return None
+    best = {}
+    for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+        p, c = feat.get("properties") or {}, (feat.get("geometry") or {}).get("coordinates")
+        name = p.get("name") or ""
+        if not name or not c:
+            continue
+        key, rank = (p.get("admin") or "", name), int(p.get("scalerank") or 10)
+        if key not in best or rank < best[key][3]:
+            best[key] = [name, round(float(c[0]), 2), round(float(c[1]), 2), rank]
+    return sorted(best.values(), key=lambda n: n[3])
+
+
+def _places(capitals, state_capitals, min_pop):
+    """Capitals and cities: [name, lon, lat, population, kind] with kind 0 country capital, 1 state or province
+    capital, 2 city over min_pop people. Country capitals first, then by population, so the overlap layout
+    keeps the important ones. min_pop 0 = no cities by size."""
+    f = BORDERS / "ne_10m_populated_places_simple.geojson"
+    if not f.exists():
+        return None
+    out = []
+    for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+        p = feat.get("properties") or {}
+        c = (feat.get("geometry") or {}).get("coordinates") or [p.get("longitude"), p.get("latitude")]
+        name, cla, pop = str(p.get("name") or ""), str(p.get("featurecla") or ""), int(p.get("pop_max") or 0)
+        if not name or c[0] is None:
+            continue
+        if capitals and (p.get("adm0cap") == 1 or cla == "Admin-0 capital"):
+            kind = 0
+        elif state_capitals and cla.startswith("Admin-1"):
+            kind = 1
+        elif min_pop and pop >= min_pop:
+            kind = 2
+        else:
+            continue
+        out.append([name, round(float(c[0]), 2), round(float(c[1]), 2), pop, kind])
+    out.sort(key=lambda x: (x[4] != 0, -x[3]))
+    return out
+
+
 def _zones(row_lat=None):
     """Time zone outlines (Natural Earth 10m, thinned) and one label per zone: ["UTC+5:30", lon, lat, width_deg].
     Inside each zone: in its largest piece, on the widest stretch of the piece's own middle latitude, so the
@@ -394,6 +441,8 @@ def cmd_borders(args):
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
            "names": _names() if args.names else [],
+           "state_names": _state_names() if args.state_names else [],
+           "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
            "zones": zones, "zone_labels": zone_labels}
     missing = [k for k, v in res.items() if v is None]
     res = {k: v or [] for k, v in res.items()}
@@ -2769,7 +2818,10 @@ def main():
     fi.set_defaults(fn=cmd_fires)
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
-    b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float); b.set_defaults(fn=cmd_borders)
+    b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
+    b.add_argument("--state-names", dest="state_names", action="store_true"); b.add_argument("--capitals", action="store_true")
+    b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)
+    b.set_defaults(fn=cmd_borders)
     wc = sub.add_parser("where-city"); wc.add_argument("query"); wc.set_defaults(fn=cmd_where_city)
     sa = sub.add_parser("sats"); sa.add_argument("--table", action="store_true"); sa.add_argument("--ahead", type=int, default=100)
     sa.add_argument("--behind", type=int, default=15); sa.set_defaults(fn=cmd_sats)

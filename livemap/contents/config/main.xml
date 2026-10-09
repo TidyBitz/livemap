@@ -97,6 +97,22 @@
     <entry name="NameBold" type="Bool"><default>true</default></entry>
     <entry name="NameCaps" type="Bool"><default>true</default></entry>
     <entry name="NameSpacing" type="Int"><default>100</default></entry>
+    <!-- state and province names (Natural Earth admin-1 label points), in the country-name style -->
+    <entry name="ShowStateNames" type="Bool"><default>false</default></entry>
+    <entry name="StateNameDensity" type="Int"><default>1</default></entry>   <!-- 0 major regions, 1 most, 2 all that fit -->
+    <entry name="StateNameSize" type="Int"><default>8</default></entry>
+    <!-- places: capitals and cities as a dot with a name -->
+    <entry name="ShowCapitals" type="Bool"><default>false</default></entry>
+    <entry name="ShowStateCapitals" type="Bool"><default>false</default></entry>
+    <entry name="ShowCities" type="Bool"><default>false</default></entry>
+    <entry name="CityMinPop" type="Int"><default>1</default></entry>         <!-- 0 500k, 1 1M, 2 5M, 3 10M -->
+    <entry name="PlaceSize" type="Int"><default>8</default></entry>
+    <entry name="PlaceColor" type="Color"><default>#ffe3a0</default></entry>
+    <entry name="PlaceLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="PlaceLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="PlaceLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="PlaceLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="PlaceLabelHalo" type="Int"><default>100</default></entry>
     <entry name="DistanceUnits" type="Int"><default>0</default></entry>
     <entry name="MarkerScale" type="Int"><default>100</default></entry>
     <entry name="StaleHours" type="Int"><default>6</default></entry>

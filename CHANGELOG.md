@@ -6,6 +6,12 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.46 - 2026-09-25
 
 ### Added
+- Under Countries: state and province names (Natural Earth's admin-1 label points, 4 600 regions, with a
+  density choice), in the country-name style but smaller; and places - country capitals (a ringed dot), state
+  and province capitals (a dot) and cities over 500 000 / 1 / 5 / 10 million people (a small dot) - with
+  their names, own colour, size and label style. Country names are placed first, then capitals and cities by
+  size, then state names, then time zone labels, so nothing prints over anything more important. One more
+  file in the border download (4 MB); existing installs show a Download button on the Countries source line.
 - "Full speed" override from the companion widget: the wallpaper ignores its on-battery policy and the load
   guard while it is set, so the map can be brought back on demand - for a talk, a stream, or just to look -
   without touching the settings. Either until switched off or for 1 / 4 / 8 hours; a timed one is dropped by

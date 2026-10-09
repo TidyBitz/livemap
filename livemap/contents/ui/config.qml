@@ -71,6 +71,20 @@ Kirigami.FormLayout {
     property alias cfg_NameBold: nameStyle.bold
     property alias cfg_NameCaps: nameStyle.caps
     property alias cfg_NameSpacing: nameStyle.letterSpacing
+    property alias cfg_ShowStateNames: stateNames.checked
+    property alias cfg_StateNameDensity: stateNameDensity.currentIndex
+    property alias cfg_StateNameSize: stateNameSize.value
+    property alias cfg_ShowCapitals: capitals.checked
+    property alias cfg_ShowStateCapitals: stateCapitals.checked
+    property alias cfg_ShowCities: cities.checked
+    property alias cfg_CityMinPop: cityMinPop.currentIndex
+    property alias cfg_PlaceSize: placeSize.value
+    property alias cfg_PlaceColor: placeColor.color
+    property alias cfg_PlaceLabelBold: placeStyle.bold
+    property alias cfg_PlaceLabelCaps: placeStyle.caps
+    property alias cfg_PlaceLabelSpacing: placeStyle.letterSpacing
+    property alias cfg_PlaceLabelOpacity: placeStyle.textOpacity
+    property alias cfg_PlaceLabelHalo: placeStyle.halo
     property alias cfg_QuakeLabelBold: quakeStyle.bold
     property alias cfg_QuakeLabelCaps: quakeStyle.caps
     property alias cfg_QuakeLabelSpacing: quakeStyle.letterSpacing
@@ -634,6 +648,31 @@ Kirigami.FormLayout {
         QQC2.CheckBox { id: nameFollows; text: "Text follows the line colour" }
         KQuickControls.ColorButton { id: nameTextColor; enabled: !nameFollows.checked; showAlphaChannel: false; dialogTitle: "Country name colour" }
     }
+    RowLayout {
+        Kirigami.FormData.label: "State names:"
+        enabled: borders.checked
+        QQC2.CheckBox { id: stateNames; text: "State and province names" }
+        QQC2.ComboBox { id: stateNameDensity; enabled: stateNames.checked; model: ["Major regions", "Most", "All that fit"] }
+        Px { id: stateNameSize; enabled: stateNames.checked; from: 5; to: 24 }
+    }
+    Note { text: "In the country-name style above, smaller and a little fainter, fitted around the country names. Natural Earth's admin-1 label points, part of the border download." }
+    RowLayout {
+        Kirigami.FormData.label: "Places:"
+        enabled: borders.checked
+        QQC2.CheckBox { id: capitals; text: "Country capitals" }
+        QQC2.CheckBox { id: stateCapitals; text: "State capitals" }
+        QQC2.CheckBox { id: cities; text: "Cities over" }
+        QQC2.ComboBox { id: cityMinPop; enabled: cities.checked; model: ["500 000", "1 million", "5 million", "10 million"] }
+    }
+    RowLayout {
+        Kirigami.FormData.label: "Place marks:"
+        enabled: borders.checked && (capitals.checked || stateCapitals.checked || cities.checked)
+        KQuickControls.ColorButton { id: placeColor; showAlphaChannel: false; dialogTitle: "Place colour" }
+        QQC2.Label { text: "dot and name" }
+        Px { id: placeSize; from: 5; to: 24 }
+    }
+    LabelStyle { id: placeStyle; enabled: borders.checked && (capitals.checked || stateCapitals.checked || cities.checked); plated: false }
+    Note { text: "A country capital is a ringed dot, a state capital a dot, a city a small dot; the name beside it. Country names are placed first, then capitals and cities by size, then state names, so the important ones win the space. Natural Earth populated places, part of the border download." }
 
     // ============================================================== Time zones
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Time zones" }

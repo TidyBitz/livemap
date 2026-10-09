@@ -45,6 +45,19 @@ Item {
     property var borderLines: []
     property var stateLines: []
     property var countryNames: []
+    // state and province names, and places (capitals, cities): both fitted around the country names
+    readonly property bool showStateNames: cfg ? cfg.ShowStateNames : false
+    readonly property int stateRank: [4, 7, 12][cfg ? cfg.StateNameDensity : 1] || 7
+    readonly property int statePx: Math.round((cfg ? cfg.StateNameSize : 8) * unit)
+    readonly property bool showCapitals: cfg ? cfg.ShowCapitals : false
+    readonly property bool showStateCapitals: cfg ? cfg.ShowStateCapitals : false
+    readonly property bool showCities: cfg ? cfg.ShowCities : false
+    readonly property int cityPop: showCities ? ([500000, 1000000, 5000000, 10000000][cfg ? cfg.CityMinPop : 1] || 1000000) : 0
+    readonly property bool showPlaces: showCapitals || showStateCapitals || cityPop > 0
+    readonly property int placePx: Math.round((cfg ? cfg.PlaceSize : 8) * unit)
+    readonly property color placeInk: cfg ? cfg.PlaceColor : "#ffe3a0"
+    property var stateNames: []
+    property var places: []
     property string note: ""
     readonly property string hint: note          // shown by main.qml
 
@@ -52,6 +65,8 @@ Item {
     readonly property string request: helper === "" ? ""
         : "python3 '" + helper + "' borders --detail " + detail + (showStates ? " --states" : "") + (showNames ? " --names" : "")
           + (showZones ? " --zones" + (zonePlacement === 1 ? " --zone-row " + zoneRowLat : "") : "")
+          + (showStateNames ? " --state-names" : "") + (showCapitals ? " --capitals" : "") + (showStateCapitals ? " --state-capitals" : "")
+          + (cityPop > 0 ? " --city-pop " + cityPop : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
     P5Support.DataSource {
@@ -66,9 +81,10 @@ Item {
                 overlay.coastLines = r.coast; overlay.borderLines = r.borders;
                 overlay.stateLines = r.states; overlay.countryNames = r.names;
                 overlay.zoneLines = r.zones || []; overlay.zoneLabels = r.zone_labels || [];
+                overlay.stateNames = r.state_names || []; overlay.places = r.places || [];
                 overlay.note = r.note || "";
                 console.warn("livemap borders:", r.coast.length, "coast lines,", r.borders.length, "border lines,",
-                             r.states.length, "state lines,", r.names.length, "names,", (r.zones || []).length, "time zone lines (" + overlay.detail + ")", overlay.note);
+                             r.states.length, "state lines,", r.names.length, "names,", (r.state_names || []).length, "state names,", (r.places || []).length, "places,", (r.zones || []).length, "time zone lines (" + overlay.detail + ")", overlay.note);
             } catch (e) {
                 overlay.note = "Borders: the helper did not answer properly";
                 console.warn("livemap borders:", e, String(data.stderr).trim().split("\n").pop());
@@ -96,10 +112,7 @@ Item {
     // name (the fitted names go into the overlap test first, as boxes that are already taken).
     readonly property var fittedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
-        var taken = fittedNames.map(function (n) {
-            var tw = n.name.length * (n.size * 0.7 + unit), th = n.size * 1.3;
-            return { x: n.x - tw / 2, y: n.y - th / 2, w: tw, h: th };
-        });
+        var taken = nameBoxes.concat(placeBoxes, stateBoxes);
         var wanted = zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
             .filter(function (z) { return z[3] * width / 360 > z[0].length * zonePx * 0.7; })
             .map(function (z) { return { text: z[0], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
@@ -163,6 +176,34 @@ Item {
         return wanted.filter(function (_n, k) { return keep[k]; });
     }
     readonly property var fittedNames: showNames ? fitNames(countryNames, width, height, nameRank, namePx) : []
+    function boxOf(x, y, text, px, bold) {
+        var tw = text.length * (px * (bold ? 0.72 : 0.62) + overlay.unit), th = px * 1.3;
+        return { x: x - tw / 2, y: y - th / 2, w: tw, h: th };
+    }
+    readonly property var nameBoxes: fittedNames.map(function (n) { return boxOf(n.x, n.y, n.name, n.size, true); })
+    // Places: a dot with the name to its right; country capitals first, then by population (the helper's order).
+    readonly property var fittedPlaces: (function () {
+        if (!showPlaces) return [];
+        var wanted = places.map(function (p) {
+            var x = (p[1] + 180) / 360 * width, y = (90 - p[2]) / 180 * height, dot = placePx * (p[4] === 0 ? 0.9 : p[4] === 1 ? 0.65 : 0.45);
+            return { name: p[0], x: x, y: y, kind: p[4], dot: dot, lx: x + dot + 3 * unit, ly: y };
+        });
+        var boxes = nameBoxes.concat(wanted.map(function (p) { var b = boxOf(0, p.ly, p.name, placePx, p.kind === 0); b.x = p.x - p.dot; b.w += p.dot + 3 * unit + p.dot; return b; }));
+        var keep = Geo.declutter(boxes, 2 * unit);
+        return wanted.filter(function (_p, k) { return keep[nameBoxes.length + k]; });
+    })()
+    readonly property var placeBoxes: fittedPlaces.map(function (p) { var b = boxOf(0, p.ly, p.name, placePx, p.kind === 0); b.x = p.x - p.dot; b.w += p.dot + 3 * unit + p.dot; return b; })
+    // State and province names: after the country names and the places, by rank.
+    readonly property var fittedStates: (function () {
+        if (!showStateNames) return [];
+        var wanted = stateNames.filter(function (n) { return n[3] <= stateRank; })
+            .map(function (n) { return { name: n[0], x: (n[1] + 180) / 360 * width, y: (90 - n[2]) / 180 * height }; });
+        var taken = nameBoxes.concat(placeBoxes);
+        var boxes = taken.concat(wanted.map(function (n) { return boxOf(n.x, n.y, n.name, statePx, cfg ? cfg.NameBold : true); }));
+        var keep = Geo.declutter(boxes, 2 * unit);
+        return wanted.filter(function (_n, k) { return keep[taken.length + k]; });
+    })()
+    readonly property var stateBoxes: fittedStates.map(function (n) { return boxOf(n.x, n.y, n.name, statePx, cfg ? cfg.NameBold : true); })
 
     Repeater {                                                // time zone offsets
         model: overlay.fittedZones
@@ -203,6 +244,57 @@ Item {
             haloScale: (cfg ? cfg.NameHalo : 100) / 100
             letterScale: (cfg ? cfg.NameSpacing : 100) / 100
             unit: overlay.unit
+        }
+    }
+
+    Repeater {                                                // state and province names: the country-name style, smaller
+        model: overlay.fittedStates
+        MapLabel {
+            required property var modelData
+            x: modelData.x - width / 2
+            y: modelData.y - height / 2
+            text: modelData.name
+            textColor: overlay.nameColor
+            textOpacity: overlay.nameStrength * 0.85
+            plate: cfg ? cfg.NamePlate : false
+            plateColor: cfg ? cfg.PlateColor : "#000510"
+            plateOpacity: (cfg ? cfg.PlateOpacity : 60) / 100
+            px: overlay.statePx
+            bold: cfg ? cfg.NameBold : true
+            caps: cfg ? cfg.NameCaps : true
+            haloScale: (cfg ? cfg.NameHalo : 100) / 100
+            letterScale: (cfg ? cfg.NameSpacing : 100) / 100
+            unit: overlay.unit
+        }
+    }
+
+    Repeater {                                                // places: a dot (ringed for a country capital) and the name
+        model: overlay.fittedPlaces
+        Item {
+            required property var modelData
+            x: modelData.x; y: modelData.y
+            Rectangle {
+                anchors.centerIn: parent
+                width: modelData.dot * 2; height: width; radius: width / 2
+                color: modelData.kind === 0 ? "transparent" : overlay.placeInk
+                border.color: overlay.placeInk; border.width: modelData.kind === 0 ? Math.max(1, 1.2 * overlay.unit) : 0
+                Rectangle { visible: modelData.kind === 0; anchors.centerIn: parent; width: parent.width * 0.45; height: width; radius: width / 2; color: overlay.placeInk }
+            }
+            MapLabel {
+                x: modelData.lx - modelData.x
+                y: -height / 2
+                text: modelData.name
+                textColor: overlay.placeInk
+                textOpacity: (cfg ? cfg.PlaceLabelOpacity : 100) / 100
+                plate: false
+                plateColor: cfg ? cfg.PlateColor : "#000510"
+                px: overlay.placePx
+                bold: (cfg ? cfg.PlaceLabelBold : false) || modelData.kind === 0
+                caps: cfg ? cfg.PlaceLabelCaps : false
+                haloScale: (cfg ? cfg.PlaceLabelHalo : 100) / 100
+                letterScale: (cfg ? cfg.PlaceLabelSpacing : 100) / 100
+                unit: overlay.unit
+            }
         }
     }
 }
