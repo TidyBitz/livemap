@@ -44,6 +44,13 @@ release notes written at the time; their dates are the day the version was hande
   the data folder is shared.
 
 ### Changed
+- The settings page folds: every section is one line - a switch (its Show box), the name, and a sentence
+  saying what it is set to ("Magnitude 4.5+, past day · rings 100 % · labels: magnitude, place and age · pulse:
+  newly reported or significant · tectonic plates") with a dot for the state of its sources - and opens to
+  the full controls with the chevron or a click on the line. "Expand all" / "Collapse all" at the top. The
+  page starts folded, so the whole map is one screen of lines. Clouds and Tectonic plates are sections of
+  their own (they were rows under Day and night and Earthquakes), so each has its own switch and the plates
+  no longer look like part of the earthquake layer.
 - Label style is the same for every label type: one "Label style" row - Bold, Capitals, letter spacing (with
   capitals), text opacity and the dark outline drawn when there is no plate - under Earthquakes, Volcanoes,
   Storms, Wildfires, Satellites, Launches, Network activity and Time zones, exactly the five choices country
