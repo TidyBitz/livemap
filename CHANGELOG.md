@@ -65,6 +65,9 @@ release notes written at the time; their dates are the day the version was hande
   names and places make way for it; a zone too narrow for its label at that latitude still gets one unless a
   neighbour's label is in the way. "Time zone label text" row: a plate, the text following the line colour
   or its own colour; the label opacity is the style row's alone, no longer tied to the line opacity.
+- `livemap.sh` looked frozen on the network check: a stalled DNS lookup or proxy could hold "reaching
+  earthquake.usgs.gov" for minutes with nothing on screen. It now says what it is doing, and gives up after
+  8 seconds with a warning.
 - The widget ignored the wallpaper's units: a storm read "194 km/h" with the map set to mph, a fire "5 032 ha"
   with the map in acres. The wallpaper hands its Units and Storm wind choices to the helper with the layers
   (`power --units`), and the feed's titles follow them.
@@ -130,6 +133,18 @@ release notes written at the time; their dates are the day the version was hande
   two dates - lists what has already left the map (quakes that aged out, storms that dissipated, launches
   that flew) with the date and time of each, from the helper's own 90-day record.
 
+- Wildfires and satellites have an icon of their own in the list - a flame, a satellite - drawn in the
+  theme's text colour (small SVGs in the widget package) instead of the ♦ and ◆ glyphs, which did not
+  read as anything.
+- Events in groups: one block per kind - launches, storms, volcanoes, earthquakes, wildfires, satellites -
+  with a header that says how many and the one fact that matters ("next in 12 h", "strongest M7.7",
+  "3 active"); a click folds a group away, a button at the top folds or opens them all. A kind the wallpaper
+  has switched off keeps its header ("off on the map · 6 hidden") instead of vanishing, so the list says why
+  it is empty. The sort order applies inside each group. A storm's facilities are two chips - "✓ crossed 23 ·
+  MC 807 A, Thunder Horse, +21" and "→ ahead 5 · …" - and a click on a chip unfolds the full list under
+  the storm, facility by facility, another folds it away. The sort choice lost "By kind" (the groups are
+  that); next to it a choice between "On the map" (only the kinds the wallpaper has switched on) and
+  "Every kind". "Events listed: in groups by kind" switches the flat list back on.
 - Notification sound: off, a bubble pop, a chime, a zing, or a sound file of your own, played when a severe
   event arrives (a magnitude 6+ quake, a category 3+ storm, a red alert - the red rows) or a launch is within
   its last minutes (15 by default). One sound per refresh however many arrive together; nothing for what was

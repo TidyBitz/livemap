@@ -8,6 +8,7 @@ Kirigami.FormLayout {
     id: page
     property alias cfg_QuakeFeed: quakeFeed.editText
     property alias cfg_FollowMap: followMap.checked
+    property alias cfg_Grouped: grouped.checked
     property string cfg_Sound
     property alias cfg_SoundFile: soundFile.text
     property alias cfg_SoundSevere: soundSevere.checked
@@ -48,7 +49,8 @@ Kirigami.FormLayout {
         textFromValue: function (v) { return v + " min" }
         valueFromText: function (t) { return parseInt(t) || 5 }
     }
-    QQC2.CheckBox { id: followMap; Kirigami.FormData.label: "Events listed:"; text: "Only the kinds the wallpaper shows (its Show switches)" }
+    QQC2.CheckBox { id: grouped; Kirigami.FormData.label: "Events listed:"; text: "In groups by kind, each with a header that folds" }
+    QQC2.CheckBox { id: followMap; text: "Only the kinds the wallpaper shows (also the On the map / Every kind choice on the Events tab)" }
     QQC2.CheckBox { id: showQuakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes" }
     QQC2.CheckBox { id: showVolcanoes; text: "Volcanoes" }
     QQC2.CheckBox { id: showStorms; text: "Storms" }

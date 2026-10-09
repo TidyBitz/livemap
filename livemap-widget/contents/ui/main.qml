@@ -40,7 +40,8 @@ PlasmoidItem {
     property real lastSeen: 0                     // newest event time the user has looked at
     readonly property string feedName: Plasmoid.configuration.QuakeFeed || "4.5_day"
 
-    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", launch: "↑", sat: "◆" })
+    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", launch: "↑", sat: "◆" })   // text fallbacks
+    function kindIconUrl(kind) { return kind === "fire" || kind === "sat" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
     readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", launch: "Launch", sat: "Satellite" })
     readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
@@ -136,6 +137,72 @@ PlasmoidItem {
         });
         return list;
     })()
+    // ---- groups: one collapsible block per kind, with a count and the one fact that matters ----------------
+    readonly property bool grouped: Plasmoid.configuration.Grouped
+    readonly property var kindPlural: ({ launch: "Launches", storm: "Storms", volcano: "Volcanoes", quake: "Earthquakes", fire: "Wildfires", sat: "Satellites" })
+    property var closed: ({})                     // kinds folded away, by the user; the header stays
+    readonly property var kindList: ["launch", "storm", "volcano", "quake", "fire", "sat"]
+    function toggleKind(k) { var c = Object.assign({}, closed); if (c[k]) delete c[k]; else c[k] = true; closed = c; }
+    readonly property bool anyOpen: rows.some(function (r) { return r.head && r.open; })
+    function toggleAll() {
+        var c = {};
+        if (anyOpen) for (var i = 0; i < kindList.length; i++) c[kindList[i]] = true;
+        closed = c;
+    }
+    // kinds the widget's own boxes want but the map has switched off (with "only the kinds the wallpaper shows")
+    readonly property var hiddenKinds: (function () {
+        var src = range > 0 ? pastItems : items, out = {};
+        for (var i = 0; i < src.length; i++) {
+            var k = src[i].kind, c = Plasmoid.configuration;
+            var own = k === "quake" ? c.ShowQuakes : k === "volcano" ? c.ShowVolcanoes : k === "storm" ? c.ShowStorms : k === "fire" ? c.ShowFires : k === "launch" ? c.ShowLaunches : k === "sat" ? c.ShowSats : true;
+            if (own && !wanted(k)) out[k] = (out[k] || 0) + 1;
+        }
+        return Object.keys(out).map(function (k) { return { kind: k, count: out[k] }; });
+    })()
+    function kindFact(k, list) {
+        if (k === "launch") { var next = list.filter(function (it) { return it.future && it.when > nowSec; }).sort(function (a, b) { return a.when - b.when; })[0]; return next ? "next " + ago(next.when) : ""; }
+        if (k === "quake") { var top = 0; for (var i = 0; i < list.length; i++) { var m = parseFloat(String(list[i].title).replace(/^M/, "")); if (m > top) top = m; } return top > 0 ? "strongest M" + top.toFixed(1) : ""; }
+        if (k === "storm") { var live = list.filter(function (it) { return !/no longer tracked/.test(it.title); }).length; return live + " active"; }
+        if (k === "fire") { var hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return hot ? hot + " hotspot clusters" : ""; }
+        if (k === "sat") return "live on the map";
+        return "";
+    }
+    readonly property var rows: (function () {
+        if (!grouped) return shown;
+        var out = [], byKind = {};
+        for (var i = 0; i < shown.length; i++) (byKind[shown[i].kind] = byKind[shown[i].kind] || []).push(shown[i]);
+        var hidden = {};
+        for (var h = 0; h < hiddenKinds.length; h++) hidden[hiddenKinds[h].kind] = hiddenKinds[h].count;
+        for (var k = 0; k < kindList.length; k++) {
+            var kind = kindList[k], list = byKind[kind] || [];
+            if (list.length === 0 && !hidden[kind]) continue;
+            var open = list.length > 0 && !closed[kind];
+            out.push({ head: true, kind: kind, count: hidden[kind] || list.length, hidden: !!hidden[kind] && list.length === 0, fact: kindFact(kind, list), open: open });
+            if (open) out = out.concat(list);
+        }
+        return out;
+    })()
+    property var openFacilities: ({})             // storms whose facility lists are unfolded, by key
+    function toggleFacilities(key) { var o = Object.assign({}, openFacilities); if (o[key]) delete o[key]; else o[key] = true; openFacilities = o; }
+    // Facilities as chips: "✓ crossed 23 · MC 807 A, Thunder Horse, +21"; the full list in the tooltip.
+    function facilityChips(f) {
+        if (!f) return [];
+        var out = [];
+        function chip(list, crossed, label) {
+            if (!list || list.length === 0) return;
+            var n = 0, names = [], all = [];
+            for (var i = 0; i < list.length; i++) {
+                n += list[i].count || 1;
+                all.push(list[i].name + (list[i].count ? "" : list[i].kind === "refinery" ? " (refinery)" : " (platform)"));
+                if (!list[i].count && names.length < 2) names.push(list[i].name);
+            }
+            var rest = n - names.length;
+            out.push({ crossed: crossed, text: (crossed ? "\u2713 " : "\u2192 ") + label + " " + n + (names.length ? " \u00b7 " + names.join(", ") + (rest > 0 ? ", +" + rest : "") : ""), all: (crossed ? "Crossed" : "In its path") + ":\n" + all.join("\n") });
+        }
+        chip(f.crossed, true, "crossed");
+        chip(f.ahead, false, "ahead");
+        return out;
+    }
     // launches with a webcast, for the Live tab
     readonly property var webcasts: items.filter(function (it) { return it.kind === "launch" && it.videos && it.videos.length > 0; })
     // Rows under a storm for its facilities: a heading per group, then each named facility, unnamed ones counted.
@@ -149,7 +216,7 @@ PlasmoidItem {
             rows.push({ head: true, crossed: crossed, text: label + " · " + n + (n === 1 ? " facility" : " facilities") });
             var shown = 0;
             for (var j = 0; j < list.length; j++) {
-                if (shown >= 10 && j < list.length - 1 && !list[j].count) {
+                if (shown >= 40 && j < list.length - 1 && !list[j].count) {
                     var rest = 0;
                     for (var k = j; k < list.length; k++) rest += list[k].count || 1;
                     rows.push({ head: false, crossed: crossed, kind: "", text: "+" + rest + " more" });
@@ -288,11 +355,18 @@ PlasmoidItem {
             RowLayout {
                 Layout.fillWidth: true
                 PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
-                PC3.ComboBox {
+                PC3.ComboBox {                            // the groups already sort by kind; "By kind" (2) reads as newest first
                     Layout.fillWidth: true
-                    model: ["Newest first", "Most severe first", "By kind", "Soonest launch first"]
-                    currentIndex: root.sortMode
-                    onActivated: function (i) { Plasmoid.configuration.SortMode = i }
+                    model: ["Newest first", "Most severe first", "Soonest launch first"]
+                    currentIndex: root.sortMode === 1 ? 1 : root.sortMode === 3 ? 2 : 0
+                    onActivated: function (i) { Plasmoid.configuration.SortMode = [0, 1, 3][i] }
+                }
+                PC3.ComboBox {                            // which kinds: what the map shows (its Show switches), or every kind
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 7.5
+                    model: ["On the map", "Every kind"]
+                    currentIndex: Plasmoid.configuration.FollowMap ? 0 : 1
+                    onActivated: function (i) { Plasmoid.configuration.FollowMap = i === 0 }
+                    PC3.ToolTip.text: "On the map: only the kinds the wallpaper has switched on. Every kind: all of them, whatever the map shows."; PC3.ToolTip.visible: hovered
                 }
                 PC3.ComboBox {
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 8
@@ -301,6 +375,8 @@ PlasmoidItem {
                     onActivated: function (i) { root.range = i }
                     PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
                 }
+                PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
+                                 PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
                 PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
                 PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
             }
@@ -331,99 +407,168 @@ PlasmoidItem {
             }
             PC3.ScrollView {
                 Layout.fillWidth: true; Layout.fillHeight: true
-                visible: root.shown.length > 0
+                visible: root.shown.length > 0 || root.hiddenKinds.length > 0
                 ListView {
                     id: list
-                    model: root.shown
+                    model: root.rows
                     spacing: 2
                     clip: true
-                    delegate: PC3.ItemDelegate {
+                    delegate: Loader {
                         required property var modelData
                         required property int index
                         width: list.width
-                        readonly property bool fresh: root.isNew(modelData)
-                        readonly property bool soon: root.isSoon(modelData)
-                        readonly property color accent: soon ? "#ffb347" : modelData.level >= 3 ? Kirigami.Theme.negativeTextColor
-                                                      : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
-                        background: Rectangle {
-                            color: soon ? Qt.rgba(1, 0.7, 0.28, 0.16) : fresh ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.12) : "transparent"
-                            radius: 3
-                            Rectangle {                           // accent bar: new or imminent items get their colour on the left edge
-                                visible: fresh || soon
-                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                                width: 3; radius: 1
-                                color: accent
-                            }
+                        sourceComponent: modelData.head ? headerRow : eventRow
+                        onLoaded: { item.modelData = modelData; item.width = Qt.binding(function () { return list.width; }); }
+                    }
+                }
+            }
+            // A group's header: chevron, the kind, how many, and the one fact that matters
+            Component {
+                id: headerRow
+                PC3.ItemDelegate {
+                    property var modelData: ({})           // set by the Loader once created
+                    readonly property bool open: !!modelData.open
+                    onClicked: root.toggleKind(modelData.kind)
+                    background: Rectangle { color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06); radius: 3 }
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Kirigami.Icon { source: open ? "arrow-down" : "arrow-right"; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.7 }
+                        Kirigami.Icon {                          // wildfires and satellites have an icon of their own (icons/<kind>.svg)
+                            visible: root.kindIconUrl(modelData.kind) !== ""
+                            source: root.kindIconUrl(modelData.kind); isMask: true; color: Kirigami.Theme.textColor; opacity: 0.85
+                            implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2
                         }
-                        onClicked: root.openWeb(modelData.url)
-                        PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
-                        PC3.ToolTip.visible: hovered
-                        contentItem: RowLayout {
-                            spacing: Kirigami.Units.smallSpacing
-                            PC3.Label {
-                                text: root.kindIcon[modelData.kind] || "•"
-                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
-                                color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
-                                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                            ColumnLayout {
+                        PC3.Label { visible: root.kindIconUrl(modelData.kind) === ""; text: root.kindIcon[modelData.kind] || "•"; Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2; horizontalAlignment: Text.AlignHCenter; opacity: 0.8 }
+                        PC3.Label { text: root.kindPlural[modelData.kind] || modelData.kind; font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                        PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight
+                                    text: modelData.hidden ? "off on the map \u00b7 " + modelData.count + " hidden" : modelData.count + (modelData.fact ? " \u00b7 " + modelData.fact : "") }
+                    }
+                }
+            }
+            Component {
+                id: eventRow
+                PC3.ItemDelegate {
+                    id: row
+                    property var modelData: ({})           // set by the Loader once created
+                    readonly property bool facilitiesOpen: !!root.openFacilities[modelData.key]
+                    readonly property bool fresh: root.isNew(modelData)
+                    readonly property bool soon: root.isSoon(modelData)
+                    readonly property color accent: soon ? "#ffb347" : modelData.level >= 3 ? Kirigami.Theme.negativeTextColor
+                                                  : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
+                    background: Rectangle {
+                        color: soon ? Qt.rgba(1, 0.7, 0.28, 0.16) : fresh ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.12) : "transparent"
+                        radius: 3
+                        Rectangle {                           // accent bar: new or imminent items get their colour on the left edge
+                            visible: fresh || soon
+                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                            width: 3; radius: 1
+                            color: accent
+                        }
+                    }
+                    onClicked: root.openWeb(modelData.url)
+                    PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
+                    PC3.ToolTip.visible: hovered
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Kirigami.Icon {
+                            visible: !root.grouped && root.kindIconUrl(modelData.kind) !== ""   // in groups the header carries the kind's icon
+                            source: root.kindIconUrl(modelData.kind); isMask: true
+                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                            implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
+                        }
+                        PC3.Label {
+                            visible: !root.grouped && root.kindIconUrl(modelData.kind) === ""
+                            text: root.kindIcon[modelData.kind] || "•"
+                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
+                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        Rectangle {                              // in groups: a small severity dot instead of the icon
+                            visible: root.grouped
+                            Layout.preferredWidth: 7; Layout.preferredHeight: 7; radius: 4
+                            Layout.leftMargin: Kirigami.Units.smallSpacing
+                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.35)
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 0
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: Kirigami.Units.smallSpacing
-                                    PC3.Label { Layout.fillWidth: true; text: modelData.title; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: fresh || soon }
-                                    Rectangle {                   // "NEW" / "SOON" / "LIVE" tag
-                                        visible: fresh || soon || !!modelData.webcast_live
-                                        radius: 3; implicitHeight: tag.implicitHeight + 2; implicitWidth: tag.implicitWidth + 8
-                                        color: modelData.webcast_live ? "#e53935" : accent
-                                        PC3.Label { id: tag; anchors.centerIn: parent; text: modelData.webcast_live ? "LIVE" : soon ? "SOON" : "NEW"; font.pointSize: Kirigami.Theme.smallFont.pointSize; font.bold: true; color: "white" }
-                                    }
+                                spacing: Kirigami.Units.smallSpacing
+                                PC3.Label { Layout.fillWidth: true; text: modelData.title; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: fresh || soon }
+                                Rectangle {                   // "NEW" / "SOON" / "LIVE" tag
+                                    visible: fresh || soon || !!modelData.webcast_live
+                                    radius: 3; implicitHeight: tag.implicitHeight + 2; implicitWidth: tag.implicitWidth + 8
+                                    color: modelData.webcast_live ? "#e53935" : accent
+                                    PC3.Label { id: tag; anchors.centerIn: parent; text: modelData.webcast_live ? "LIVE" : soon ? "SOON" : "NEW"; font.pointSize: Kirigami.Theme.smallFont.pointSize; font.bold: true; color: "white" }
                                 }
-                                PC3.Label {
-                                    Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
-                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                    text: (root.kindName[modelData.kind] || "") + " · " + (modelData.pin ? modelData.detail
-                                          : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " · " + modelData.detail)
-                                }
-                                // a storm's oil and gas facilities: what it has crossed, then what lies in its path
+                            }
+                            PC3.Label {
+                                Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
+                                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                text: (root.grouped ? "" : (root.kindName[modelData.kind] || "") + " \u00b7 ") + (modelData.pin ? modelData.detail
+                                      : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " \u00b7 " + modelData.detail)
+                            }
+                            // a storm's oil and gas facilities: a chip for what it crossed, one for what lies in its
+                            // path; a click on a chip unfolds the full list under the storm, another folds it back
+                            Flow {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 2
+                                spacing: Kirigami.Units.smallSpacing
+                                visible: root.facilityChips(modelData.facilities).length > 0
                                 Repeater {
-                                    model: root.facilityRows(modelData.facilities)
-                                    RowLayout {
+                                    model: root.facilityChips(modelData.facilities)
+                                    Rectangle {
                                         required property var modelData
-                                        Layout.fillWidth: true
-                                        Layout.leftMargin: Kirigami.Units.gridUnit * 0.6
-                                        spacing: Kirigami.Units.smallSpacing
-                                        PC3.Label {
-                                            text: modelData.head ? (modelData.crossed ? "✓" : "→") : (modelData.kind === "refinery" ? "▲" : "■")
-                                            opacity: modelData.head ? 0.8 : 0.55
-                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.9
-                                            horizontalAlignment: Text.AlignHCenter
-                                        }
-                                        PC3.Label {
-                                            Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
-                                            text: modelData.text
-                                            opacity: modelData.head ? 0.8 : 0.65
-                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                            font.italic: modelData.head
-                                        }
+                                        radius: height / 2
+                                        implicitHeight: chip.implicitHeight + 4; implicitWidth: chip.implicitWidth + 14
+                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, chipHover.containsMouse ? 0.16 : 0.08)
+                                        border.width: 1; border.color: modelData.crossed ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
+                                        PC3.Label { id: chip; anchors.centerIn: parent; text: modelData.text; font.pointSize: Kirigami.Theme.smallFont.pointSize; textFormat: Text.PlainText }
+                                        PC3.ToolTip.text: facilitiesOpen ? "Fold the list away" : "Unfold the full list"; PC3.ToolTip.visible: chipHover.containsMouse
+                                        HoverHandler { id: chipHover }
+                                        TapHandler { onTapped: root.toggleFacilities(row.modelData.key) }
                                     }
                                 }
                             }
-                            Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)
-                                model: modelData.links || []
-                                PC3.ToolButton {
+                            Repeater {                            // the unfolded list: a heading per group, then each facility
+                                model: facilitiesOpen ? root.facilityRows(modelData.facilities) : []
+                                RowLayout {
                                     required property var modelData
-                                    icon.name: modelData.icon || "internet-web-browser"
-                                    display: PC3.AbstractButton.IconOnly
-                                    PC3.ToolTip.text: modelData.label + "\n" + modelData.url; PC3.ToolTip.visible: hovered
-                                    onClicked: root.openWeb(modelData.url)
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: Kirigami.Units.gridUnit * 0.6
+                                    spacing: Kirigami.Units.smallSpacing
+                                    PC3.Label {
+                                        text: modelData.head ? (modelData.crossed ? "\u2713" : "\u2192") : (modelData.kind === "refinery" ? "\u25b2" : "\u25a0")
+                                        opacity: modelData.head ? 0.8 : 0.55
+                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 0.9
+                                        horizontalAlignment: Text.AlignHCenter
+                                    }
+                                    PC3.Label {
+                                        Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
+                                        text: modelData.text
+                                        opacity: modelData.head ? 0.8 : 0.65
+                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                        font.italic: modelData.head
+                                    }
                                 }
                             }
-                            Kirigami.Icon { source: "internet-web-browser"; visible: !!modelData.url; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.6 }
                         }
+                        Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)
+                            model: modelData.links || []
+                            PC3.ToolButton {
+                                required property var modelData
+                                icon.name: modelData.icon || "internet-web-browser"
+                                display: PC3.AbstractButton.IconOnly
+                                PC3.ToolTip.text: modelData.label + "\n" + modelData.url; PC3.ToolTip.visible: hovered
+                                onClicked: root.openWeb(modelData.url)
+                            }
+                        }
+                        Kirigami.Icon { source: "internet-web-browser"; visible: !!modelData.url; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.6 }
                     }
                 }
             }

@@ -13,6 +13,7 @@
     <entry name="ShowLaunches" type="Bool"><default>true</default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="FollowMap" type="Bool"><default>true</default></entry>
+    <entry name="Grouped" type="Bool"><default>true</default></entry>
     <entry name="SortMode" type="Int"><default>0</default></entry>
     <entry name="Sound" type="String"><default>none</default></entry>          <!-- none, pop, chime, zing, custom -->
     <entry name="SoundFile" type="String"><default></default></entry>

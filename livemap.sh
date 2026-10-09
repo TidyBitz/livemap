@@ -207,11 +207,15 @@ cmd_doctor() {
     local free; free="$(df -Pk "${XDG_DATA_HOME:-$HOME/.local/share}" 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024}')"
     if [ -n "$free" ] && [ "$free" -ge 700 ]; then ok "free space: ${free} MB (maps and borders need about 350 MB)"; else warn "free space: ${free:-?} MB - the map downloads need about 350 MB"; fi
     if [ "${XDG_SESSION_TYPE:-}" = wayland ] || [ "${XDG_SESSION_TYPE:-}" = x11 ]; then ok "session: ${XDG_SESSION_TYPE}"; else dim "session type unknown (not running inside a desktop session?)"; fi
-    if python3 - <<'PY' >/dev/null 2>&1
-import urllib.request
-urllib.request.urlopen("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson", timeout=6).read(64)
+    # a stalled DNS lookup or proxy can hold this for minutes with nothing on screen: say so first, cap it at 8 s
+    printf '  %s' "network: reaching earthquake.usgs.gov (up to 8 s)..."
+    if timeout 8 python3 - <<'PY' >/dev/null 2>&1
+import socket, urllib.request
+socket.setdefaulttimeout(5)
+urllib.request.urlopen("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson", timeout=5).read(64)
 PY
-    then ok "network: earthquake.usgs.gov reachable"; else warn "network: earthquake.usgs.gov not reachable right now (the map keeps its last data; check later)"; fi
+    then printf '\r'; ok "network: earthquake.usgs.gov reachable                    "
+    else printf '\r'; warn "network: earthquake.usgs.gov not reachable right now (the map keeps its last data; check later)"; fi
 
     if [ "$report" = 1 ]; then
         say "Report (paste this into a bug report)"
