@@ -36,6 +36,8 @@ Item {
     readonly property real zoneStrength: (cfg ? cfg.ZoneOpacity : 35) / 100
     readonly property bool showZoneLabels: cfg ? cfg.ZoneLabels : true
     readonly property int zonePx: Math.round((cfg ? cfg.ZoneLabelSize : 9) * unit)
+    readonly property int zonePlacement: cfg ? cfg.ZonePlacement : 0           // 0 inside each zone, 1 one row
+    readonly property int zoneRowLat: cfg ? cfg.ZoneRowLat : -55
     property var zoneLines: []
     property var zoneLabels: []
 
@@ -48,7 +50,8 @@ Item {
 
     // ask the helper again whenever what we need changes
     readonly property string request: helper === "" ? ""
-        : "python3 '" + helper + "' borders --detail " + detail + (showStates ? " --states" : "") + (showNames ? " --names" : "") + (showZones ? " --zones" : "")
+        : "python3 '" + helper + "' borders --detail " + detail + (showStates ? " --states" : "") + (showNames ? " --names" : "")
+          + (showZones ? " --zones" + (zonePlacement === 1 ? " --zone-row " + zoneRowLat : "") : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
     P5Support.DataSource {
@@ -89,9 +92,24 @@ Item {
     readonly property var statePaths: showStates ? project(stateLines, width, height) : []
     readonly property var zonePaths: showZones ? project(zoneLines, width, height) : []
     // one label per zone polygon, only where the polygon is wide enough for it; biggest polygons first
-    readonly property var fittedZones: !showZones || !showZoneLabels ? [] : zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
-        .filter(function (z) { return z[3] * width / 360 > z[0].length * zonePx * 0.7; })
-        .map(function (z) { return { text: z[0], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; })
+    // Zone labels: widest areas first, only where the area is wide enough for the text, never over a country
+    // name (the fitted names go into the overlap test first, as boxes that are already taken).
+    readonly property var fittedZones: (function () {
+        if (!showZones || !showZoneLabels) return [];
+        var taken = fittedNames.map(function (n) {
+            var tw = n.name.length * (n.size * 0.7 + unit), th = n.size * 1.3;
+            return { x: n.x - tw / 2, y: n.y - th / 2, w: tw, h: th };
+        });
+        var wanted = zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
+            .filter(function (z) { return z[3] * width / 360 > z[0].length * zonePx * 0.7; })
+            .map(function (z) { return { text: z[0], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
+        var boxes = taken.concat(wanted.map(function (z) {
+            var tw = z.text.length * zonePx * 0.65, th = zonePx * 1.3;
+            return { x: z.x - tw / 2, y: z.y - th / 2, w: tw, h: th };
+        }));
+        var keep = Geo.declutter(boxes, 3 * unit);
+        return wanted.filter(function (_z, k) { return keep[taken.length + k]; });
+    })()
 
     Shape {
         anchors.fill: parent

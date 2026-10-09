@@ -327,8 +327,30 @@ def _names():
     return sorted(out, key=lambda n: n[3])
 
 
-def _zones():
-    """Time zone outlines (Natural Earth 10m, thinned) and one label per zone polygon: ["UTC+5:30", x, y]."""
+def _ring_area(ring):
+    a = 0.0
+    for i in range(len(ring) - 1):
+        a += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+    return abs(a) / 2
+
+
+def _spans_at(ring, lat):
+    """The horizontal spans (lon pairs) where the line of latitude `lat` is inside the ring."""
+    xs = []
+    for i in range(len(ring) - 1):
+        (x1, y1), (x2, y2) = ring[i][:2], ring[i + 1][:2]
+        if (y1 <= lat < y2) or (y2 <= lat < y1):
+            xs.append(x1 + (lat - y1) * (x2 - x1) / (y2 - y1))
+    xs.sort()
+    return [(xs[i], xs[i + 1]) for i in range(0, len(xs) - 1, 2)]
+
+
+def _zones(row_lat=None):
+    """Time zone outlines (Natural Earth 10m, thinned) and one label per zone: ["UTC+5:30", lon, lat, width_deg].
+    Inside each zone: in its largest piece, on the widest stretch of the piece's own middle latitude, so the
+    label sits in the zone rather than at the centre of a ragged outline. With row_lat: every label on that one
+    line of latitude, in the widest stretch of the zone there (a classic time-zone map); zones the line misses
+    get no label."""
     f = BORDERS / "ne_10m_time_zones.geojson"
     if not f.exists():
         return None, None
@@ -338,20 +360,36 @@ def _zones():
         zone = p.get("zone")
         if zone is None:
             continue
-        rings = g.get("coordinates") or []
-        pts = [pt for ring in (rings if g.get("type") == "Polygon" else [r for poly in rings for r in poly]) for pt in ring]
-        if not pts:
+        coords = g.get("coordinates") or []
+        rings = [coords[0]] if g.get("type") == "Polygon" and coords else [poly[0] for poly in coords if poly] if g.get("type") == "MultiPolygon" else []
+        rings = [r for r in rings if len(r) >= 4]
+        if not rings:
             continue
-        xs, ys = [pt[0] for pt in pts], [pt[1] for pt in pts]
         h, m = int(abs(zone)), int(round((abs(zone) % 1) * 60))
         text = "UTC" if zone == 0 else "UTC%s%d%s" % ("+" if zone > 0 else "-", h, ":%02d" % m if m else "")
-        labels.append([text, round((min(xs) + max(xs)) / 2, 2), round((min(ys) + max(ys)) / 2, 2), max(xs) - min(xs)])
+        best = None                                                  # (width, mid_lon, lat)
+        if row_lat is not None:
+            for r in rings:
+                for a, b in _spans_at(r, row_lat):
+                    if best is None or b - a > best[0]:
+                        best = (b - a, (a + b) / 2, row_lat)
+        else:
+            r = max(rings, key=_ring_area)
+            ys = [pt[1] for pt in r]
+            mid = (min(ys) + max(ys)) / 2
+            for lat in (mid, mid + (max(ys) - min(ys)) * 0.2, mid - (max(ys) - min(ys)) * 0.2):   # the middle, or near it
+                for a, b in _spans_at(r, lat):
+                    if best is None or b - a > best[0]:
+                        best = (b - a, (a + b) / 2, lat)
+        if best is None or best[0] <= 0:
+            continue
+        labels.append([text, round(best[1], 2), round(best[2], 2), round(best[0], 2)])
     return lines, labels
 
 
 def cmd_borders(args):
     scale, step = ("50m", 0.04) if args.detail == "50m" else ("110m", 0.0)
-    zones, zone_labels = _zones() if args.zones else ([], [])
+    zones, zone_labels = _zones(args.zone_row) if args.zones else ([], [])
     res = {"coast": _lines("ne_%s_coastline" % scale, step),
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
@@ -2731,7 +2769,7 @@ def main():
     fi.set_defaults(fn=cmd_fires)
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
-    b.add_argument("--zones", action="store_true"); b.set_defaults(fn=cmd_borders)
+    b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float); b.set_defaults(fn=cmd_borders)
     wc = sub.add_parser("where-city"); wc.add_argument("query"); wc.set_defaults(fn=cmd_where_city)
     sa = sub.add_parser("sats"); sa.add_argument("--table", action="store_true"); sa.add_argument("--ahead", type=int, default=100)
     sa.add_argument("--behind", type=int, default=15); sa.set_defaults(fn=cmd_sats)

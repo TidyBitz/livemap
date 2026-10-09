@@ -117,6 +117,8 @@ Kirigami.FormLayout {
     property alias cfg_ZoneLabelSpacing: zoneStyle.letterSpacing
     property alias cfg_ZoneLabelOpacity: zoneStyle.textOpacity
     property alias cfg_ZoneLabelHalo: zoneStyle.halo
+    property alias cfg_ZonePlacement: zonePlacement.currentIndex
+    property alias cfg_ZoneRowLat: zoneRowLat.value
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
@@ -653,6 +655,17 @@ Kirigami.FormLayout {
         Px { id: zoneLabelSize; enabled: zoneLabels.checked; from: 6; to: 24 }
     }
     LabelStyle { id: zoneStyle; enabled: timeZones.checked && zoneLabels.checked; plated: false }
+    RowLayout {
+        Kirigami.FormData.label: "Placed:"
+        enabled: timeZones.checked && zoneLabels.checked
+        QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude"] }
+        QQC2.SpinBox {
+            id: zoneRowLat; enabled: zonePlacement.currentIndex === 1; from: -80; to: 80; stepSize: 5
+            textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
+            valueFromText: function (t) { var n = parseInt(t) || 0; return /S/i.test(t) ? -Math.abs(n) : n }
+        }
+    }
+    Note { text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every offset on one line of latitude, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
 
     // #################################################################### Natural events
     Group { text: "Natural events" }

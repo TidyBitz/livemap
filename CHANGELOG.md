@@ -114,6 +114,11 @@ release notes written at the time; their dates are the day the version was hande
   new one that starts from scratch: the two feeds' event ids travel with the storm, a storm is matched by
   id (or, when the feeds rename at different moments, by position within 250 km), the memory - first seen,
   breadcrumbs - moves to the new name, and the NHC name wins. The widget says "was Twenty-E" for a while.
+- Time zone labels were placed at the centre of each zone's bounding box, so a ragged zone got its "UTC-7"
+  somewhere odd, sometimes outside the zone, and nothing kept it off a country name. Each label now sits in
+  its zone area on the widest stretch of the area's middle, and the country names are laid out first and
+  the zone labels around them. New under Time zones: "Placed: In one row, at latitude" puts every offset on
+  one line of latitude the way printed time-zone maps do (55° S runs through open ocean for all 25 zones).
 - Satellite labels jumped every 20 seconds while the picture glided: the label is still laid out against the
   20-second position (a full label relayout is the expensive part), but between relayouts it now slides with
   the marker, recomputed once a second from a handful of numbers. Leader lines follow too.
