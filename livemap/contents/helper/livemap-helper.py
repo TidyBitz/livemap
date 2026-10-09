@@ -9,6 +9,7 @@
   livemap-helper forget              clear the memory of places seen before
   livemap-helper storms [--table]    active tropical cyclones with track and forecast, from GDACS (the wallpaper calls this)
   livemap-helper volcanoes [--table] volcanoes in this week's Smithsonian / USGS activity report (the wallpaper calls this)
+  livemap-helper feed [--since T --until T]  the widget's event list; with a range (epoch seconds), past events from history.json
   livemap-helper power               prints "battery" or "mains" (the wallpaper calls this)
   livemap-helper status              JSON health report on every data source (the settings page calls this)
   livemap-helper make-lights         turn night.jpg into lights.png: only the lights, transparent elsewhere (numpy + pillow)
@@ -423,6 +424,8 @@ def chk_borders():
 
 # --------------------------------------------------------- event memory -----
 EVENTS = DATA / "events.json"
+HISTORY = DATA / "history.json"      # every event the widget's feed has shown, by key, for the widget's past-events view
+HISTORY_DAYS = 90                    # older entries are dropped on the next write
 
 
 def remember_events(kind, items, key_of, keep_hours, now=None, sig_of=None, raised_of=None, trail_of=None):
@@ -2094,7 +2097,8 @@ def cmd_feed(args):
         for f in json.loads(qf.read_text(encoding="utf-8")).get("features", []):
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
-                          "detail": "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1})
+                          "detail": "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
+                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1]))})
     except Exception as e:
         problems.append("quakes: %s" % e)
     # remembered events: storms, volcanoes, fires (first seen / changed)
@@ -2118,7 +2122,7 @@ def cmd_feed(args):
                 continue
             title = title_of(it) + (" \u00b7 was %s" % e.get("was") if e.get("changed") and e.get("was") else " \u00b7 new")
             items.append({"kind": kind, "when": when, "title": title, "detail": "GDACS" if kind != "volcano" else "Smithsonian / USGS",
-                          "url": url_of(it), "lat": it.get("lat"), "lon": it.get("lon"),
+                          "url": url_of(it), "lat": it.get("lat"), "lon": it.get("lon"), "key": "%s:%s:%s" % (kind, key, int(when)),
                           "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1})
     # launches
     try:
@@ -2127,7 +2131,8 @@ def cmd_feed(args):
                 items.append({"kind": "launch", "when": L["net"], "title": "%s \u00b7 %s" % (L["rocket"], L["mission"] or L["name"]),
                               "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": (L.get("videos") or [{}])[0].get("url") or "https://ll.thespacedevs.com/2.2.0/launch/%s/" % L["id"],
                               "lat": L["lat"], "lon": L["lon"], "level": 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": True,
-                              "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", "")})
+                              "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", ""),
+                              "key": "launch:%s" % L["id"]})
     except Exception as e:
         problems.append("launches: %s" % e)
     # satellites
@@ -2142,8 +2147,56 @@ def cmd_feed(args):
             items.append(it)
     except Exception:
         pass
+    remember_history(items, now)
+    if args.since is not None or args.until is not None:          # the past: from the history file, not the live feeds
+        since, until = args.since if args.since is not None else 0, args.until if args.until is not None else now + 1
+        past = [it for it in read_history().values() if since <= it["when"] <= until]
+        for it in past:
+            it["past"] = True
+            if it.get("future") and it["when"] < now:
+                it["future"] = False                                  # a launch that has happened since
+        past.sort(key=lambda it: -it["when"])
+        emit({"items": past[:args.limit], "problems": problems, "version": VERSION, "history_days": HISTORY_DAYS,
+              "history_from": min((it["when"] for it in read_history().values()), default=None)})
+        return
     items.sort(key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
     emit({"items": items[:args.limit], "problems": problems, "version": VERSION})
+
+
+def read_history():
+    try:
+        h = json.loads(HISTORY.read_text(encoding="utf-8"))
+        return h.get("items", {}) if isinstance(h, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def remember_history(items, now):
+    """Every event the feed shows is kept by key (a launch is updated until it has flown, so its final time and
+    status win); entries older than HISTORY_DAYS go. Nothing is fetched for this: it is a side effect of `feed`."""
+    hist = read_history()
+    changed = False
+    for it in items:
+        key = it.get("key")
+        if not key or it.get("pin"):
+            continue
+        keep = {k: v for k, v in it.items() if k not in ("videos", "webcast_live", "pin", "links")}
+        old = hist.get(key)
+        if old != keep and (old is None or it.get("future") or old.get("when") != keep["when"] or old.get("title") != keep["title"]):
+            hist[key] = keep
+            changed = True
+    cutoff = now - HISTORY_DAYS * 86400
+    stale = [k for k, v in hist.items() if (v.get("when") or 0) < cutoff]
+    for k in stale:
+        hist.pop(k, None)
+    if changed or stale:
+        try:
+            HISTORY.parent.mkdir(parents=True, exist_ok=True)
+            tmp = HISTORY.with_suffix(".tmp%d" % os.getpid())
+            tmp.write_text(json.dumps({"items": hist}, separators=(",", ":")), encoding="utf-8")
+            tmp.replace(HISTORY)
+        except OSError:
+            pass
 
 
 
@@ -2474,7 +2527,8 @@ def main():
     mo.add_argument("--clouds", choices=["on", "off", "auto"]); mo.add_argument("--cloud-opacity", dest="cloud_opacity")
     mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
-    fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60); fe.set_defaults(fn=cmd_feed)
+    fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60)
+    fe.add_argument("--since", type=float); fe.add_argument("--until", type=float); fe.set_defaults(fn=cmd_feed)    # epoch seconds: past events from history.json
     vo = sub.add_parser("volcanoes"); vo.add_argument("--table", action="store_true"); vo.add_argument("--keep", type=float, default=48)
     vo.add_argument("--stale", type=float, default=6)
     vo.set_defaults(fn=cmd_volcanoes)

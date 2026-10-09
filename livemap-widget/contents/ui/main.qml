@@ -48,6 +48,30 @@ PlasmoidItem {
              : kind === "fire" ? c.ShowFires : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
     }
     readonly property int sortMode: Plasmoid.configuration.SortMode      // 0 newest, 1 severity, 2 kind, 3 soonest launch
+    // Past events: 0 live (what is on the map now), 1 past 24 h, 2 past 7 days, 3 past 30 days, 4 custom dates.
+    // Answered from the helper's history.json, which keeps everything the feed has shown for 90 days.
+    property int range: 0
+    property var pastItems: []
+    property bool pastBusy: false
+    property real historyFrom: 0
+    property string fromText: ""                  // custom range, "YYYY-MM-DD"
+    property string toText: ""
+    function parseDay(t, endOfDay) {
+        var m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(t).trim());
+        if (!m) return NaN;
+        var d = new Date(+m[1], +m[2] - 1, +m[3], endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0);
+        return d.getTime() / 1000;
+    }
+    readonly property real rangeSince: range === 1 ? nowSec - 86400 : range === 2 ? nowSec - 7 * 86400 : range === 3 ? nowSec - 30 * 86400
+                                     : range === 4 ? parseDay(fromText, false) : 0
+    readonly property real rangeUntil: range === 4 ? parseDay(toText, true) : nowSec
+    readonly property bool rangeValid: range < 4 || (!isNaN(rangeSince) && !isNaN(rangeUntil) && rangeSince <= rangeUntil)
+    function refreshPast() {
+        if (range === 0 || !rangeValid) return;
+        pastBusy = true;
+        exec.connectSource(helperShell + "feed --feed " + feedName + " --limit 500 --since " + Math.floor(rangeSince) + " --until " + Math.ceil(rangeUntil) + " # " + Date.now());
+    }
+    onRangeChanged: { pastItems = []; refreshPast(); }
     readonly property real newSeconds: Math.max(1, Plasmoid.configuration.NewMinutes) * 60
     property real nowSec: Date.now() / 1000
     // Links come from the feeds: only plain web links are ever handed to the browser or a player.
@@ -61,7 +85,7 @@ PlasmoidItem {
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
     readonly property var kindOrder: ({ launch: 0, storm: 1, volcano: 2, quake: 3, fire: 4, sat: 5 })
     readonly property var shown: (function () {
-        var list = items.filter(function (it) { return wanted(it.kind); });
+        var list = (range > 0 ? pastItems : items).filter(function (it) { return wanted(it.kind); });
         var mode = sortMode;
         list.sort(function (a, b) {
             // whatever the order, a launch inside its last hour goes to the very top, then the pinned satellites
@@ -88,7 +112,14 @@ PlasmoidItem {
         connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
-            if (source.indexOf('" feed ') >= 0) {
+            if (source.indexOf('" feed ') >= 0 && source.indexOf(" --since ") >= 0) {
+                root.pastBusy = false;
+                try {
+                    var pr = JSON.parse(data.stdout);
+                    root.pastItems = pr.items || [];
+                    root.historyFrom = pr.history_from || 0;
+                } catch (e) { root.problem = "The helper did not answer: " + String(data.stderr || data.stdout).trim().split("\n").pop(); }
+            } else if (source.indexOf('" feed ') >= 0) {
                 root.busy = false;
                 try {
                     var r = JSON.parse(data.stdout);
@@ -144,7 +175,7 @@ PlasmoidItem {
     function markSeen() { lastSeen = Date.now() / 1000; unread = 0; }
 
     Component.onCompleted: { refresh(); refreshMode(); }
-    Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
     onExpandedChanged: if (expanded) { refresh(); refreshMode(); markSeen(); }
 
@@ -190,24 +221,47 @@ PlasmoidItem {
             spacing: Kirigami.Units.smallSpacing
             RowLayout {
                 Layout.fillWidth: true
-                PC3.Label { text: root.shown.length + " events"; opacity: 0.7; elide: Text.ElideRight }
+                PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
                 PC3.ComboBox {
                     Layout.fillWidth: true
                     model: ["Newest first", "Most severe first", "By kind", "Soonest launch first"]
                     currentIndex: root.sortMode
                     onActivated: function (i) { Plasmoid.configuration.SortMode = i }
                 }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy; onClicked: root.refresh(); PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
-                PC3.BusyIndicator { running: root.busy; visible: root.busy; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+                PC3.ComboBox {
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                    model: ["On the map now", "Past 24 hours", "Past 7 days", "Past 30 days", "Custom dates\u2026"]
+                    currentIndex: root.range
+                    onActivated: function (i) { root.range = i }
+                    PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
+                }
+                PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
+                PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+            }
+            RowLayout {                                   // custom range
+                visible: root.range === 4
+                Layout.fillWidth: true
+                PC3.Label { text: "From" }
+                PC3.TextField { id: fromField; placeholderText: "YYYY-MM-DD"; text: root.fromText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
+                PC3.Label { text: "to" }
+                PC3.TextField { id: toField; placeholderText: "YYYY-MM-DD"; text: root.toText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
+                PC3.Button { id: applyRange; text: "Show"; icon.name: "view-filter"; onClicked: { root.fromText = fromField.text; root.toText = toField.text; root.refreshPast(); } }
+                PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            text: !root.rangeValid && (root.fromText !== "" || root.toText !== "") ? "dates as YYYY-MM-DD, from before to" : "" }
+            }
+            PC3.Label {
+                visible: root.range > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                text: "Past events from this computer's own record, kept 90 days" + (root.historyFrom > 0 ? ", since " + Qt.formatDate(new Date(root.historyFrom * 1000), "d MMM yyyy") : "") + ". Sorted as chosen above."
             }
             PC3.Label { visible: root.problem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.problem; color: Kirigami.Theme.negativeTextColor }
             PC3.Label { visible: root.problems.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; opacity: 0.7; text: root.problems.join("; ") }
             PlasmaExtras.PlaceholderMessage {
-                visible: root.shown.length === 0 && !root.busy && root.problem === ""
+                visible: root.shown.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
                 Layout.fillWidth: true; Layout.fillHeight: true
-                iconName: "globe"
-                text: "No events yet"
-                explanation: "Is the Live World Map wallpaper installed and running? The widget reads its caches."
+                iconName: root.range > 0 ? "view-history" : "globe"
+                text: root.range > 0 ? "Nothing in this range" : "No events yet"
+                explanation: root.range > 0 ? "The record starts when this version first ran and only holds what the feed has shown since."
+                                            : "Is the Live World Map wallpaper installed and running? The widget reads its caches."
             }
             PC3.ScrollView {
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -264,7 +318,8 @@ PlasmoidItem {
                                 PC3.Label {
                                     Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
                                     font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                    text: (root.kindName[modelData.kind] || "") + " · " + (modelData.pin ? modelData.detail : root.ago(modelData.when) + " · " + modelData.detail)
+                                    text: (root.kindName[modelData.kind] || "") + " · " + (modelData.pin ? modelData.detail
+                                          : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " · " + modelData.detail)
                                 }
                             }
                             Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)

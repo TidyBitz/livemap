@@ -17,6 +17,9 @@ release notes written at the time; their dates are the day the version was hande
   ODC-By) as still vector lines under the borders, with their own colour, opacity and thickness - under
   Earthquakes in the settings, where they explain the ring clusters. Off by default. The file (about 0.2 MB)
   comes down with "Download border data"; Status row "Plate boundaries (PB2002)"; `livemap-helper plates`.
+- The helper keeps a record of every event the widget's feed has shown (`history.json`, 90 days, written as a
+  side effect of `feed`, nothing extra is fetched); `feed --since T --until T` answers from it. The widget's
+  "past events" view reads this, so it fills from the moment this version first runs.
 
 ### Fixed
 - `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new
@@ -37,6 +40,9 @@ release notes written at the time; their dates are the day the version was hande
 ### Added
 - Map controls: a "Power" section with a Full speed switch and a duration choice (until switched off, 1, 4
   or 8 hours), with the time left while it runs.
+- Past events: a range chooser next to the sort order - on the map now, past 24 hours, 7 days, 30 days, or
+  two dates - lists what has already left the map (quakes that aged out, storms that dissipated, launches
+  that flew) with the date and time of each, from the helper's own 90-day record.
 
 ### Changed
 - Status tab: the list of sources is there at once (grey dot, "checking…" on each row) instead of an empty tab
