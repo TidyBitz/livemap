@@ -83,6 +83,8 @@ release notes written at the time; their dates are the day the version was hande
   "past events" view reads this, so it fills from the moment this version first runs.
 
 ### Fixed
+- Switching Countries off left the capitals, cities and state names on the map (they are rows of that
+  section, so its switch is theirs); the Rivers or Time zones switch kept the layer alive and they drew on.
 - Time zone labels in one row went missing wherever the row ran through a country name or a city (UTC to
   UTC+3 across Africa at the equator): they were fitted last and lost. The row is placed first now, and the
   names and places make way for it; a zone too narrow for its label at that latitude still gets one unless a

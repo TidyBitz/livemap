@@ -67,14 +67,14 @@ Item {
     property var stateLines: []
     property var countryNames: []
     // state and province names, and places (capitals, cities): both fitted around the country names
-    readonly property bool showStateNames: cfg ? cfg.ShowStateNames : false
+    readonly property bool showStateNames: showBorders && (cfg ? cfg.ShowStateNames : false)   // all of these are Countries' rows: its switch is theirs
     readonly property int stateRank: [4, 7, 12][cfg ? cfg.StateNameDensity : 1] || 7
     readonly property int statePx: Math.round((cfg ? cfg.StateNameSize : 8) * unit)
     readonly property bool showCapitals: cfg ? cfg.ShowCapitals : false
     readonly property bool showStateCapitals: cfg ? cfg.ShowStateCapitals : false
     readonly property bool showCities: cfg ? cfg.ShowCities : false
     readonly property int cityPop: showCities ? ([500000, 1000000, 5000000, 10000000][cfg ? cfg.CityMinPop : 1] || 1000000) : 0
-    readonly property bool showPlaces: showCapitals || showStateCapitals || cityPop > 0
+    readonly property bool showPlaces: showBorders && (showCapitals || showStateCapitals || cityPop > 0)
     // one style per place kind (0 country capital, 1 state capital, 2 city): colour, size, marks (0 dot and
     // name, 1 dot only, 2 name only) and the label style row; cities can size their dot by population
     function kindStyle(prefix, fallbackPx) {
