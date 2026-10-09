@@ -23,6 +23,19 @@ wallpaper for frames.
 | ![Companion widget, Events tab](docs/screenshots/widget-events.webp) | ![Wallpaper settings page](docs/screenshots/settings.webp) |
 | *The companion widget's Events tab: launches, quakes and storms with NEW tags and source links* | *The settings page: profile and layer switches, then one section per layer with the live state of its sources* |
 
+### A closer look
+
+![Three eastern Pacific storms with intensity-coloured tracks and forecast cones](docs/screenshots/storm-tracks.webp)
+
+*Tropical storms: each piece of the track takes the colour of the wind the storm had at that fix, from depression
+blue through tropical-storm green to category 5 magenta. Forecast cone and points, a dot at every fix, and a ring
+where the storm was first fixed.*
+
+| | |
+|---|---|
+| ![A swarm of earthquakes off New Caledonia, and the widget sorted by severity](docs/screenshots/quakes-widget.webp) | ![Electron on its pad, T minus 3 days](docs/screenshots/launch-countdown.webp) ![Electron just after lift-off](docs/screenshots/launch-liftoff.webp) |
+| *A swarm off New Caledonia: rings sized by magnitude, the strongest pulsing, and the widget listing the same quakes most severe first* | *A launch counts down on its pad, then shows lift-off for two minutes after T-0* |
+
 ## Features
 
 | | What you get | Where it comes from |
