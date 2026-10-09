@@ -7,11 +7,17 @@ release notes written at the time; their dates are the day the version was hande
 
 ### Added
 - Under Countries: state and province names (Natural Earth's admin-1 label points, 4 600 regions, with a
-  density choice), in the country-name style but smaller; and places - country capitals (a ringed dot), state
-  and province capitals (a dot) and cities over 500 000 / 1 / 5 / 10 million people (a small dot) - with
-  their names, own colour, size and label style. Country names are placed first, then capitals and cities by
-  size, then state names, then time zone labels, so nothing prints over anything more important. One more
-  file in the border download (4 MB); existing installs show a Download button on the Countries source line.
+  density choice) and places - country capitals (a ringed dot), state and province capitals (a dot) and
+  cities over 500 000 / 1 / 5 / 10 million people (a small dot, or one sized by population). Each of the four
+  has its own colour, size, text colour or style row, and the places choose dot and name / dot only / name
+  only. Country names are placed first, then capitals and cities by size, then state names, then time zone
+  labels, so nothing prints over anything more important. Two more files in the border download (about
+  6 MB); existing installs show a Download button on the Countries source line.
+- Rivers: a new section under Geographic layers - Natural Earth's major rivers and lake centrelines at the
+  Countries detail level, own colour, opacity and thickness, under the coastlines.
+- Every row on the settings page says what it changes: "Border line colour", "Tectonic line thickness",
+  "Earthquake ring size", "Storm label style", "Time zone label placement" and so on, the same pattern in
+  every section, instead of "Colour", "Labels" and "Line thickness" meaning something different each time.
 - "Full speed" override from the companion widget: the wallpaper ignores its on-battery policy and the load
   guard while it is set, so the map can be brought back on demand - for a talk, a stream, or just to look -
   without touching the settings. Either until switched off or for 1 / 4 / 8 hours; a timed one is dropped by
@@ -28,6 +34,8 @@ release notes written at the time; their dates are the day the version was hande
   "past events" view reads this, so it fills from the moment this version first runs.
 
 ### Fixed
+- The Countries "Line thickness" slider also set the time zone lines (they had no thickness of their own);
+  time zones have "Time zone line thickness" now.
 - `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new
   packages beside them and said nothing, so the map kept running the old code whatever was installed. It
   now migrates: desktops are switched to the new wallpaper id, each old widget on a panel or desktop is

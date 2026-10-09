@@ -323,7 +323,7 @@ WallpaperItem {
             Loader {
                 anchors.fill: parent
                 id: borderLoader
-                active: cfg.ShowBorders
+                active: cfg.ShowBorders || cfg.ShowTimeZones || cfg.ShowRivers      // one layer draws all three
                 source: "BorderLayer.qml"
                 onLoaded: {
                     item.cfg = root.cfg;

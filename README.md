@@ -8,7 +8,10 @@ One equirectangular world map, and on it - each layer its own tick box - the day
 lights, live clouds, earthquakes, volcanoes with their alert history, tropical storms with their track
 coloured by intensity, wildfires, the ISS, Hubble and Tiangong gliding along their orbits, the next rocket
 launches counting down on their pads, time zones, borders, and (optionally, never leaving your machine)
-where your own computer is connected to right now.
+where your own computer is connected to right now. Underneath the events: tectonic plate boundaries
+(Earthquakes > Tectonic plates), major rivers (Rivers), state and province names, country capitals, state
+capitals and cities by population (Countries > State names, Country capitals, State capitals, Cities), each
+its own tick box with its own colour, size and label style.
 
 It is built to sit on a desktop for weeks: every feed keeps its last good data and only says something when
 it has been stale for hours, the clouds fall back to imagery stitched locally from five geostationary
@@ -43,8 +46,8 @@ where the storm was first fixed.*
 | **Base map** | NASA Blue Marble imagery blended month by month for the seasons, Black Marble city lights on the night side, dimming and framing (Stretch / Fit / Crop, "without Antarctica", "where people live", or your own limits) | NASA (downloaded once, ~350 MB with borders) |
 | **Day and night** | Terminator with twilight band, city lights glowing through the shade, recomputed locally every 2 min | Sun position, computed locally |
 | **Clouds** | Live cloud cover, adjustable opacity; when the usual source is down the helper stitches its own from five geostationary satellites | live-cloud-maps (EUMETSAT); GOES-East/West, Himawari, Meteosat |
-| **Geography** | Coastlines, country and state borders, country names with halo and de-clutter, state and province names, country and state capitals and cities by population as dots with names, time-zone outlines with UTC offsets; colour, opacity, thickness and detail per layer | Natural Earth (downloaded once) |
-| **Earthquakes** | Rings sized by magnitude, pulsing when new or strong, labels with place and age, ageing colour drift, magnitude filter; tectonic plate boundaries as fault lines in their own colour, opacity and thickness | USGS, every 5 min; PB2002 plate model (downloaded once) |
+| **Geography** | *Countries*: coastlines, country borders, state and province borders (Border line colour / opacity / thickness, Detail 1:110m or 1:50m), country names (Country name density / size / text / style), state and province names (State name density / size / text / style), country capitals, state capitals and cities over 500k / 1M / 5M / 10M (each: Dot and name / Dot only / Name only, size, colour, label style; City dots sized by population). *Rivers*: major rivers and lake centrelines (River line colour / opacity / thickness). *Time zones*: zone outlines with UTC offsets (Time zone line colour / opacity / thickness, Time zone labels, Time zone label placement: inside each zone or in one row at a latitude) | Natural Earth (downloaded once) |
+| **Earthquakes** | Rings sized by magnitude (Earthquake ring colour / size), pulsing when new or strong (Earthquake pulse, Earthquake significance from a magnitude), labels with magnitude, place and age (Earthquake labels / label text / label style), ageing colour drift, Earthquake feed: M2.5+ day, M4.5+ day or significant week. *Tectonic plates*: the plate boundaries as fault lines (Tectonic line colour / opacity / thickness) | USGS, every 5 min; PB2002 plate model (downloaded once) |
 | **Volcanoes** | Hollow triangles coloured by alert level (yellow / orange / red), pulse on first report or level change, label with how long above normal | Smithsonian GVP eruption database and weekly report, USGS HANS, hourly |
 | **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and Pacific, every 30 min |
 | **Wildfires** | GDACS events as flames sized by burned area, plus MODIS hotspots clustered into half-degree cells and sized by fire power; level and size filters | GDACS, NASA FIRMS, hourly |
@@ -97,9 +100,9 @@ QtWebEngine for the embedded ISS and launch streams in the widget, Pillow for fa
 | Base map, seasons, city lights | NASA Blue Marble Next Generation, Black Marble (downloaded once) | monthly blend, computed locally |
 | Day / night, twilight | computed locally from the sun's position | every 2 min |
 | Clouds | Matt Eason's live-cloud-maps (EUMETSAT); fallback stitched from GOES-East/West, Himawari (NASA GIBS) and Meteosat (EUMETView) | every 3 h |
-| Borders, coasts, names, capitals and cities, time zones | Natural Earth (downloaded once) | - |
+| Coastlines, country and state borders, rivers, country and state names, capitals and cities, time zones | Natural Earth 1:110m and 1:50m vectors, admin-1 label points, populated places (downloaded once, about 12 MB) | - |
 | Earthquakes | USGS Earthquake Hazards Program | every 5 min |
-| Plate boundaries | PB2002 (Peter Bird 2003; GeoJSON by Hugo Ahlenius / Nordpil, ODC-By), downloaded with the borders | - |
+| Tectonic plate boundaries | PB2002 plate boundary model (Peter Bird 2003; GeoJSON by Hugo Ahlenius / Nordpil, ODC-By), downloaded with the borders (0.2 MB) | - |
 | Volcanoes | Smithsonian Global Volcanism Program (eruption database, weekly report), USGS alert levels (HANS) | hourly |
 | Storms | GDACS worldwide; NOAA NHC for current intensity, best track and forecast in the Atlantic and Pacific | every 30 min |
 | Wildfires | GDACS events, NASA FIRMS hotspots (MODIS) | hourly |

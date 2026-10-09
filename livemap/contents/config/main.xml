@@ -56,9 +56,15 @@
     <entry name="FireSource" type="Int"><default>2</default></entry>
     <entry name="HotspotMinCount" type="Int"><default>2</default></entry>
     <entry name="HotspotTier" type="Int"><default>0</default></entry>     <!-- 0 needs attention only, 1 notable and up, 2 everything -->
+    <!-- rivers (Natural Earth rivers and lake centerlines) -->
+    <entry name="ShowRivers" type="Bool"><default>false</default></entry>
+    <entry name="RiverColor" type="Color"><default>#6fb7ff</default></entry>
+    <entry name="RiverOpacity" type="Int"><default>50</default></entry>
+    <entry name="RiverWidth" type="Int"><default>80</default></entry>
     <entry name="ShowTimeZones" type="Bool"><default>false</default></entry>
     <entry name="ZoneColor" type="Color"><default>#8fd3ff</default></entry>
     <entry name="ZoneOpacity" type="Int"><default>35</default></entry>
+    <entry name="ZoneWidth" type="Int"><default>80</default></entry>
     <entry name="ZoneLabels" type="Bool"><default>true</default></entry>
     <entry name="ZoneLabelSize" type="Int"><default>9</default></entry>
     <entry name="ZoneLabelBold" type="Bool"><default>false</default></entry>
@@ -97,22 +103,47 @@
     <entry name="NameBold" type="Bool"><default>true</default></entry>
     <entry name="NameCaps" type="Bool"><default>true</default></entry>
     <entry name="NameSpacing" type="Int"><default>100</default></entry>
-    <!-- state and province names (Natural Earth admin-1 label points), in the country-name style -->
+    <!-- state and province names (Natural Earth admin-1 label points) -->
     <entry name="ShowStateNames" type="Bool"><default>false</default></entry>
     <entry name="StateNameDensity" type="Int"><default>1</default></entry>   <!-- 0 major regions, 1 most, 2 all that fit -->
     <entry name="StateNameSize" type="Int"><default>8</default></entry>
-    <!-- places: capitals and cities as a dot with a name -->
+    <entry name="StateNameTextFollows" type="Bool"><default>true</default></entry>   <!-- the country-name colour -->
+    <entry name="StateNameTextColor" type="Color"><default>#ffffff</default></entry>
+    <entry name="StateNameLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="StateNameLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="StateNameLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="StateNameLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="StateNameLabelHalo" type="Int"><default>100</default></entry>
+    <!-- places: a dot with a name; marks 0 dot and name, 1 dot only, 2 name only -->
     <entry name="ShowCapitals" type="Bool"><default>false</default></entry>
+    <entry name="CapitalMarks" type="Int"><default>0</default></entry>
+    <entry name="CapitalSize" type="Int"><default>8</default></entry>
+    <entry name="CapitalColor" type="Color"><default>#ffe3a0</default></entry>
+    <entry name="CapitalLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="CapitalLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="CapitalLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="CapitalLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="CapitalLabelHalo" type="Int"><default>100</default></entry>
     <entry name="ShowStateCapitals" type="Bool"><default>false</default></entry>
+    <entry name="StateCapitalMarks" type="Int"><default>0</default></entry>
+    <entry name="StateCapitalSize" type="Int"><default>7</default></entry>
+    <entry name="StateCapitalColor" type="Color"><default>#ffe3a0</default></entry>
+    <entry name="StateCapitalLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="StateCapitalLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="StateCapitalLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="StateCapitalLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="StateCapitalLabelHalo" type="Int"><default>100</default></entry>
     <entry name="ShowCities" type="Bool"><default>false</default></entry>
     <entry name="CityMinPop" type="Int"><default>1</default></entry>         <!-- 0 500k, 1 1M, 2 5M, 3 10M -->
-    <entry name="PlaceSize" type="Int"><default>8</default></entry>
-    <entry name="PlaceColor" type="Color"><default>#ffe3a0</default></entry>
-    <entry name="PlaceLabelBold" type="Bool"><default>false</default></entry>
-    <entry name="PlaceLabelCaps" type="Bool"><default>false</default></entry>
-    <entry name="PlaceLabelSpacing" type="Int"><default>100</default></entry>
-    <entry name="PlaceLabelOpacity" type="Int"><default>100</default></entry>
-    <entry name="PlaceLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="CityMarks" type="Int"><default>0</default></entry>
+    <entry name="CitySize" type="Int"><default>7</default></entry>
+    <entry name="CityColor" type="Color"><default>#ffe3a0</default></entry>
+    <entry name="CityPopScale" type="Bool"><default>true</default></entry>    <!-- dot size follows population -->
+    <entry name="CityLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="CityLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="CityLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="CityLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="CityLabelHalo" type="Int"><default>100</default></entry>
     <entry name="DistanceUnits" type="Int"><default>0</default></entry>
     <entry name="MarkerScale" type="Int"><default>100</default></entry>
     <entry name="StaleHours" type="Int"><default>6</default></entry>

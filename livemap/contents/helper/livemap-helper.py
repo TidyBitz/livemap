@@ -13,7 +13,7 @@
   livemap-helper power               prints "battery" or "mains" (the wallpaper calls this)
   livemap-helper status              JSON health report on every data source (the settings page calls this)
   livemap-helper make-lights         turn night.jpg into lights.png: only the lights, transparent elsewhere (numpy + pillow)
-  livemap-helper fetch-borders       download Natural Earth coastlines, country and state borders (~6 MB, public domain)
+  livemap-helper fetch-borders       download Natural Earth coastlines, borders, rivers, names, places (~12 MB, public domain)
                                      and the PB2002 plate boundaries (~1 MB, ODC-By)
   livemap-helper borders             the border lines as compact JSON (the wallpaper calls this)
   livemap-helper plates              tectonic plate boundaries (PB2002) as compact JSON (the wallpaper calls this)
@@ -62,7 +62,8 @@ BORDERS = DATA / "borders"
 NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries",
             "ne_50m_coastline", "ne_50m_admin_0_boundary_lines_land", "ne_50m_admin_1_states_provinces_lines",
             "ne_10m_time_zones", "ne_10m_populated_places_simple",    # time zone polygons; cities, capitals, home search
-            "ne_10m_admin_1_label_points"]                              # state and province names (label points with a rank)
+            "ne_10m_admin_1_label_points",                              # state and province names (label points with a rank)
+            "ne_110m_rivers_lake_centerlines", "ne_50m_rivers_lake_centerlines"]   # major rivers
 # Tectonic plate boundaries: Peter Bird's PB2002 model (2003), GeoJSON conversion by Hugo Ahlenius (Nordpil),
 # Open Data Commons Attribution licence. Downloaded with the border data, drawn under the Earthquakes settings.
 PLATES_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
@@ -440,6 +441,7 @@ def cmd_borders(args):
     res = {"coast": _lines("ne_%s_coastline" % scale, step),
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
+           "rivers": _lines("ne_%s_rivers_lake_centerlines" % scale, step) if args.rivers else [],
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
@@ -2819,6 +2821,7 @@ def main():
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
+    b.add_argument("--rivers", action="store_true")
     b.add_argument("--state-names", dest="state_names", action="store_true"); b.add_argument("--capitals", action="store_true")
     b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)
     b.set_defaults(fn=cmd_borders)
