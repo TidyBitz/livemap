@@ -11,6 +11,10 @@
     <entry name="Seasonal" type="Bool"><default>true</default></entry>
     <entry name="SeasonalBlend" type="Bool"><default>true</default></entry>
     <entry name="FillMode" type="Int"><default>0</default></entry>
+    <entry name="MapStyle" type="Int"><default>0</default></entry>          <!-- 0 seasonal Blue Marble, 1 today's satellite view (GIBS VIIRS), 2 Blue Marble relief and bathymetry (GIBS), 3 dark cartographic -->
+    <entry name="MapTone" type="Int"><default>0</default></entry>           <!-- 0 natural, 1 muted, 2 monochrome, 3 blue-tinted, 4 sepia -->
+    <entry name="LandColor" type="Color"><default>#2b3542</default></entry>
+    <entry name="OceanColor" type="Color"><default>#0b1119</default></entry>
     <entry name="FrameNorth" type="Int"><default>90</default></entry>
     <entry name="FrameSouth" type="Int"><default>-90</default></entry>
     <entry name="FrameWest" type="Int"><default>-180</default></entry>

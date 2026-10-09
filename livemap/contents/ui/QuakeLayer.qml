@@ -4,6 +4,7 @@
  * copy it, change the URL and the parsing, add a Loader + checkbox.
  */
 import QtQuick
+import QtQuick.Window
 import "geo.js" as Geo
 
 Item {
@@ -13,7 +14,7 @@ Item {
     readonly property var feeds: ["2.5_day", "4.5_day", "significant_week"]
     readonly property string feedUrl: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/"
         + feeds[cfg ? cfg.QuakeFeed : 1] + ".geojson"
-    readonly property real unit: Math.max(1, width / 1920)     // keeps sizes sane on 4K
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size     // keeps sizes sane on 4K
     readonly property color ring: cfg ? cfg.QuakeColor : "#ffa640"
     readonly property color ringLight: Qt.lighter(ring, 1.35)
     readonly property real sizeScale: (cfg ? cfg.QuakeSize : 100) / 100 * ((cfg ? cfg.MarkerScale : 100) / 100)

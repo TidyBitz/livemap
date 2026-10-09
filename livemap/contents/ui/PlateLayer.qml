@@ -7,6 +7,7 @@
  * settings, where the lines explain the ring clusters.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 
@@ -16,7 +17,7 @@ Item {
     property var cfg: null
     property string helper: ""
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color ink: cfg ? cfg.PlateLineColor : "#ff7a59"
     readonly property real strength: (cfg ? cfg.PlateLineOpacity : 45) / 100
     readonly property real thickness: Math.max(0.3, (cfg ? cfg.PlateLineWidth : 100) / 100 * unit)

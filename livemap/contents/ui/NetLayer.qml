@@ -10,6 +10,7 @@
  * places fade in, and closed ones disappear.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
@@ -31,7 +32,7 @@ Item {
     readonly property bool labelPlate: cfg ? cfg.LabelPlate : true
     readonly property color labelColor: cfg ? cfg.NetTextColor : "#e6f7ff"
     readonly property int seconds: Math.max(3, cfg ? cfg.NetInterval : 10)
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color arc: cfg ? cfg.ArcColor : "#8ce6ff"
     readonly property real widthScale: Math.max(0.2, (cfg ? cfg.ArcWidth : 100) / 100)
     readonly property bool glow: cfg ? cfg.ArcGlow : true

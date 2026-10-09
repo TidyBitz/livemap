@@ -8,6 +8,7 @@
  *    burning right now show even where GDACS has no event.
  */
 import QtQuick
+import QtQuick.Window
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
@@ -17,7 +18,7 @@ Item {
     property string helper: ""
     property bool slow: false
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property color ink: cfg ? cfg.FireColor : "#ff5a1f"
     readonly property bool alertColors: cfg ? cfg.FireAlertColors : true

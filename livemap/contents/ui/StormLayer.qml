@@ -7,6 +7,7 @@
  * drawn in intensity colours from where the storm was first fixed.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
@@ -17,7 +18,7 @@ Item {
     property string helper: ""
     property bool slow: false
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property real markScale: (cfg ? cfg.MarkerScale : 100) / 100
     readonly property color ink: cfg ? cfg.StormColor : "#ff66cc"

@@ -8,6 +8,7 @@
  * Country names are not here on purpose: they are part of the map and belong underneath everything.
  */
 import QtQuick
+import QtQuick.Window
 import "geo.js" as Geo
 
 Item {
@@ -26,7 +27,7 @@ Item {
     property var infraSpecs: []                           // oil and gas infrastructure, last: still names, lowest priority
     property rect view: Qt.rect(0, 0, width, height)      // the visible screen, in this item's coordinates
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color plateColor: cfg ? cfg.PlateColor : "#000510"
     readonly property real plateOpacity: (cfg ? cfg.PlateOpacity : 60) / 100
     readonly property real textOpacity: (cfg ? cfg.TextOpacity : 100) / 100

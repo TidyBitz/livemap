@@ -3,6 +3,7 @@
  * for launches inside the chosen window. No flight paths: nobody publishes those as data.
  */
 import QtQuick
+import QtQuick.Window
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
@@ -12,7 +13,7 @@ Item {
     property string helper: ""
     property bool slow: false
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property color ink: cfg ? cfg.LaunchColor : "#ffffff"
     readonly property real windowHours: [24, 48, 72, 168][cfg ? cfg.LaunchWindow : 2] || 72

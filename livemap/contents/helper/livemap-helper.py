@@ -61,7 +61,7 @@ VERSION = "0.46"
 UA = {"User-Agent": "livemap-wallpaper/" + VERSION}
 NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
 BORDERS = DATA / "borders"
-NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries",
+NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries", "ne_50m_admin_0_countries",
             "ne_50m_coastline", "ne_50m_admin_0_boundary_lines_land", "ne_50m_admin_1_states_provinces_lines",
             "ne_10m_time_zones", "ne_10m_populated_places_simple",    # time zone polygons; cities, capitals, home search
             "ne_10m_admin_1_label_points",                              # state and province names (label points with a rank)
@@ -477,7 +477,10 @@ def cmd_borders(args):
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
-           "zones": zones, "zone_labels": zone_labels}
+           "zones": zones, "zone_labels": zone_labels,
+           # country polygons: the land fill of the cartographic style; the 1:50m file is new in 0.46, so an
+           # install that has not downloaded again falls back to the 1:110m one it has
+           "land": (_lines("ne_%s_admin_0_countries" % scale, step) or _lines("ne_110m_admin_0_countries", 0.0)) if args.land else []}
     missing = [k for k, v in res.items() if v is None]
     res = {k: v or [] for k, v in res.items()}
     res["note"] = ("Borders: no data for %s yet - press 'Download border data' in the settings, "
@@ -2958,6 +2961,19 @@ def chk_maps():
     return "warn", "not downloaded, so the fallback image is shown - run: livemap-helper fetch-maps"
 
 
+def have_hires():
+    return all((DATA / "base" / ("hires%02d.jpg" % i)).exists() for i in range(1, 13))
+
+
+def chk_hires():
+    if have_hires():
+        mb = sum((DATA / "base" / ("hires%02d.jpg" % i)).stat().st_size for i in range(1, 13)) / 1e6
+        return "ok", "12 of 12 monthly images at 21 600 px (%.0f MB): regions are cut from these" % mb
+    have = sum((DATA / "base" / ("hires%02d.jpg" % i)).exists() for i in range(1, 13))
+    return "warn", ("%d of 12 - run: livemap-helper fetch-maps --hires" % have) if have else \
+        "not downloaded: a region is cut from the 5 400 px maps, which are soft beyond about 2x (press Download, about 330 MB)"
+
+
 def chk_night():
     f, png = DATA / "night.jpg", DATA / "lights.png"
     if png.exists():
@@ -3094,7 +3110,8 @@ def wallpaper_log():
 
 def cmd_status(args):
     from concurrent.futures import ThreadPoolExecutor
-    jobs = [("Seasonal maps (NASA Blue Marble)", chk_maps), ("City lights (NASA Black Marble)", chk_night),
+    jobs = [("Seasonal maps (NASA Blue Marble)", chk_maps), ("Hi-res seasonal maps (NASA Blue Marble, for regions)", chk_hires),
+            ("City lights (NASA Black Marble)", chk_night), ("Map style imagery (frames)", chk_frames),
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
@@ -3209,8 +3226,193 @@ def cmd_make_lights(_args):
     print("Wrote %s (%.1f%% of the map is lit)" % (DATA / "lights.png", share * 100))
 
 
+# ---- map styles and frames --------------------------------------------------------------------------
+# The wallpaper's base imagery for a frame (the part of the world on screen) and a style:
+#   seasonal   NASA Blue Marble, the month's image cropped to the frame (from the hi-res set when it is there)
+#   viirs      today's (yesterday's, complete) VIIRS true-colour picture from NASA GIBS, fetched for the frame
+#   relief     Blue Marble with shaded relief and bathymetry from NASA GIBS
+# Each is written under frames/<key>/ as base.jpg (or base01..12.jpg for the seasonal set) plus night.jpg, the
+# key being the frame and the width in pixels, so the wallpaper only has to ask for the file.
+FRAMES = DATA / "frames"
+GIBS_WMS = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&SRS=EPSG:4326&FORMAT=image/jpeg"
+GIBS_LAYERS = {"viirs": "VIIRS_SNPP_CorrectedReflectance_TrueColor", "relief": "BlueMarble_ShadedRelief_Bathymetry"}
+GIBS_CHUNK = 2048                           # pixels per WMS request, each way
+
+
+def frame_key(n, so, w, e, width, variant=""):
+    key = "%d_%d_%d_%d_%d" % (round(n), round(so), round(w), round(e), int(width))
+    return key + ("_" + re.sub(r"[^A-Za-z0-9]", "", variant)[:24] if variant else "")
+
+
+def _frame_variant(args):
+    """What else than the frame tells the files apart: the dark style's two colours and detail."""
+    if args.style == "dark":
+        return args.land.lstrip("#") + args.ocean.lstrip("#") + args.detail
+    return "hr" if args.style == "seasonal" and have_hires() else ""
+
+
+def draw_land(n, so, w, e, width, height, land, ocean, detail="50m"):
+    """The dark cartographic style: Natural Earth's country polygons filled in the land colour over the ocean
+    colour, drawn by Pillow at the frame's resolution. Drawing this as vector shapes in the wallpaper locked
+    the desktop for seconds on every change (half a million edges to triangulate); an image is instant."""
+    from PIL import Image, ImageDraw
+    f = BORDERS / ("ne_%s_admin_0_countries.geojson" % detail)
+    if not f.exists():
+        f = BORDERS / "ne_110m_admin_0_countries.geojson"
+    if not f.exists():
+        raise ValueError("the border data is missing - press 'Download border data' in the settings first")
+    im = Image.new("RGB", (width, height), ocean)
+    d = ImageDraw.Draw(im)
+    sx, sy = width / (e - w), height / (n - so)
+    for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+        g = feat.get("geometry") or {}
+        kind, c = g.get("type"), g.get("coordinates") or []
+        polys = [c] if kind == "Polygon" else c if kind == "MultiPolygon" else []
+        for poly in polys:
+            if not poly:
+                continue
+            outer = poly[0]
+            xs = [pt[0] for pt in outer]
+            if max(xs) < w or min(xs) > e or max(pt[1] for pt in outer) < so or min(pt[1] for pt in outer) > n:
+                continue                                    # entirely outside the frame
+            pts = [((pt[0] - w) * sx, (n - pt[1]) * sy) for pt in outer]
+            if len(pts) >= 3:
+                d.polygon(pts, fill=land)
+            for hole in poly[1:]:                           # lakes and enclaves cut out of a country
+                hp = [((pt[0] - w) * sx, (n - pt[1]) * sy) for pt in hole]
+                if len(hp) >= 3:
+                    d.polygon(hp, fill=ocean)
+    return im
+
+
+def _frame_args(args):
+    n, so, w, e = float(args.north), float(args.south), float(args.west), float(args.east)
+    if not (-90 <= so < n <= 90 and -180 <= w < e <= 180):
+        raise ValueError("frame must be north > south within 90 and west < east within 180")
+    width = max(256, min(16384, int(args.width)))
+    height = max(1, int(round(width * (n - so) / (e - w))))
+    return n, so, w, e, width, height
+
+
+def gibs_image(layer, n, so, w, e, width, height, day, log=print):
+    """One image of a GIBS layer over the box, stitched from requests of at most GIBS_CHUNK pixels a side."""
+    from PIL import Image
+    import io
+    out = Image.new("RGB", (width, height))
+    cols, rows = -(-width // GIBS_CHUNK), -(-height // GIBS_CHUNK)
+    for r in range(rows):
+        for c in range(cols):
+            x0, y0 = c * GIBS_CHUNK, r * GIBS_CHUNK
+            x1, y1 = min(width, x0 + GIBS_CHUNK), min(height, y0 + GIBS_CHUNK)
+            bw, be = w + (e - w) * x0 / width, w + (e - w) * x1 / width
+            bn, bs = n - (n - so) * y0 / height, n - (n - so) * y1 / height
+            url = "%s&LAYERS=%s&BBOX=%.5f,%.5f,%.5f,%.5f&WIDTH=%d&HEIGHT=%d%s" % (
+                GIBS_WMS, layer, bw, bs, be, bn, x1 - x0, y1 - y0, "&TIME=" + day if day else "")
+            log("  GIBS %s: %d x %d at %.1f, %.1f" % (layer, x1 - x0, y1 - y0, bw, bn))
+            _c, _h, body, _t = _http(url, timeout=120, limit=MAX_DOWNLOAD)
+            tile = Image.open(io.BytesIO(body)).convert("RGB")
+            if tile.size != (x1 - x0, y1 - y0):
+                tile = tile.resize((x1 - x0, y1 - y0), Image.LANCZOS)
+            out.paste(tile, (x0, y0))
+    return out
+
+
+def crop_world_image(src, n, so, w, e, width, height):
+    """The frame cut out of a whole-world 2:1 image and scaled to width x height."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    im = Image.open(src).convert("RGB")
+    W, H = im.size
+    box = (int((w + 180) / 360 * W), int((90 - n) / 180 * H), int(round((e + 180) / 360 * W)), int(round((90 - so) / 180 * H)))
+    return im.crop(box).resize((width, height), Image.LANCZOS)
+
+
+def cmd_fetch_frame(args):
+    """Imagery for one frame and style into frames/<key>/ (see the notes above). Needs python3-pillow."""
+    from datetime import date, timedelta
+    try:
+        from PIL import Image
+        Image.MAX_IMAGE_PIXELS = None
+    except ImportError:
+        sys.exit("python3-pillow is needed to build frame imagery: sudo dnf install python3-pillow")
+    n, so, w, e, width, height = _frame_args(args)
+    key = frame_key(n, so, w, e, width, _frame_variant(args))
+    dest = FRAMES / key
+    dest.mkdir(parents=True, exist_ok=True)
+    world = (n, so, w, e) == (90, -90, -180, 180)
+    day = ""
+    if args.style == "dark":
+        draw_land(n, so, w, e, width, height, args.land, args.ocean, args.detail).save(dest / "base.png")
+        print("  land drawn in %s over %s, %d x %d" % (args.land, args.ocean, width, height))
+    elif args.style == "seasonal":
+        if world:
+            sys.exit("the whole world in the seasonal style needs no frame imagery: it uses the monthly maps as they are")
+        for i in range(1, 13):
+            src = DATA / "base" / ("hires%02d.jpg" % i)
+            if not src.exists():
+                src = DATA / "base" / ("%02d.jpg" % i)
+            if not src.exists():
+                sys.exit("month %02d is missing - run: livemap-helper fetch-maps" % i)
+            crop_world_image(src, n, so, w, e, width, height).save(dest / ("base%02d.jpg" % i), quality=90)
+            print("  month %02d cropped from %s" % (i, src.name))
+    elif args.style in GIBS_LAYERS:
+        if args.style == "viirs":                  # today's picture is still being taken: yesterday's is whole
+            day = (date.today() - timedelta(days=1)).isoformat() if not args.date else args.date
+        gibs_image(GIBS_LAYERS[args.style], n, so, w, e, width, height, day).save(dest / "base.jpg", quality=90)
+    else:
+        sys.exit("unknown style %r" % args.style)
+    night = DATA / "night.jpg"
+    if night.exists() and not world and args.style != "dark":
+        crop_world_image(night, n, so, w, e, width, height).save(dest / "night.jpg", quality=88)
+        lights = DATA / "lights.png"
+        if lights.exists():
+            im = Image.open(lights).convert("RGBA")
+            W, H = im.size
+            box = (int((w + 180) / 360 * W), int((90 - n) / 180 * H), int(round((e + 180) / 360 * W)), int(round((90 - so) / 180 * H)))
+            im.crop(box).resize((width, height), Image.LANCZOS).save(dest / "lights.png")
+    meta = {"style": args.style, "frame": [n, so, w, e], "width": width, "height": height, "day": day, "at": int(time.time())}
+    (dest / "frame.json").write_text(json.dumps(meta), encoding="utf-8")
+    emit({"key": key, "note": "", **meta})
+
+
+def frame_state(style, key):
+    """What the wallpaper wants to know about a frame's imagery: present, its day, and whether it is stale."""
+    try:
+        meta = json.loads((FRAMES / key / "frame.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"ready": False, "stale": True}
+    ready = meta.get("style") == style and any((FRAMES / key / f).exists() for f in ("base.jpg", "base.png", "base01.jpg"))
+    age_h = (time.time() - meta.get("at", 0)) / 3600
+    stale = style == "viirs" and age_h > 20       # a new day's picture
+    return {"ready": ready, "stale": stale, "day": meta.get("day", ""), "age_hours": round(age_h, 1)}
+
+
+def cmd_frame(args):
+    """`frame --style S --north ... --width W`: is the imagery there? The wallpaper polls this and fetches when not."""
+    n, so, w, e, width, _h = _frame_args(args)
+    key = frame_key(n, so, w, e, width, _frame_variant(args))
+    emit(dict(frame_state(args.style, key), key=key, dir=str(FRAMES / key)))
+
+
+def chk_frames():
+    try:
+        dirs = [d for d in FRAMES.iterdir() if d.is_dir() and (d / "frame.json").exists()]
+    except OSError:
+        return "ok", "none built (the whole world in the seasonal style needs none)"
+    if not dirs:
+        return "ok", "none built (the whole world in the seasonal style needs none)"
+    mb = sum(f.stat().st_size for d in dirs for f in d.iterdir()) / 1e6
+    return "ok", "%d frame%s (%.0f MB) under frames/ - old ones can be deleted" % (len(dirs), "" if len(dirs) == 1 else "s", mb)
+
+
 def cmd_fetch_maps(args):
-    size = "3x21600x10800" if args.hires else "3x5400x2700"
+    if args.hires:                                # the 21600 px set, for regions: hires01..12.jpg beside the 5400 px set
+        for i, name in enumerate(MONTHS, 1):
+            download("%s/bmng/bmng-topography-bathymetry/%s/world.topo.bathy.2004%02d.3x21600x10800.jpg"
+                     % (NASA, name, i), DATA / "base" / ("hires%02d.jpg" % i))
+        print("Done. The hi-res maps are used when imagery is cut for a region; the frames built so far are rebuilt from them "
+              "the next time the wallpaper looks (within a minute).")
+        return
     ref = None
     if args.ocean_from:
         from PIL import Image                     # fail early if pillow is missing
@@ -3218,8 +3420,8 @@ def cmd_fetch_maps(args):
         ref = Image.open(args.ocean_from).convert("RGB")
     for i, name in enumerate(MONTHS, 1):
         dest = DATA / "base" / ("%02d.jpg" % i)
-        download("%s/bmng/bmng-topography-bathymetry/%s/world.topo.bathy.2004%02d.%s.jpg"
-                 % (NASA, name, i, size), dest)
+        download("%s/bmng/bmng-topography-bathymetry/%s/world.topo.bathy.2004%02d.3x5400x2700.jpg"
+                 % (NASA, name, i), dest)
         if ref is not None:
             darken_ocean(dest, ref)
     night = DATA / "night.jpg"
@@ -3275,7 +3477,7 @@ def main():
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
-    b.add_argument("--rivers", action="store_true")
+    b.add_argument("--rivers", action="store_true"); b.add_argument("--land", action="store_true")
     b.add_argument("--state-names", dest="state_names", action="store_true"); b.add_argument("--capitals", action="store_true")
     b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)
     b.set_defaults(fn=cmd_borders)
@@ -3287,6 +3489,12 @@ def main():
     hs = sub.add_parser("hotspots"); hs.add_argument("--table", action="store_true"); hs.add_argument("--min-count", type=int, default=3)
     hs.add_argument("--min-tier", type=int, default=0, choices=[0, 1, 2])     # 0 everything, 1 notable and up, 2 needs attention
     hs.set_defaults(fn=cmd_hotspots)
+    for name, fn in (("fetch-frame", cmd_fetch_frame), ("frame", cmd_frame)):
+        fr = sub.add_parser(name); fr.add_argument("--style", default="seasonal", choices=["seasonal", "viirs", "relief", "dark"])
+        fr.add_argument("--land", default="#2b3542"); fr.add_argument("--ocean", default="#0b1119"); fr.add_argument("--detail", default="50m", choices=["110m", "50m"])
+        fr.add_argument("--north", type=float, default=90); fr.add_argument("--south", type=float, default=-90)
+        fr.add_argument("--west", type=float, default=-180); fr.add_argument("--east", type=float, default=180)
+        fr.add_argument("--width", type=int, default=4096); fr.add_argument("--date", default=""); fr.set_defaults(fn=fn)
     m = sub.add_parser("fetch-maps"); m.add_argument("--ocean-from"); m.add_argument("--hires", action="store_true")
     m.set_defaults(fn=cmd_fetch_maps)
     args = ap.parse_args()

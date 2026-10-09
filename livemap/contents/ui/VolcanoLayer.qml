@@ -9,6 +9,7 @@
  * a "New" eruption, as chosen in the settings: across the map a ring means "look here", whatever the layer.
  */
 import QtQuick
+import QtQuick.Window
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
@@ -17,7 +18,7 @@ Item {
     property var cfg: null
     property string helper: ""
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property color ink: cfg ? cfg.VolcanoColor : "#ffb020"
     // USGS alert colours (Advisory / Watch / Warning), used for US volcanoes when the setting says so

@@ -5,13 +5,14 @@
  * demand by the helper (`fetch-infrastructure`); this file only draws what `infrastructure` hands over.
  */
 import QtQuick
+import QtQuick.Window
 import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: overlay
     property var cfg: null
     property string helper: ""
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color ink: cfg ? cfg.InfraColor : "#c9b3ff"
     readonly property real mark: Math.max(2, (cfg ? cfg.InfraSize : 7) * unit)
     readonly property bool showPlatforms: cfg ? cfg.InfraPlatforms : true

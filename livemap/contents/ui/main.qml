@@ -104,10 +104,46 @@ WallpaperItem {
     //   Stretch: the frame fills the screen exactly (shapes get taller or wider as needed, nothing is cut off)
     //   Fit:     true proportions, the whole frame visible (more map, or bars, in the spare space)
     //   Crop:    true proportions, the frame fills the screen and is trimmed where it does not fit
-    readonly property real frameN: Math.max(45, Math.min(90, cfg.FrameNorth))
-    readonly property real frameS: Math.min(-45, Math.max(-90, cfg.FrameSouth))
-    readonly property real frameW: Math.min(-90, Math.max(-180, cfg.FrameWest))
-    readonly property real frameE: Math.max(90, Math.min(180, cfg.FrameEast))
+    // Any frame at least 10 degrees wide and 5 tall; the still layer's texture is clipped to the screen below,
+    // so the zoom is no longer limited to 2x (a region such as Europe is about 8x).
+    readonly property real frameN: Math.max(-85, Math.min(90, cfg.FrameNorth))
+    readonly property real frameS: Math.min(frameN - 5, Math.max(-90, cfg.FrameSouth))
+    readonly property real frameW: Math.max(-180, Math.min(170, cfg.FrameWest))
+    readonly property real frameE: Math.max(frameW + 10, Math.min(180, cfg.FrameEast))
+    readonly property bool wholeWorld: frameN === 90 && frameS === -90 && frameW === -180 && frameE === 180
+    // Map style: 0 seasonal Blue Marble (the monthly maps as they are for the whole world; cut to the frame
+    // otherwise), 1 today's satellite view (GIBS VIIRS), 2 Blue Marble relief and bathymetry (GIBS), 3 dark
+    // cartographic (no imagery: land polygons over an ocean colour). Styles 1 and 2, and 0 with a region, use
+    // imagery the helper builds for exactly this frame (frames/<key>/), fetched by FrameWatch when missing.
+    // The imagery is built for what is on screen, not for the frame: in Fit mode the screen shows more than
+    // the frame, in Crop mode less, and either way the picture must reach the screen's edges. The view is
+    // rounded outwards to whole degrees so a pixel of resize does not ask for a new picture.
+    readonly property real viewW: Math.max(-180, Math.floor(-map.x / sx - 180))
+    readonly property real viewE: Math.min(180, Math.ceil((root.width - map.x) / sx - 180))
+    readonly property real viewN: Math.min(90, Math.ceil(90 + map.y / sy))
+    readonly property real viewS: Math.max(-90, Math.floor(90 - (root.height - map.y) / sy))
+    readonly property bool viewIsWorld: viewW <= -180 && viewE >= 180 && viewN >= 90 && viewS <= -90
+    readonly property int mapStyle: cfg.MapStyle
+    readonly property bool wantFrame: mapStyle !== 0 || (!viewIsWorld && cfg.Seasonal && (viewE - viewW) < 200)
+    readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : mapStyle === 3 ? "dark" : "seasonal"
+    // the dark style is drawn by the helper as an image too: its colours and detail are part of the request
+    readonly property string frameExtra: mapStyle === 3 ? " --land '" + String(cfg.LandColor) + "' --ocean '" + String(cfg.OceanColor) + "' --detail " + (cfg.BorderDetail === 1 ? "50m" : "110m") : ""
+    readonly property int frameWidthPx: Math.min(16384, Math.ceil(Math.max(1024, (viewE - viewW) * sx * Screen.devicePixelRatio) / 256) * 256)
+    readonly property string frameDir: frameLoader.item && frameLoader.item.ready ? frameLoader.item.dir : ""
+    Loader {
+        id: frameLoader
+        active: root.wantFrame && root.width > 0
+        source: "FrameWatch.qml"
+        onLoaded: {
+            item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+            item.style = Qt.binding(function () { return root.frameStyle });
+            item.north = Qt.binding(function () { return root.viewN }); item.south = Qt.binding(function () { return root.viewS });
+            item.west = Qt.binding(function () { return root.viewW }); item.east = Qt.binding(function () { return root.viewE });
+            item.widthPx = Qt.binding(function () { return root.frameWidthPx });
+            item.extra = Qt.binding(function () { return root.frameExtra });
+        }
+    }
+    readonly property string frameNote: frameLoader.item ? frameLoader.item.note : ""
     readonly property real sxFill: root.width / (frameE - frameW)          // pixels per degree if stretched
     readonly property real syFill: root.height / (frameN - frameS)
     readonly property real sx: cfg.FillMode === 0 ? sxFill : cfg.FillMode === 1 ? Math.min(sxFill, syFill) : Math.max(sxFill, syFill)
@@ -135,10 +171,16 @@ WallpaperItem {
         // texture and reused. Without this, any animation (an earthquake ripple is enough) makes
         // Qt redraw the whole stack - two 5K images, clouds, shade, lights and ~100 000 border
         // segments - on every single frame, which is what slowed other applications down.
+        // The cached texture is the size of this outer item, so it is the screen's part of the map, not the
+        // whole map: a region at 8x would otherwise ask for a texture eight screens wide, beyond what a GPU
+        // allows. The inner item is the whole map again, so every child still works in map coordinates.
+        Item {
+            id: stillView
+            x: -map.x; y: -map.y; width: root.width; height: root.height
+            layer.enabled: cfg.CacheStill
         Item {
             id: still
-            anchors.fill: parent
-            layer.enabled: cfg.CacheStill
+            x: -stillView.x; y: -stillView.y; width: map.width; height: map.height
 
             // -- base: this month, with next/previous month cross-faded on top ----
             Image {
@@ -155,24 +197,63 @@ WallpaperItem {
                 source: lights.wanted && !root.lightsPng ? root.dataDir + root.again(root.tick) + "lights.png" : ""
                 onStatusChanged: if (status === Image.Ready) root.lightsPng = true       // probe: lights.png has arrived
             }
-            Image {
-                id: baseA
-                anchors.fill: parent
-                asynchronous: true
-                sourceSize: map.tex
-                source: !map.sized ? "" : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
-                onStatusChanged: {
-                    if (status === Image.Error && root.seasonal) root.seasonalOk = false;
-                    if (status === Image.Ready || status === Image.Error)
-                        console.warn("livemap: base map", status === Image.Ready ? "loaded" : "FAILED", source);
+            // -- the dark cartographic style: the ocean colour while its image (helper-drawn) is on its way --
+            Rectangle { anchors.fill: parent; visible: root.mapStyle === 3; color: cfg.OceanColor }
+            // -- imagery: the whole world's monthly maps, or the frame's own files; toned by MultiEffect below --
+            Item {
+                id: toneView                                  // the screen's part, for the tone effect's texture
+                x: -map.x; y: -map.y; width: root.width; height: root.height
+                layer.enabled: cfg.MapTone > 0 && root.mapStyle !== 3
+                layer.effect: MultiEffect {
+                    saturation: [0, -0.55, -1, -0.75, -1][cfg.MapTone] || 0
+                    colorization: [0, 0, 0, 0.55, 0.6][cfg.MapTone] || 0
+                    colorizationColor: cfg.MapTone === 4 ? "#b08a5a" : "#5b8fd6"
+                    brightness: cfg.MapTone === 1 ? -0.05 : 0
+                }
+            Item {
+                id: baseGroup
+                x: -toneView.x; y: -toneView.y; width: map.width; height: map.height
+                // frame imagery covers the frame only; whole-world imagery the whole map
+                readonly property bool framed: root.wantFrame && root.frameDir !== ""
+                readonly property real fx: framed ? (root.viewW + 180) * root.sx : 0
+                readonly property real fy: framed ? (90 - root.viewN) * root.sy : 0
+                readonly property real fw: framed ? (root.viewE - root.viewW) * root.sx : map.width
+                readonly property real fh: framed ? (root.viewN - root.viewS) * root.sy : map.height
+                readonly property size ftex: Qt.size(Math.ceil(fw * Screen.devicePixelRatio), Math.ceil(fh * Screen.devicePixelRatio))
+                function frameUrl(name) { return "file://" + root.frameDir + "/" + name }
+                Image {                                       // the monthly map, soft, under the picture while it is on its way (and past the world's edge)
+                    anchors.fill: parent
+                    asynchronous: true
+                    visible: root.wantFrame && !root.viewIsWorld && root.mapStyle !== 3
+                    sourceSize: Qt.size(4096, 2048)
+                    source: !visible || !map.sized ? "" : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
+                    opacity: root.mapStyle === 0 ? 1 : 0.6     // the same picture as the frame in the seasonal style: only the sharpness changes at the edge
+                }
+                Image {
+                    id: baseA
+                    x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                    asynchronous: true
+                    sourceSize: baseGroup.ftex
+                    source: !map.sized ? ""
+                        : root.wantFrame ? (baseGroup.framed ? baseGroup.frameUrl(root.mapStyle === 0 ? "base" + (root.season.a < 10 ? "0" : "") + root.season.a + ".jpg" : root.mapStyle === 3 ? "base.png" : "base.jpg")
+                                                             : root.mapStyle === 3 ? "" : root.seasonal && root.mapStyle === 0 ? root.monthUrl(root.season.a) : root.fallbackUrl)
+                        : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
+                    onStatusChanged: {
+                        if (status === Image.Error && root.seasonal && !baseGroup.framed) root.seasonalOk = false;
+                        if (status === Image.Ready || status === Image.Error)
+                            console.warn("livemap: base map", status === Image.Ready ? "loaded" : "FAILED", source);
+                    }
+                }
+                Image {
+                    x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                    asynchronous: true
+                    sourceSize: baseGroup.ftex
+                    source: !map.sized || !root.seasonal || !cfg.SeasonalBlend || root.mapStyle !== 0 ? ""
+                        : baseGroup.framed ? baseGroup.frameUrl("base" + (root.season.b < 10 ? "0" : "") + root.season.b + ".jpg")
+                        : root.wantFrame ? "" : root.monthUrl(root.season.b)
+                    opacity: status === Image.Ready ? root.season.mix : 0
                 }
             }
-            Image {
-                anchors.fill: parent
-                asynchronous: true
-                sourceSize: map.tex
-                source: map.sized && root.seasonal && cfg.SeasonalBlend ? root.monthUrl(root.season.b) : ""
-                opacity: status === Image.Ready ? root.season.mix : 0
             }
 
             // -- clouds (remote, refreshed every three hours; stitched locally from the satellites as fallback) --
@@ -351,6 +432,7 @@ WallpaperItem {
                 onStatusChanged: if (status === Loader.Error) console.warn("livemap: border layer failed to load")
             }
         }
+        }
 
         // -- live overlays (the only things that animate) --------------------------
         Loader {
@@ -475,6 +557,7 @@ WallpaperItem {
         readonly property var lines: [
             cfg.Seasonal && !root.seasonalOk ? "Seasonal maps not downloaded (showing the fallback image)" : "",
             lights.wanted && lights.status === Image.Error ? "City lights not downloaded" : "",
+            root.frameNote,
             borderLoader.item && borderLoader.item.hint !== "" ? borderLoader.item.hint : "",
             plateLoader.item && plateLoader.item.hint !== "" ? plateLoader.item.hint : "",
             infraLoader.item && infraLoader.item.hint !== "" ? infraLoader.item.hint : "",

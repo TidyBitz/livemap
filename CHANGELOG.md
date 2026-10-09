@@ -6,6 +6,28 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.46 - 2026-09-25
 
 ### Added
+- Map styles. "Map style" under Map: the seasonal Blue Marble as before; today's satellite view - the real
+  picture from the last day's orbits (NASA GIBS, Suomi NPP VIIRS corrected reflectance: clouds, snow, smoke
+  and sea ice as they were yesterday, seams and polar night included), fetched once a day; Blue Marble with
+  shaded relief and bathymetry (GIBS, fetched once); and dark cartographic - no imagery, the land from the
+  border download drawn in a land colour over an ocean colour (Map colours) by the helper, as an image for
+  the frame on screen like the other styles (as vector shapes it had locked the desktop for seconds on
+  every change), the best contrast for the data. "Map tone" desaturates or tints any imagery style: muted, monochrome,
+  blue-tinted, sepia. The GIBS styles need python3-pillow; the wallpaper builds the imagery itself
+  (`livemap-helper fetch-frame`) and says so in the corner while it does; Status row "Map style imagery".
+- Regions. The frame (Map > Show) can be any part of the world at least 10° by 5°, with presets for the
+  Americas, North America, the United States, Central America and the Caribbean, South America, Europe,
+  Europe-Middle East-Africa, the Middle East, Africa, Asia, South Asia, East Asia, South-east Asia and
+  Oceania, Australia and New Zealand. A region fills the screen at up to about 8x (Europe), with imagery
+  cut from the monthly maps for exactly that frame - the 5 400 px set is soft beyond about 2x, so the Map
+  section offers the 21 600 px set as a second source line, "Hi-res seasonal maps" (about 330 MB, kept
+  beside the small set and used only for regions; `fetch-maps --hires`) - or fetched from
+  GIBS for the other styles - built for what is on screen, edge to edge, not for the frame, so Fit mode's
+  spare space is as sharp as the region and nothing is cut off (the monthly map shows softly only while
+  the picture is on its way).
+  Marks and labels keep their screen size whatever the zoom (they used to grow with it), and the still
+  layer's texture is the screen's part of the map, which is what lifted the old 2x limit. A frame cannot
+  cross the date line yet.
 - Oil and gas infrastructure: fixed offshore platforms (every structure on the US Gulf of Mexico shelf from
   BSEE, public domain; elsewhere from OpenStreetMap) and refineries (OpenStreetMap), as still marks - a
   square, a triangle on a base - with names through the label pass, own colour, size and label style. Off by
@@ -83,6 +105,8 @@ release notes written at the time; their dates are the day the version was hande
   neighbouring pads do not print over each other.
 - The Countries "Line thickness" slider also set the time zone lines (they had no thickness of their own);
   time zones have "Time zone line thickness" now.
+- The border download gains Natural Earth's 1:50m country polygons (the dark cartographic style's land at
+  the Countries detail level); existing installs show a Download button on the Countries source line.
 - `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new
   packages beside them and said nothing, so the map kept running the old code whatever was installed. It
   now migrates: desktops are switched to the new wallpaper id, each old widget on a panel or desktop is

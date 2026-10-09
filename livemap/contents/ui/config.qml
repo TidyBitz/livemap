@@ -35,6 +35,10 @@ Kirigami.FormLayout {
     property alias cfg_Seasonal: seasonal.checked
     property alias cfg_SeasonalBlend: seasonalBlend.checked
     property alias cfg_FillMode: fillMode.currentIndex
+    property alias cfg_MapStyle: mapStyle.currentIndex
+    property alias cfg_MapTone: mapTone.currentIndex
+    property alias cfg_LandColor: landColor.color
+    property alias cfg_OceanColor: oceanColor.color
     property alias cfg_FrameNorth: frameNorth.value
     property alias cfg_FrameSouth: frameSouth.value
     property alias cfg_FrameWest: frameWest.value
@@ -587,16 +591,44 @@ Kirigami.FormLayout {
     Group { text: "Map base" }
 
     // ==================================================================== Map
-    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "NASA image server"]; twin: null; summary: (seasonal.checked ? "Seasonal NASA maps" : "One image") + " · " + framePreset.currentText + " · " + fillMode.currentText }
-    Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "NASA image server"] }
+    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex !== 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
+    Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"] }
 
-    QQC2.CheckBox {
+    QQC2.ComboBox {
         visible: sec1.open
+        id: mapStyle
+        Kirigami.FormData.label: "Map style:"
+        model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery)"]
+    }
+    Note {
+        visible: sec1.open
+        text: ["NASA's Blue Marble Next Generation: one cloud-free composite per month, so the snow line and the vegetation follow the seasons. Downloaded once (fetch-maps); the whole world needs nothing more.",
+               "The actual picture from the last day's orbits (Suomi NPP VIIRS corrected reflectance): clouds, snow, smoke and sea ice as they were yesterday, with the seams and night gaps a polar orbit leaves. Fetched for the frame on screen once a day (python3-pillow needed), a few MB.",
+               "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
+               "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed."][mapStyle.currentIndex]
+    }
+    RowLayout {
+        visible: sec1.open && mapStyle.currentIndex === 3
+        Kirigami.FormData.label: "Map colours:"
+        KQuickControls.ColorButton { id: landColor; showAlphaChannel: false; dialogTitle: "Land colour" }
+        QQC2.Label { text: "land" }
+        KQuickControls.ColorButton { id: oceanColor; showAlphaChannel: false; dialogTitle: "Ocean colour" }
+        QQC2.Label { text: "ocean" }
+    }
+    QQC2.ComboBox {
+        visible: sec1.open
+        id: mapTone
+        Kirigami.FormData.label: "Map tone:"
+        enabled: mapStyle.currentIndex !== 3
+        model: ["Natural", "Muted", "Monochrome", "Blue-tinted", "Sepia"]
+    }
+    QQC2.CheckBox {
+        visible: sec1.open && mapStyle.currentIndex === 0
         id: seasonal
         Kirigami.FormData.label: "Base map:"
         text: "Follow the seasons (NASA monthly images)"
     }
-    QQC2.CheckBox { visible: sec1.open; id: seasonalBlend; enabled: seasonal.checked; text: "Cross-fade between months day by day" }
+    QQC2.CheckBox { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalBlend; enabled: seasonal.checked; text: "Cross-fade between months day by day" }
     RowLayout {
         visible: sec1.open
         Kirigami.FormData.label: seasonal.checked ? "Fallback image:" : "Image:"
@@ -610,6 +642,20 @@ Kirigami.FormLayout {
         { name: "The whole world",                              n: 90, s: -90, w: -180, e: 180 },
         { name: "Without Antarctica (84°N to 58°S)",  n: 84, s: -58, w: -180, e: 180 },
         { name: "Where people live (72°N to 56°S)",   n: 72, s: -56, w: -180, e: 180 },
+        { name: "Americas",                                     n: 75, s: -57, w: -170, e: -30 },
+        { name: "North America",                                n: 72, s: 7,   w: -170, e: -50 },
+        { name: "United States",                                n: 50, s: 24,  w: -126, e: -66 },
+        { name: "Central America and the Caribbean",            n: 33, s: 5,   w: -120, e: -58 },
+        { name: "South America",                                n: 14, s: -57, w: -85,  e: -33 },
+        { name: "Europe",                                       n: 72, s: 34,  w: -25,  e: 45 },
+        { name: "Europe, Middle East and Africa",               n: 72, s: -36, w: -25,  e: 65 },
+        { name: "Middle East",                                  n: 43, s: 11,  w: 24,   e: 65 },
+        { name: "Africa",                                       n: 38, s: -36, w: -20,  e: 55 },
+        { name: "Asia",                                         n: 78, s: -12, w: 25,   e: 150 },
+        { name: "South Asia",                                   n: 40, s: 4,   w: 58,   e: 100 },
+        { name: "East Asia",                                    n: 55, s: 15,  w: 95,   e: 150 },
+        { name: "South-east Asia and Oceania",                  n: 25, s: -48, w: 90,   e: 180 },
+        { name: "Australia and New Zealand",                    n: -8, s: -50, w: 110,  e: 180 },
         { name: "Custom",                                       n: 0,  s: 0,   w: 0,    e: 0 } ]
     function framePresetIndex() {
         for (var i = 0; i < framePresets.length - 1; i++) {
@@ -638,14 +684,14 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "North to south:"
         QQC2.SpinBox {
             id: frameNorth
-            from: 45; to: 90
+            from: -80; to: 90
             textFromValue: function (v) { return form.degrees(v, "N", "S") }
             valueFromText: function (t) { return form.fromDegrees(t, "S") }
             onValueModified: framePreset.currentIndex = form.framePresetIndex()
         }
         QQC2.SpinBox {
             id: frameSouth
-            from: -90; to: -45
+            from: -90; to: 80
             textFromValue: function (v) { return form.degrees(v, "N", "S") }
             valueFromText: function (t) { return form.fromDegrees(t, "S") }
             onValueModified: framePreset.currentIndex = form.framePresetIndex()
@@ -656,18 +702,22 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "West to east:"
         QQC2.SpinBox {
             id: frameWest
-            from: -180; to: -90; stepSize: 5
+            from: -180; to: 170; stepSize: 5
             textFromValue: function (v) { return form.degrees(v, "E", "W") }
             valueFromText: function (t) { return form.fromDegrees(t, "W") }
             onValueModified: framePreset.currentIndex = form.framePresetIndex()
         }
         QQC2.SpinBox {
             id: frameEast
-            from: 90; to: 180; stepSize: 5
+            from: -170; to: 180; stepSize: 5
             textFromValue: function (v) { return form.degrees(v, "E", "W") }
             valueFromText: function (t) { return form.fromDegrees(t, "W") }
             onValueModified: framePreset.currentIndex = form.framePresetIndex()
         }
+    }
+    Note {
+        visible: sec1.open
+        text: "A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000, every platform named. The frame must be at least 10° wide and 5° tall and cannot cross the date line yet. Imagery is built for exactly what is on screen - edge to edge, whatever the fit - cut from the monthly maps (the 5 400 px set is soft beyond about 2x: download the hi-res set on the source line above for a sharp region) or fetched from NASA GIBS for the other styles, by the wallpaper itself when the view or the style changes; the 'Map style imagery' row under Status lists what has been built."
     }
     QQC2.ComboBox {
         visible: sec1.open

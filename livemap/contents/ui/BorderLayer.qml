@@ -11,6 +11,7 @@
  * properties - none of them may be used as an id or property name in here.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
@@ -21,7 +22,7 @@ Item {
     property var cfg: null
     property string helper: ""
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color ink: cfg ? cfg.BorderColor : "#ffffff"
     readonly property real strength: (cfg ? cfg.BorderOpacity : 45) / 100
     readonly property real thickness: Math.max(0.3, (cfg ? cfg.BorderWidth : 100) / 100 * unit)

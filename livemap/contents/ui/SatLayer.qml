@@ -4,6 +4,7 @@
  * that track with the wall clock, so nothing is computed here and the helper only runs every half hour.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
@@ -14,7 +15,7 @@ Item {
     property string helper: ""
     property bool slow: false
 
-    readonly property real unit: Math.max(1, width / 1920)
+    readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size
     readonly property color ink: cfg ? cfg.SatColor : "#9fe8ff"
     readonly property bool showTrack: cfg ? cfg.SatTrack : true
     readonly property int labelMode: cfg ? cfg.SatLabels : 1             // 0 none, 1 name, 2 name and altitude
