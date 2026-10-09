@@ -22,7 +22,7 @@
 # your distribution. Run `livemap.sh doctor` at any time to see the same list.
 set -u
 
-VERSION_SCRIPT="0.44"
+VERSION_SCRIPT="0.45"
 WALLPAPER_ID="io.github.tidybitz.livemap.wallpaper"
 WIDGET_ID="io.github.tidybitz.livemap.events"
 OLD_WALLPAPER_ID="org.livemap.wallpaper"          # ids used before 0.44; remove/purge clean those up too
@@ -272,6 +272,52 @@ set_wallpaper_plugin() {
         || note "could not reach plasmashell over D-Bus; change the wallpaper by hand (right-click the desktop)"
 }
 
+replace_old_widget_instances() {
+    # every old-id widget on a panel or desktop is removed and a new-id one added in its place (same container)
+    shell_script "
+        var cs = panels().concat(desktops());
+        for (var i = 0; i < cs.length; i++) {
+            var ws = cs[i].widgets('$OLD_WIDGET_ID');
+            if (ws.length === 0) continue;
+            for (var k = 0; k < ws.length; k++) { ws[k].remove(); }
+            cs[i].addWidget('$WIDGET_ID');
+        }" \
+        || note "could not reach plasmashell over D-Bus; swap the widget by hand (remove it, then Add Widgets > Live World Map Events)"
+}
+
+old_ids_in_use() {
+    # 0 when a desktop still draws with the old wallpaper id or a panel still holds the old widget id
+    grep -qs "^wallpaperplugin=$OLD_WALLPAPER_ID" "$APPLETSRC" || grep -qs "plugin=$OLD_WIDGET_ID" "$APPLETSRC"
+}
+
+migrate_old_ids() {
+    # 0.44 renamed the packages. Until the desktop and the panel point at the new ids, every install
+    # updates packages nothing is using - the map keeps running the old code. This moves them over.
+    if ! old_ids_in_use; then
+        # nothing uses them, but leftover old packages are still clutter: drop them quietly
+        if kpackagetool6 -t Plasma/Wallpaper -l 2>/dev/null | grep -qx "$OLD_WALLPAPER_ID" \
+           || kpackagetool6 -t Plasma/Applet -l 2>/dev/null | grep -qx "$OLD_WIDGET_ID"; then
+            echo
+            say "Removing the unused pre-0.44 packages"
+            remove_package Plasma/Wallpaper "$OLD_WALLPAPER_ID"
+            remove_package Plasma/Applet "$OLD_WIDGET_ID"
+        fi
+        return 0
+    fi
+    echo
+    say "Migrating from the package ids used before 0.44"
+    if grep -qs "^wallpaperplugin=$OLD_WALLPAPER_ID" "$APPLETSRC"; then
+        set_wallpaper_plugin "$WALLPAPER_ID"; note "desktops switched from $OLD_WALLPAPER_ID to $WALLPAPER_ID"
+    fi
+    if grep -qs "plugin=$OLD_WIDGET_ID" "$APPLETSRC"; then
+        replace_old_widget_instances; note "widget swapped from $OLD_WIDGET_ID to $WIDGET_ID on every panel and desktop"
+    fi
+    sleep 1
+    remove_package Plasma/Wallpaper "$OLD_WALLPAPER_ID"
+    remove_package Plasma/Applet "$OLD_WIDGET_ID"
+    warn "the settings start from the defaults under the new id (Plasma keys them by package id); the data folder is shared, nothing to download again"
+}
+
 remove_widget_instances() {
     shell_script "
         var all = [], ids = ['$WIDGET_ID', '$OLD_WIDGET_ID'];
@@ -394,6 +440,7 @@ cmd_install() {
     say "Installing"
     for z in "${zips[@]}"; do install_zip "$z"; done
     note "wallpaper $(version_of "$WP_DIR" || echo '-') / widget $(version_of "$WG_DIR" || echo '-')"
+    migrate_old_ids
     echo
     if grep -qs "\[Wallpaper\]\[$WALLPAPER_ID\]" "$APPLETSRC"; then
         say "Done. The map is already in use: re-apply it (Desktop settings > Apply) or run:  $0 activate"
@@ -457,6 +504,7 @@ cmd_status() {
     if grep -qs "\[Wallpaper\]\[$WALLPAPER_ID\]" "$APPLETSRC"; then note "settings:  saved in $(basename "$APPLETSRC")"; else note "settings:  none saved"; fi
     if grep -qs "plugin=$WIDGET_ID" "$APPLETSRC"; then note "widget:    placed on a panel or desktop"; fi
     if grep -qs "^wallpaperplugin=$WALLPAPER_ID" "$APPLETSRC"; then note "active:    yes, on at least one desktop"; else note "active:    no desktop uses it right now ('$0 activate')"; fi
+    if old_ids_in_use; then warn "the desktop or a panel still uses the pre-0.44 ids ($OLD_WALLPAPER_ID / $OLD_WIDGET_ID): what you see is the OLD code. Run '$0 install' to migrate."; fi
     if pgrep -f "livemap-helper.py" >/dev/null 2>&1; then note "helper:    running right now ($(pgrep -fc livemap-helper.py) process)"; else note "helper:    not running (it only runs for a few seconds per fetch)"; fi
     if [ -d "$DATA" ]; then note "data:      $DATA ($(du -sh "$DATA" 2>/dev/null | cut -f1))"; else note "data:      none"; fi
     if have journalctl; then

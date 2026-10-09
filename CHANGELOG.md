@@ -14,6 +14,14 @@ release notes written at the time; their dates are the day the version was hande
   overriding something. `livemap-helper mode --full on|off [--full-hours N]`; `full` and `full_until` in
   mode.json.
 
+### Fixed
+- `livemap.sh install` on a desktop still using the pre-0.44 package ids (`org.livemap.*`) installed the new
+  packages beside them and said nothing, so the map kept running the old code whatever was installed. It
+  now migrates: desktops are switched to the new wallpaper id, each old widget on a panel or desktop is
+  replaced by the new one in the same place, and the old packages are removed. `status` warns when the old
+  ids are still in use. Settings start from the defaults under the new id (Plasma keys them by package id);
+  the data folder is shared.
+
 ## widget 0.44 - 2026-09-25
 
 ### Added
