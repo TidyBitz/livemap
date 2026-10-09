@@ -23,7 +23,7 @@
 # your distribution. Run `livemap.sh doctor` at any time to see the same list.
 set -u
 
-VERSION_SCRIPT="0.45"
+VERSION_SCRIPT="0.46"
 WALLPAPER_ID="io.github.tidybitz.livemap.wallpaper"
 WIDGET_ID="io.github.tidybitz.livemap.events"
 OLD_WALLPAPER_ID="org.livemap.wallpaper"          # ids used before 0.44; remove/purge clean those up too

@@ -3,7 +3,7 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
-## 0.46 - 2026-09-25
+## 0.46 - 2026-10-09
 
 ### Added
 - Map styles. "Map style" under Map: the seasonal Blue Marble as before; today's satellite view - the real
@@ -148,7 +148,7 @@ release notes written at the time; their dates are the day the version was hande
   Storms, Wildfires, Satellites, Launches, Network activity and Time zones, exactly the five choices country
   names had. The country-name controls are the same row now. Defaults keep every label as it was.
 
-## widget 0.44 - 2026-09-25
+## widget 0.44 - 2026-10-09
 
 ### Added
 - Map controls: a "Power" section with a Full speed switch and a duration choice (until switched off, 1, 4
