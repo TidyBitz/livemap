@@ -25,7 +25,7 @@ jobs:
         run: python3 livemap/contents/helper/livemap-helper.py status --offline | python3 -m json.tool >/dev/null
       - name: build livemap.zip
         run: scripts/package.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: livemap.zip
           path: livemap.zip
