@@ -44,7 +44,7 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           awk -v v="$v" '/^## /{p = ($2 == v)} p' CHANGELOG.md > notes.md
           [ -s notes.md ] || echo "Release $v" > notes.md
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: livemap.zip
           body_path: notes.md
