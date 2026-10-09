@@ -46,6 +46,7 @@ WallpaperItem {
             item.plainAt = Qt.binding(function () { return cfg.GuardPlain });
             item.layers = Qt.binding(function () { return root.shownLayers });
             item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
+            item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
@@ -92,7 +93,7 @@ WallpaperItem {
 
     // A few lines in the journal so problems can be diagnosed without guessing.
     // (console.warn, because Fedora's default Qt logging rules hide console.log.)
-    Component.onCompleted: console.warn("livemap: 0.46 loaded - settings:", JSON.stringify({
+    Component.onCompleted: console.warn("livemap: 0.47 loaded - settings:", JSON.stringify({
         seasonal: cfg.Seasonal, fill: cfg.FillMode, dayNight: cfg.ShowDayNight, cityLights: cfg.ShowCityLights,
         clouds: cfg.ShowClouds, borders: cfg.ShowBorders, quakes: cfg.ShowQuakes, quakeFeed: cfg.QuakeFeed, network: cfg.ShowNetwork }))
 
@@ -320,7 +321,7 @@ WallpaperItem {
                     ctx.clearRect(0, 0, width, height);
                     var n = Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon,
                                            cfg.NightDarkness / 100, "3,5,14", cfg.Twilight);
-                    if (paints++ < 3) console.warn("livemap 0.46: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
+                    if (paints++ < 3) console.warn("livemap 0.47: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
                                  "- gradient columns:", n, "- map", Math.round(map.width) + "x" + Math.round(map.height));
                 }
                 onAvailableChanged: if (available) requestPaint()
@@ -352,7 +353,7 @@ WallpaperItem {
             Canvas {
                 id: glow
                 antialiasing: false                  // same reason as the shade above
-                readonly property bool wanted: lights.wanted && !cfg.LightsGpu && lights.status === Image.Ready
+                readonly property bool wanted: lights.wanted && !cfg.LightsGpu && lights.status === Image.Ready && !frameLights.active
                 readonly property url picture: wanted ? lights.source : ""
                 width: Math.min(4096, Math.max(1024, Math.round(map.width * Screen.devicePixelRatio)))
                 height: Math.round(width / 2)
@@ -386,9 +387,40 @@ WallpaperItem {
                 sourceItem: cfg.LightsGpu ? shade : null
                 smooth: true
             }
+            // City lights cut for the view (frames/<key>/lights.png, from NASA's 13 500 px night picture): sharp
+            // in a region where the whole-world lights would be stretched. Masked by the same shade through a
+            // texture of just the view's part of it; while it loads, the whole-world lights above stay.
+            Image {
+                id: frameLights
+                x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                visible: false
+                asynchronous: true
+                sourceSize: baseGroup.ftex
+                readonly property bool wanted: lights.wanted && baseGroup.framed && !root.viewIsWorld
+                source: wanted ? baseGroup.frameUrl("lights.png") : ""
+                readonly property bool active: wanted && status === Image.Ready
+            }
+            ShaderEffectSource {
+                id: frameShadeTexture
+                visible: false
+                sourceItem: frameLights.active ? shade : null
+                sourceRect: Qt.rect(root.viewW + 180, 90 - root.viewN, root.viewE - root.viewW, root.viewN - root.viewS)   // the shade is 360 x 180: degrees
+                textureSize: Qt.size(1024, Math.max(1, Math.round(1024 * (root.viewN - root.viewS) / Math.max(1, root.viewE - root.viewW))))
+                smooth: true
+            }
+            MultiEffect {
+                x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                visible: frameLights.active
+                source: frameLights
+                maskEnabled: true
+                maskSource: frameShadeTexture
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+                opacity: cfg.LightsBrightness / 100
+            }
             MultiEffect {
                 anchors.fill: parent
-                visible: lights.wanted && cfg.LightsGpu && lights.status === Image.Ready
+                visible: lights.wanted && cfg.LightsGpu && lights.status === Image.Ready && !frameLights.active
                 source: lights
                 maskEnabled: true
                 maskSource: shadeTexture

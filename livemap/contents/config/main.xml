@@ -54,6 +54,7 @@
     <entry name="StormIconTheme" type="Int"><default>0</default></entry>
     <entry name="StormIconSize" type="Int"><default>22</default></entry>
     <entry name="ShowFires" type="Bool"><default>true</default></entry>
+    <entry name="FireFocus" type="Int"><default>1</default></entry>          <!-- 0 everything, 1 near people, 2 orange and red events only -->
     <entry name="FireColor" type="Color"><default>#ff5a1f</default></entry>
     <entry name="FireAlertColors" type="Bool"><default>true</default></entry>
     <entry name="FireMinLevel" type="Int"><default>0</default></entry>

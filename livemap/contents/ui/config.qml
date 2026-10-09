@@ -20,6 +20,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
+import org.kde.plasma.plasma5support as P5Support
 
 Kirigami.FormLayout {
     id: form
@@ -241,6 +242,7 @@ Kirigami.FormLayout {
     property alias cfg_FireMinLevel: fireMinLevel.currentIndex
     property alias cfg_FireMinArea: fireMinArea.currentIndex
     property alias cfg_FireSource: fireSource.currentIndex
+    property alias cfg_FireFocus: fireFocus.currentIndex
     property alias cfg_HotspotMinCount: hotspotMinCount.currentIndex
     property alias cfg_HotspotTier: hotspotTier.currentIndex
     property alias cfg_FireLabels: fireLabels.currentIndex
@@ -531,6 +533,33 @@ Kirigami.FormLayout {
 
     // #################################################################### Profile and layers
     Group { text: "Profile and layers" }
+
+    // The companion widget's overrides (Map controls: pause, plain map, hidden layers) sit on top of everything
+    // on this page, and a layer switched on here stays off the map while the widget hides it - so say so.
+    property var widgetMode: ({})
+    readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
+    readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+    P5Support.DataSource {
+        id: modeExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => { disconnectSource(source); try { form.widgetMode = JSON.parse(data.stdout) || ({}); } catch (e) {} }
+    }
+    Component.onCompleted: modeExec.connectSource("python3 '" + widgetHelper + "' mode # " + Date.now())
+    RowLayout {
+        visible: form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+        Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
+        QQC2.Label {
+            Layout.fillWidth: true; wrapMode: Text.Wrap
+            text: "The companion widget is overriding the map (Map controls): " + [form.widgetHidden.length > 0 ? "hiding " + form.widgetHidden.join(", ") : "",
+                   form.widgetMode.pause ? "animations paused" : "", form.widgetMode.plain ? "plain map" : ""].filter(function (t) { return t !== ""; }).join("; ")
+                  + ". A layer switched on below stays off the map while the widget hides it."
+        }
+        QQC2.Button { text: "Clear the widget's overrides"; icon.name: "edit-clear"; onClicked: { modeExec.connectSource("python3 '" + form.widgetHelper + "' mode --clear # " + Date.now()); } }
+    }
 
     // The profile sets the levers that cost CPU and GPU time in one go; changing any of them by hand turns
     // the choice into "Custom". Everything it touches can still be changed below.
@@ -1260,6 +1289,14 @@ Kirigami.FormLayout {
         enabled: fires.checked
         model: ["GDACS fire events", "NASA satellite hotspots (FIRMS)", "Both"]
     }
+    QQC2.ComboBox {
+        visible: sec9.open
+        id: fireFocus
+        Kirigami.FormData.label: "Wildfire focus:"
+        enabled: fires.checked
+        model: ["Everything the filters below allow", "Near people: a city of 100 000 within 50 km, or an orange / red event", "Orange and red events only (no satellite hotspots)"]
+    }
+    Note { visible: sec9.open; text: "Most of what the satellites see burning is the savanna, harvest and forestry fires of the season - the world looks on fire every day. 'Near people' keeps the fires that can mean evacuations: GDACS rates orange and red on the people exposed, and a hotspot cluster within 50 km of a city of 100 000 is the other case. The Events widget follows the same choice." }
     Note { visible: sec9.open; text: "GDACS: one flame per fire event it rates (green, orange, red) with the burned area; updated daily. NASA FIRMS: what the MODIS satellites detected burning in the last 24 hours, clustered by the helper into half-degree cells (about 3 MB every 3 hours, no key); a smaller flame in the fire colour, sized by fire power." }
     RowLayout {
         visible: sec9.open

@@ -3,6 +3,25 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.47 - unreleased
+
+### Added
+- Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is
+  the savanna, harvest and forestry fires of the season, so the map looked on fire everywhere. "Near people"
+  keeps the fires that can mean evacuations - GDACS orange and red events (rated on the people exposed) and
+  satellite hotspot clusters within 50 km of a city of 100 000 or on such an event; "Orange and red events
+  only" drops the hotspots altogether; "Everything the filters below allow" is the old behaviour. The
+  Events widget follows the same choice (`power --fire-focus`, `hotspots --people`).
+- The settings page says when the companion widget is overriding the map - hiding layers, pausing, plain
+  map - with a button to clear the overrides, since a layer switched on in the settings stayed off the map
+  while the widget hid it and nothing said why.
+
+### Changed
+- City lights in a region are cut from NASA's 13 500 px night picture for exactly the view on screen (the
+  whole-world lights, 4 096 px, were stretched eight times across Europe and came out as blobs). The
+  picture is kept by `fetch-maps` from now on (night-hires.jpg); an install from before shows a note on the
+  City lights status row until the maps are downloaded again.
+
 ## 0.46 - 2026-10-09
 
 ### Added
