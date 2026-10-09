@@ -1,0 +1,9 @@
+# Keeps the GitHub Actions used by the CI workflow current. The wallpaper itself has no package
+# dependencies: the helper is standard-library Python and the QML uses what Plasma ships.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [ci]

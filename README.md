@@ -141,7 +141,8 @@ has the developer notes (how the day/night shade avoids a shader, the `layer` id
     journalctl --user -f | grep -i -E "livemap|qml"      # QML errors as they happen
     livemap-helper status | python3 -m json.tool          # the health report the settings page shows
 
-Please open an issue with the output of `livemap.sh doctor --report`.
+Please open an issue with the output of `livemap.sh doctor --report`. Pull requests: see [CONTRIBUTING.md](CONTRIBUTING.md);
+security issues: [SECURITY.md](SECURITY.md).
 
 ## Licence
 
