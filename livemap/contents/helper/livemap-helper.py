@@ -431,9 +431,19 @@ def _zones(row_lat=None):
                 for a, b in _spans_at(r, lat):
                     if best is None or b - a > best[0]:
                         best = (b - a, (a + b) / 2, lat)
+        if (best is None or best[0] <= 0) and row_lat is not None and -12 <= zone <= 14 and zone == int(zone):
+            # the row is a scale: a whole-hour zone with no land on the row's latitude (UTC+11 is a few islands,
+            # UTC+2 at some latitudes) still gets its label, on its nominal meridian band
+            best = (15.0, zone * 15.0, row_lat)
         if best is None or best[0] <= 0:
             continue
         labels.append([text, round(best[1], 2), round(best[2], 2), round(best[0], 2)] + _zone_clock(zone, p.get("tz_name1st") or ""))
+    if row_lat is not None:                       # one label per offset in the row (the file has several polygons per zone)
+        seen, uniq = set(), []
+        for lab in sorted(labels, key=lambda l: -l[3]):
+            if lab[0] not in seen:
+                seen.add(lab[0]); uniq.append(lab)
+        labels = uniq
     return lines, labels
 
 

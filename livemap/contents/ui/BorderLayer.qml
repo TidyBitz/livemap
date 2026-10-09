@@ -58,7 +58,14 @@ Item {
     }
     function longestLine(t) { var parts = t.split("\n"), n = 0; for (var i = 0; i < parts.length; i++) n = Math.max(n, parts[i].length); return n; }
     function lineCount(t) { return t.split("\n").length }
-    readonly property int zoneRowLat: cfg ? cfg.ZoneRowLat : -55
+    // the row's latitude; a region that does not reach it gets the row near the bottom of what is on screen
+    property real viewNorth: 90
+    property real viewSouth: -90
+    readonly property int zoneRowLat: (function () {
+        var want = cfg ? cfg.ZoneRowLat : -55;
+        if (want >= viewSouth + 2 && want <= viewNorth - 2) return want;
+        return Math.round(viewSouth + (viewNorth - viewSouth) * 0.12);
+    })()
     property var zoneLines: []
     property var zoneLabels: []
 

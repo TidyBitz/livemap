@@ -16,6 +16,12 @@ release notes written at the time; their dates are the day the version was hande
   map - with a button to clear the overrides, since a layer switched on in the settings stayed off the map
   while the widget hid it and nothing said why.
 
+### Fixed
+- Time zone labels in one row: a region that did not reach the row's latitude (Europe with the row at the
+  equator) showed none; the row moves to the bottom of what is on screen in that case. UTC+2 and UTC+11
+  were missing from the row where the zone has no land at that latitude: a whole-hour zone without one
+  takes its nominal meridian band, so the row is a complete scale.
+
 ### Changed
 - City lights in a region are cut from NASA's 13 500 px night picture for exactly the view on screen (the
   whole-world lights, 4 096 px, were stretched eight times across Europe and came out as blobs). The

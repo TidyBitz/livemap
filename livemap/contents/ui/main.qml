@@ -464,6 +464,7 @@ WallpaperItem {
                 onLoaded: {
                     item.cfg = root.cfg;
                     item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+                    item.viewNorth = Qt.binding(function () { return root.viewN }); item.viewSouth = Qt.binding(function () { return root.viewS });
                 }
                 onStatusChanged: if (status === Loader.Error) console.warn("livemap: border layer failed to load")
             }
