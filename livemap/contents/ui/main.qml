@@ -124,15 +124,19 @@ WallpaperItem {
     readonly property real viewS: Math.max(-90, Math.floor(90 - (root.height - map.y) / sy))
     readonly property bool viewIsWorld: viewW <= -180 && viewE >= 180 && viewN >= 90 && viewS <= -90
     readonly property int mapStyle: cfg.MapStyle
-    readonly property bool wantFrame: mapStyle !== 0 || (!viewIsWorld && cfg.Seasonal && (viewE - viewW) < 200)
+    // Seasonal style: the 5 400 px monthly map serves a wide view as it is; a narrower view is cut from it, and
+    // with the hi-res set downloaded every view - the whole world too - is cut from the 21 600 px maps.
+    readonly property bool hiresMaps: frameLoader.item ? frameLoader.item.hires : false
+    readonly property bool wantFrame: mapStyle !== 0 || (cfg.Seasonal && (hiresMaps || (!viewIsWorld && (viewE - viewW) < 200)))
     readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : mapStyle === 3 ? "dark" : "seasonal"
     // the dark style is drawn by the helper as an image too: its colours and detail are part of the request
-    readonly property string frameExtra: mapStyle === 3 ? " --land '" + String(cfg.LandColor) + "' --ocean '" + String(cfg.OceanColor) + "' --detail " + (cfg.BorderDetail === 1 ? "50m" : "110m") : ""
+    readonly property string frameExtra: mapStyle === 3 ? " --land '" + String(cfg.LandColor) + "' --ocean '" + String(cfg.OceanColor) + "' --detail " + (cfg.BorderDetail === 1 ? "50m" : "110m")
+                                       : mapStyle === 0 && !cfg.SeasonalHires ? " --lowres" : ""
     readonly property int frameWidthPx: Math.min(16384, Math.ceil(Math.max(1024, (viewE - viewW) * sx * Screen.devicePixelRatio) / 256) * 256)
     readonly property string frameDir: frameLoader.item && frameLoader.item.ready ? frameLoader.item.dir : ""
     Loader {
         id: frameLoader
-        active: root.wantFrame && root.width > 0
+        active: root.width > 0 && (root.wantFrame || (root.mapStyle === 0 && cfg.Seasonal))   // the seasonal style asks too, to learn of the hi-res set
         source: "FrameWatch.qml"
         onLoaded: {
             item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");

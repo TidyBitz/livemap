@@ -37,6 +37,7 @@ Kirigami.FormLayout {
     property alias cfg_FillMode: fillMode.currentIndex
     property alias cfg_MapStyle: mapStyle.currentIndex
     property alias cfg_MapTone: mapTone.currentIndex
+    property alias cfg_SeasonalHires: seasonalHires.checked
     property alias cfg_LandColor: landColor.color
     property alias cfg_OceanColor: oceanColor.color
     property alias cfg_FrameNorth: frameNorth.value
@@ -629,6 +630,7 @@ Kirigami.FormLayout {
         text: "Follow the seasons (NASA monthly images)"
     }
     QQC2.CheckBox { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalBlend; enabled: seasonal.checked; text: "Cross-fade between months day by day" }
+    QQC2.CheckBox { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalHires; enabled: seasonal.checked; text: "Cut every view from the hi-res maps once they are downloaded (unticked: the 5 400 px maps, cut only for a region)" }
     RowLayout {
         visible: sec1.open
         Kirigami.FormData.label: seasonal.checked ? "Fallback image:" : "Image:"
@@ -717,7 +719,7 @@ Kirigami.FormLayout {
     }
     Note {
         visible: sec1.open
-        text: "A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000, every platform named. The frame must be at least 10° wide and 5° tall and cannot cross the date line yet. Imagery is built for exactly what is on screen - edge to edge, whatever the fit - cut from the monthly maps (the 5 400 px set is soft beyond about 2x: download the hi-res set on the source line above for a sharp region) or fetched from NASA GIBS for the other styles, by the wallpaper itself when the view or the style changes; the 'Map style imagery' row under Status lists what has been built."
+        text: "A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000, every platform named. The frame must be at least 10° wide and 5° tall and cannot cross the date line yet. Imagery is built for exactly what is on screen - edge to edge, whatever the fit - cut from the monthly maps (the 5 400 px set is soft beyond about 2x: download the hi-res set on the source line above and every view, the whole world included, is cut from the 21 600 px maps instead) or fetched from NASA GIBS for the other styles, by the wallpaper itself when the view or the style changes; the 'Map style imagery' row under Status lists what has been built."
     }
     QQC2.ComboBox {
         visible: sec1.open

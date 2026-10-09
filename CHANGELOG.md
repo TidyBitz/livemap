@@ -21,7 +21,8 @@ release notes written at the time; their dates are the day the version was hande
   Oceania, Australia and New Zealand. A region fills the screen at up to about 8x (Europe), with imagery
   cut from the monthly maps for exactly that frame - the 5 400 px set is soft beyond about 2x, so the Map
   section offers the 21 600 px set as a second source line, "Hi-res seasonal maps" (about 330 MB, kept
-  beside the small set and used only for regions; `fetch-maps --hires`) - or fetched from
+  beside the small set; once it is there every view is cut from it, the whole world included, unless
+  "Cut every view from the hi-res maps" under Base map is unticked; `fetch-maps --hires`) - or fetched from
   GIBS for the other styles - built for what is on screen, edge to edge, not for the frame, so Fit mode's
   spare space is as sharp as the region and nothing is cut off (the monthly map shows softly only while
   the picture is on its way).

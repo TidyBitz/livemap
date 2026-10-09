@@ -19,6 +19,7 @@ Item {
     property string extra: ""                     // style-specific arguments (the dark style's colours)
 
     property bool ready: false
+    property bool hires: false                    // the 21 600 px monthly set is there (the helper says on every answer)
     property string dir: ""
     property string note: ""
     property bool busy: false
@@ -62,6 +63,8 @@ Item {
             if (source.indexOf("' frame ") < 0) return;
             try {
                 var r = JSON.parse(data.stdout);
+                watch.hires = !!r.hires;
+                if (r.skip) { watch.ready = false; return; }           // nothing to build: the monthly map serves as it is
                 if (r.ready) {
                     watch.dir = r.dir; watch.ready = true;
                     if (r.stale) watch.fetch();                   // yesterday's picture: show it, fetch today's behind it

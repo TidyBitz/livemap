@@ -3248,7 +3248,12 @@ def _frame_variant(args):
     """What else than the frame tells the files apart: the dark style's two colours and detail."""
     if args.style == "dark":
         return args.land.lstrip("#") + args.ocean.lstrip("#") + args.detail
-    return "hr" if args.style == "seasonal" and have_hires() else ""
+    return "hr" if args.style == "seasonal" and use_hires(args) else ""
+
+
+def use_hires(args):
+    """The hi-res monthly set is cut from when it is there and the setting allows (`--lowres` says no)."""
+    return have_hires() and not getattr(args, "lowres", False)
 
 
 def draw_land(n, so, w, e, width, height, land, ocean, detail="50m"):
@@ -3345,11 +3350,11 @@ def cmd_fetch_frame(args):
         draw_land(n, so, w, e, width, height, args.land, args.ocean, args.detail).save(dest / "base.png")
         print("  land drawn in %s over %s, %d x %d" % (args.land, args.ocean, width, height))
     elif args.style == "seasonal":
-        if world:
+        if world and not use_hires(args):
             sys.exit("the whole world in the seasonal style needs no frame imagery: it uses the monthly maps as they are")
         for i in range(1, 13):
             src = DATA / "base" / ("hires%02d.jpg" % i)
-            if not src.exists():
+            if not src.exists() or not use_hires(args):
                 src = DATA / "base" / ("%02d.jpg" % i)
             if not src.exists():
                 sys.exit("month %02d is missing - run: livemap-helper fetch-maps" % i)
@@ -3391,7 +3396,10 @@ def cmd_frame(args):
     """`frame --style S --north ... --width W`: is the imagery there? The wallpaper polls this and fetches when not."""
     n, so, w, e, width, _h = _frame_args(args)
     key = frame_key(n, so, w, e, width, _frame_variant(args))
-    emit(dict(frame_state(args.style, key), key=key, dir=str(FRAMES / key)))
+    world = (n, so, w, e) == (90, -90, -180, 180)
+    # the whole world in the seasonal style is the monthly maps as they are, unless the hi-res set is there to cut from
+    emit(dict(frame_state(args.style, key), key=key, dir=str(FRAMES / key), hires=use_hires(args),
+              skip=args.style == "seasonal" and world and not use_hires(args)))
 
 
 def chk_frames():
@@ -3494,7 +3502,8 @@ def main():
         fr.add_argument("--land", default="#2b3542"); fr.add_argument("--ocean", default="#0b1119"); fr.add_argument("--detail", default="50m", choices=["110m", "50m"])
         fr.add_argument("--north", type=float, default=90); fr.add_argument("--south", type=float, default=-90)
         fr.add_argument("--west", type=float, default=-180); fr.add_argument("--east", type=float, default=180)
-        fr.add_argument("--width", type=int, default=4096); fr.add_argument("--date", default=""); fr.set_defaults(fn=fn)
+        fr.add_argument("--width", type=int, default=4096); fr.add_argument("--date", default="")
+        fr.add_argument("--lowres", action="store_true"); fr.set_defaults(fn=fn)   # the 5 400 px maps even when the hi-res set is there
     m = sub.add_parser("fetch-maps"); m.add_argument("--ocean-from"); m.add_argument("--hires", action="store_true")
     m.set_defaults(fn=cmd_fetch_maps)
     args = ap.parse_args()
