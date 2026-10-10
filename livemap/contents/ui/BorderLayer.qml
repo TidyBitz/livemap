@@ -56,6 +56,20 @@ Item {
         var first = zoneClock <= 2 ? z[0] + " \u00b7 " + time : time;
         return (zoneClock === 2 || zoneClock === 4) ? first + "\n" + date : first;
     }
+    // The row as a band: the three facts of a zone at three sizes - the time large, the offset small above it, the
+    // date only where it differs from this computer's (the one time it is news). In "inside each zone" mode
+    // zoneText() still gives one string.
+    function zoneParts(z) {
+        var off = z.length >= 7 && z[5] > 0 && clockMs / 1000 >= z[5] ? z[6] : (z.length >= 7 ? z[4] : NaN);
+        if (zoneClock === 0 || isNaN(off)) return { head: "", main: z[0], foot: "" };
+        var d = new Date(clockMs + off * 3600000), here = new Date(clockMs);
+        var h = d.getUTCHours(), m = d.getUTCMinutes();
+        var time = zoneClock12 ? ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " am" : " pm") : (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+        var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        var other = d.getUTCDate() !== here.getDate() || d.getUTCMonth() !== here.getMonth();
+        var withDate = zoneClock === 2 || zoneClock === 4;
+        return { head: zoneClock <= 2 ? z[0] : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
+    }
     function longestLine(t) { var parts = t.split("\n"), n = 0; for (var i = 0; i < parts.length; i++) n = Math.max(n, parts[i].length); return n; }
     function lineCount(t) { return t.split("\n").length }
     // the row's latitude; a region that does not reach it gets the row near the bottom of what is on screen
@@ -165,14 +179,20 @@ Item {
     // wide enough. In one row: the row was asked for, so every zone's label is placed first (only its
     // neighbours in the row can push it out) and the names make way for it instead.
     function zoneBox(z) {
+        if (zonePlacement === 1) {                            // the band: the time's width, the band's height
+            var bw = Math.max(z.parts.main.length * zonePx * 1.5 * 0.62, z.parts.head.length * zonePx * 0.62) + 6 * unit;
+            return { x: z.x - bw / 2, y: z.y - bandHeight / 2, w: bw, h: bandHeight };
+        }
         var tw = longestLine(z.text) * zonePx * 0.65, th = zonePx * 1.3 * lineCount(z.text);
         return { x: z.x - tw / 2, y: z.y - th / 2, w: tw, h: th };
     }
+    readonly property real bandHeight: zonePx * (zoneClock === 0 ? 2.2 : 4.4)
+    readonly property real bandY: (90 - zoneRowLat) / 180 * height
     readonly property var wantedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
         var tick = clockMs;                                   // so the clocks re-fit every minute
         return zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
-            .map(function (z) { return { text: zoneText(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
+            .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
     })()
     readonly property var rowZones: (function () {             // one-row mode: the row first, among itself
         if (zonePlacement !== 1) return [];
@@ -284,8 +304,39 @@ Item {
     })()
     readonly property var stateBoxes: fittedStates.map(function (n) { return boxOf(n.x, n.y, n.name, statePx, cfg ? cfg.StateNameLabelBold : false); })
 
-    Repeater {                                                // time zone offsets
-        model: overlay.fittedZones
+    // The band under the row: a translucent strip the width of the map with a tick at each zone edge, so the
+    // labels have a baseline and sit on something instead of on the imagery.
+    Rectangle {
+        visible: overlay.showZones && overlay.showZoneLabels && overlay.zonePlacement === 1
+        x: 0; width: overlay.width
+        y: overlay.bandY - overlay.bandHeight / 2; height: overlay.bandHeight
+        color: Qt.rgba(0, 0.02, 0.06, 0.55 * (cfg ? cfg.ZoneLabelOpacity : 100) / 100)
+        border.color: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, 0.35 * overlay.zoneStrength * 2); border.width: Math.max(1, 0.6 * overlay.unit)
+        Repeater {                                            // ticks at the zone edges on the row
+            model: overlay.fittedZones
+            Rectangle {
+                required property var modelData
+                x: modelData.x - modelData.w / 2 * overlay.width / 360 - width / 2
+                y: 0; width: Math.max(1, 0.8 * overlay.unit); height: parent.height
+                color: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, 0.4)
+            }
+        }
+    }
+    Repeater {                                                // time zones in the band: offset small, time large, date when it differs
+        model: overlay.zonePlacement === 1 ? overlay.fittedZones : []
+        Column {
+            required property var modelData
+            x: modelData.x - width / 2
+            y: overlay.bandY - height / 2
+            spacing: 0
+            readonly property color ink: cfg && !cfg.ZoneTextFollows ? cfg.ZoneTextColor : overlay.zoneInk
+            MapLabel { anchors.horizontalCenter: parent.horizontalCenter; visible: modelData.parts.head !== ""; text: modelData.parts.head; px: overlay.zonePx; textColor: ink; textOpacity: 0.7 * (cfg ? cfg.ZoneLabelOpacity : 100) / 100; plate: false; caps: true; letterScale: 1.2; haloScale: 0.8; unit: overlay.unit }
+            MapLabel { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.parts.main; px: Math.round(overlay.zonePx * (overlay.zoneClock === 0 ? 1 : 1.5)); bold: true; textColor: ink; textOpacity: (cfg ? cfg.ZoneLabelOpacity : 100) / 100; plate: false; haloScale: 0.8; unit: overlay.unit }
+            MapLabel { anchors.horizontalCenter: parent.horizontalCenter; visible: modelData.parts.foot !== ""; text: modelData.parts.foot; px: overlay.zonePx; textColor: ink; textOpacity: 0.85 * (cfg ? cfg.ZoneLabelOpacity : 100) / 100; plate: false; haloScale: 0.8; unit: overlay.unit }
+        }
+    }
+    Repeater {                                                // time zone offsets inside each zone
+        model: overlay.zonePlacement === 1 ? [] : overlay.fittedZones
         MapLabel {
             required property var modelData
             x: modelData.x - width / 2
