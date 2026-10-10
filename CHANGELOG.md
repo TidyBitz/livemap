@@ -10,7 +10,9 @@ release notes written at the time; their dates are the day the version was hande
   lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
   look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every
   label in a monospace face with a green glow, and scanlines over the whole screen. Set the line and label
-  colours to greys or greens to complete either; the colours of the layers stay yours.
+  colours to greys or greens to complete either with the "Map style colours" button, or keep your own. On
+  the flat styles the night shade is not drawn over the land (it made the land two tones): the city lights
+  alone say where it is night.
 - Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is
   the savanna, harvest and forestry fires of the season, so the map looked on fire everywhere. "Near people"
   keeps the fires that can mean evacuations - GDACS orange and red events (rated on the people exposed) and

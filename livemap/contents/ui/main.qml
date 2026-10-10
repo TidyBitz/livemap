@@ -335,7 +335,9 @@ WallpaperItem {
                 // which comes out lighter than either - regular vertical stripes across the night side. Without it
                 // every device pixel belongs to exactly one strip. The smooth upscale hides the hard strip edges.
                 antialiasing: false
-                visible: cfg.ShowDayNight
+                // On the flat styles the night shade would make the land two tones (lit grey, dark grey); there the
+                // city lights alone say where it is night, so the shade only serves as their mask and is not shown.
+                visible: cfg.ShowDayNight && !root.flatStyle
                 transform: Scale { xScale: map.width / shade.width; yScale: map.height / shade.height }
                 property int paints: 0
                 onPaint: {

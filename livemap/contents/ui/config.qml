@@ -653,6 +653,28 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: oceanColor; showAlphaChannel: false; dialogTitle: "Ocean colour" }
         QQC2.Label { text: "ocean" }
     }
+    RowLayout {
+        visible: sec1.open && mapStyle.currentIndex >= 4
+        Kirigami.FormData.label: "Map style colours:"
+        QQC2.Button {
+            text: mapStyle.currentIndex === 5 ? "Set every line and label to Matrix greens" : "Set every line and label to Dark Matter greys"
+            icon.name: "color-management"
+            onClicked: form.applyLook(mapStyle.currentIndex)
+        }
+    }
+    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The style sets the land and ocean; the lines, names and event colours stay yours. This button recolours them to match in one go (country, state, river and time zone lines, country and place names, quake rings, storms, volcanoes, fires, satellites, launches, arcs); change any of them afterwards as you like." }
+    function applyLook(style) {
+        var m = style === 5;
+        var line = m ? "#1f9e5a" : "#5a5a5a", name = m ? "#7dffb0" : "#c8c8c8", place = m ? "#b8ffd0" : "#e0e0e0";
+        borderColor.color = line; riverColor.color = m ? "#157a48" : "#3f4a52"; zoneColor.color = m ? "#2ec27e" : "#6e6e6e"; plateLineColor.color = m ? "#39ff8a" : "#8a6a3a";
+        nameFollows.checked = false; nameTextColor.color = name;
+        stateNameFollows.checked = false; stateNameTextColor.color = m ? "#4fd48a" : "#9a9a9a";
+        capitalColor.color = place; stateCapitalColor.color = place; cityColor.color = place;
+        quakeColor.color = m ? "#39ff8a" : "#ffa640"; quakeFollows.checked = true;
+        stormColor.color = m ? "#b6ff3c" : "#8fd3ff"; volcanoColor.color = m ? "#ff9d3c" : "#ff7a59"; fireColor.color = m ? "#ffb03c" : "#ff6b3c";
+        satColor.color = m ? "#9dffc4" : "#e8ecf0"; launchColor.color = m ? "#7dffb0" : "#ffd166"; arcColor.color = m ? "#2ec27e" : "#8fd3ff";
+        zoneTextFollows.checked = true;
+    }
     QQC2.ComboBox {
         visible: sec1.open
         id: mapTone
