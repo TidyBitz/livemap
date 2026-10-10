@@ -259,6 +259,20 @@ Item {
     readonly property var wantedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
         var tick = clockMs;                                   // so the clocks re-fit every minute
+        if (bandMode) {
+            // The band is a scale of the offsets in force right now: one column per distinct offset, on its own
+            // meridian (UTC+2 at 30 degrees east, UTC+5:30 at 82.5), whatever the polygons' shapes. Keyed by the
+            // standard zones it drifted: a zone's main place on summer time moved its clock but not its column.
+            var seen = {}, out = [];
+            for (var i = 0; i < zoneLabels.length; i++) {
+                var off = effectiveOffset(zoneLabels[i]), key = off.toFixed(2);
+                if (seen[key]) continue;
+                seen[key] = true;
+                var z = [offsetText(off), off * 15, zoneRowLat, 15, off, 0, off];
+                out.push({ text: zoneText(z), parts: zoneParts(z), off: off, w: 15, x: (off * 15 + 180) / 360 * width, y: bandY });
+            }
+            return out.sort(function (a, b) { return a.off - b.off; });
+        }
         return zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
             .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), off: effectiveOffset(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
     })()

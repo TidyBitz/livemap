@@ -17,6 +17,9 @@ release notes written at the time; their dates are the day the version was hande
   while the widget hid it and nothing said why.
 
 ### Fixed
+- The band is a scale of the offsets in force right now - one column per distinct offset, on its own
+  meridian - instead of one column per standard zone, which left a zone whose main place is on summer time
+  in the wrong column, and two columns with the same clock side by side.
 - Time zone captions are the offset in force now, summer time included, like the clock beside them:
   Chicago reads "UTC-5 · 8:41 pm" today and "UTC-6" in winter. The standard offset as a caption next to a
   summer-time clock made neighbours look like duplicates and marked the wrong column as home.
