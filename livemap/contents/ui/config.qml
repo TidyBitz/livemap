@@ -627,21 +627,23 @@ Kirigami.FormLayout {
     Group { text: "Map base" }
 
     // ==================================================================== Map
-    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex !== 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
+    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex < 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
     Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"] }
 
     QQC2.ComboBox {
         visible: sec1.open
         id: mapStyle
         Kirigami.FormData.label: "Map style:"
-        model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery)"]
+        model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)"]
     }
     Note {
         visible: sec1.open
         text: ["NASA's Blue Marble Next Generation: one cloud-free composite per month, so the snow line and the vegetation follow the seasons. Downloaded once (fetch-maps); the whole world needs nothing more.",
                "The actual picture from the last day's orbits (Suomi NPP VIIRS corrected reflectance): clouds, snow, smoke and sea ice as they were yesterday, with the seams and night gaps a polar orbit leaves. Fetched for the frame on screen once a day (python3-pillow needed), a few MB.",
                "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
-               "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed."][mapStyle.currentIndex]
+               "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
+               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data. Set the border and label colours to light greys to complete it; the lightest on the GPU.",
+               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything. Set the line and label colours to greens to complete it."][mapStyle.currentIndex]
     }
     RowLayout {
         visible: sec1.open && mapStyle.currentIndex === 3
@@ -655,7 +657,7 @@ Kirigami.FormLayout {
         visible: sec1.open
         id: mapTone
         Kirigami.FormData.label: "Map tone:"
-        enabled: mapStyle.currentIndex !== 3
+        enabled: mapStyle.currentIndex < 3
         model: ["Natural", "Muted", "Monochrome", "Blue-tinted", "Sepia"]
     }
     QQC2.CheckBox {

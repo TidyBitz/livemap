@@ -24,8 +24,11 @@ Item {
             text: haloText.text
             textFormat: Text.PlainText
             font: front.font
-            color: haloText.haloColor
+            // the Matrix style: a dim green glow instead of the dark halo
+            color: Look.matrix ? Qt.rgba(Look.glow.r, Look.glow.g, Look.glow.b, 0.35 * haloText.haloColor.a) : haloText.haloColor
         }
     }
-    Text { id: front; text: haloText.text; textFormat: Text.PlainText; color: haloText.color }
+    Text { id: front; text: haloText.text; textFormat: Text.PlainText; color: haloText.color
+           Component.onCompleted: if (Look.family !== "") font.family = Look.family
+           Connections { target: Look; function onFamilyChanged() { front.font.family = Look.family !== "" ? Look.family : Qt.application.font.family } } }
 }

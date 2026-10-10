@@ -6,6 +6,11 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Two more map styles, both drawn like the dark cartographic one (no imagery, the border download, the
+  lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
+  look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every
+  label in a monospace face with a green glow, and scanlines over the whole screen. Set the line and label
+  colours to greys or greens to complete either; the colours of the layers stay yours.
 - Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is
   the savanna, harvest and forestry fires of the season, so the map looked on fire everywhere. "Near people"
   keeps the fires that can mean evacuations - GDACS orange and red events (rated on the people exposed) and
