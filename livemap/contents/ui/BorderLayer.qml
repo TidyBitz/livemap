@@ -56,7 +56,8 @@ Item {
         var time = zoneClock12 ? ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " am" : " pm") : (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
         var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         var date = days[d.getUTCDay()] + " " + d.getUTCDate() + " " + months[d.getUTCMonth()];
-        var first = zoneClock <= 2 ? z[0] + " \u00b7 " + time : time;
+        var mm = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]), nom = mm && mm[1] ? parseInt(mm[1]) + (mm[2] ? parseInt(mm[2]) / 60 * (mm[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
+        var first = zoneClock <= 2 ? z[0] + (Math.abs(off - nom) > 0.01 ? " DST" : "") + " \u00b7 " + time : time;
         return (zoneClock === 2 || zoneClock === 4) ? first + "\n" + date : first;
     }
     // The row as a band: the three facts of a zone at three sizes - the time large, the offset small above it, the
@@ -71,7 +72,11 @@ Item {
         var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         var other = d.getUTCDate() !== here.getDate() || d.getUTCMonth() !== here.getMonth();
         var withDate = zoneClock === 2 || zoneClock === 4;
-        return { head: zoneClock <= 2 ? z[0] : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
+        // the band is keyed by the standard offset; where the main place is on summer time its clock is an
+        // hour ahead of the band's name, so say so, or two neighbours look like a duplicate
+        var m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]), nominal = m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
+        var dst = Math.abs(off - nominal) > 0.01 ? " \u00b7 DST" : "";
+        return { head: zoneClock <= 2 ? z[0] + dst : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
     }
     function longestLine(t) { var parts = t.split("\n"), n = 0; for (var i = 0; i < parts.length; i++) n = Math.max(n, parts[i].length); return n; }
     function lineCount(t) { return t.split("\n").length }
