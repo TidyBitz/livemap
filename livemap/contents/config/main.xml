@@ -91,6 +91,7 @@
     <entry name="ZoneBandSun" type="Bool"><default>true</default></entry>
     <entry name="ZoneBandDiff" type="Bool"><default>true</default></entry>
     <entry name="ZoneBandMoon" type="Bool"><default>true</default></entry>
+    <entry name="ZoneAbbrev" type="Bool"><default>false</default></entry>
     <entry name="HomeCity" type="String"><default></default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="SatIss" type="Bool"><default>true</default></entry>

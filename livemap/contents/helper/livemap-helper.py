@@ -532,8 +532,10 @@ def cmd_borders(args):
     try:                                                      # this computer's offset, for the band's "you are here" mark
         import time as _t
         res["home_offset"] = -(_t.altzone if _t.daylight and _t.localtime().tm_isdst else _t.timezone) / 3600
+        res["home_std"] = -_t.timezone / 3600                     # the standard offset: the band's column it belongs to
     except Exception:
         res["home_offset"] = None
+        res["home_std"] = None
     emit(res)
 
 

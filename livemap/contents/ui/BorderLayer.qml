@@ -79,7 +79,13 @@ Item {
             var dh = off - homeOffset;
             diff = Math.abs(dh) < 0.01 ? "you" : (dh > 0 ? "+" : "\u2212") + (Math.abs(dh) % 1 ? Math.abs(dh).toFixed(1) : Math.abs(dh)) + " h";
         }
-        return { head: zoneClock <= 2 ? offsetText(off) : "", main: time, foot: diff && date ? diff + " \u00b7 " + date : diff || date };
+        var head = "";
+        if (zoneClock <= 2) {
+            var std = z.length >= 8 ? z[7] : off, dst = z.length >= 9 && z[8];
+            var ab = zoneAbbrev ? abbrevOf(std, dst) : "";
+            head = (ab ? ab + " \u00b7 " : "") + offsetText(std) + (dst && !(ab && abbrevs[String(std)] && abbrevs[String(std)][1]) ? " \u00b7 DST" : "");
+        }
+        return { head: head, main: time, foot: diff && date ? diff + " \u00b7 " + date : diff || date };
     }
     function offsetText(off) {                                // -5 -> "UTC-5", 5.5 -> "UTC+5:30", 0 -> "UTC"
         if (Math.abs(off) < 0.01) return "UTC";
@@ -103,7 +109,26 @@ Item {
     property var zoneLines: []
     property var zoneLabels: []
     property string zoneTintFile: ""                                  // zones-tint.png once the helper has drawn it
-    property real homeOffset: NaN                                     // this computer's UTC offset, for the band's mark
+    property real homeOffset: NaN                                     // this computer's UTC offset now, for the band's mark
+    property real homeStd: NaN                                        // and its standard offset: the band's column it belongs to
+    readonly property bool zoneAbbrev: cfg ? cfg.ZoneAbbrev : false   // "CST · UTC-6" captions
+    // the common abbreviations by standard offset: [standard, summer time]; ambiguous offsets keep the best known
+    readonly property var abbrevs: ({ "-11": ["SST", ""], "-10": ["HST", "HDT"], "-9": ["AKST", "AKDT"], "-8": ["PST", "PDT"], "-7": ["MST", "MDT"],
+        "-6": ["CST", "CDT"], "-5": ["EST", "EDT"], "-4": ["AST", "ADT"], "-3.5": ["NST", "NDT"], "-3": ["BRT", ""], "-1": ["AZOT", "AZOST"],
+        "0": ["GMT", "BST"], "1": ["CET", "CEST"], "2": ["EET", "EEST"], "3": ["MSK", ""], "3.5": ["IRST", ""], "4": ["GST", ""], "4.5": ["AFT", ""],
+        "5": ["PKT", ""], "5.5": ["IST", ""], "5.75": ["NPT", ""], "6.5": ["MMT", ""], "7": ["ICT", ""], "8": ["CST", ""], "8.75": ["ACWST", ""],
+        "9": ["JST", ""], "9.5": ["ACST", "ACDT"], "10": ["AEST", "AEDT"], "10.5": ["LHST", "LHDT"], "12": ["NZST", "NZDT"], "12.75": ["CHAST", "CHADT"] })
+    function abbrevOf(std, dst) { var a = abbrevs[String(std)]; return a ? (dst && a[1] ? a[1] : a[0]) : ""; }
+    // which standard zones observe summer time right now: any polygon of the zone whose main place is shifted
+    readonly property var dstZones: (function () {
+        var out = {};
+        for (var i = 0; i < zoneLabels.length; i++) {
+            var z = zoneLabels[i], m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]);
+            var nominal = m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
+            if (Math.abs(effectiveOffset(z) - nominal) > 0.01) out[nominal.toFixed(2)] = true;
+        }
+        return out;
+    })()
     readonly property bool wantTint: showZones && zoneStyle >= 3
     readonly property real tintStrength: (cfg ? cfg.ZoneTintOpacity : 12) / 100
     readonly property real bandStrength: (cfg ? cfg.ZoneBandOpacity : 55) / 100
@@ -209,6 +234,7 @@ Item {
                 overlay.stateLines = r.states; overlay.countryNames = r.names;
                 overlay.zoneLines = r.zones || []; overlay.zoneLabels = r.zone_labels || [];
                 overlay.homeOffset = r.home_offset === null || r.home_offset === undefined ? NaN : r.home_offset;
+                overlay.homeStd = r.home_std === null || r.home_std === undefined ? NaN : r.home_std;
                 if (r.zone_tint) overlay.zoneTintFile = r.zone_tint;
                 else if (overlay.wantTint && overlay.helper !== "") tintExec.connectSource("python3 '" + overlay.helper + "' zone-tint # " + Date.now());
                 overlay.stateNames = r.state_names || []; overlay.places = r.places || []; overlay.riverLines = r.rivers || [];
@@ -260,18 +286,22 @@ Item {
         if (!showZones || !showZoneLabels) return [];
         var tick = clockMs;                                   // so the clocks re-fit every minute
         if (bandMode) {
-            // The band is a scale of the offsets in force right now: one column per distinct offset, on its own
-            // meridian (UTC+2 at 30 degrees east, UTC+5:30 at 82.5), whatever the polygons' shapes. Keyed by the
-            // standard zones it drifted: a zone's main place on summer time moved its clock but not its column.
-            var seen = {}, out = [];
+            // The band is a scale of the standard zones, every whole hour from -12 to +14 plus the half-hour zones in
+            // the data, each on its own meridian - the way a printed time zone map is laid out. A zone that observes
+            // summer time right now shows its clock an hour on and says DST (abbreviations become CDT, BST, CEST).
+            var stds = {}, out = [];
+            for (var h = -12; h <= 14; h++) stds[h.toFixed(2)] = h;
             for (var i = 0; i < zoneLabels.length; i++) {
-                var off = effectiveOffset(zoneLabels[i]), key = off.toFixed(2);
-                if (seen[key]) continue;
-                seen[key] = true;
-                var z = [offsetText(off), off * 15, zoneRowLat, 15, off, 0, off];
-                out.push({ text: zoneText(z), parts: zoneParts(z), off: off, w: 15, x: (off * 15 + 180) / 360 * width, y: bandY });
+                var m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(zoneLabels[i][0]);
+                var nominal = m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
+                stds[nominal.toFixed(2)] = nominal;
             }
-            return out.sort(function (a, b) { return a.off - b.off; });
+            for (var key in stds) {
+                var std = stds[key], dst = !!dstZones[key], off = std + (dst ? 1 : 0);
+                var z = [offsetText(std), std * 15, zoneRowLat, 15, off, 0, off, std, dst];
+                out.push({ text: zoneText(z), parts: zoneParts(z), off: off, std: std, w: 15, x: (std * 15 + 180) / 360 * width, y: bandY });
+            }
+            return out.sort(function (a, b) { return a.std - b.std; });
         }
         return zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
             .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), off: effectiveOffset(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
@@ -441,7 +471,7 @@ Item {
             }
         }
         Repeater {                                            // D3: this computer's zone marked in amber
-            model: overlay.markHome && !isNaN(overlay.homeOffset) ? overlay.fittedZones.filter(function (z) { return Math.abs(z.off - overlay.homeOffset) < 0.01; }) : []
+            model: overlay.markHome && !isNaN(overlay.homeStd) ? overlay.fittedZones.filter(function (z) { return z.std !== undefined && Math.abs(z.std - overlay.homeStd) < 0.01; }) : []
             Rectangle {
                 required property var modelData
                 x: modelData.x - modelData.w / 2 * overlay.width / 360; y: 0
