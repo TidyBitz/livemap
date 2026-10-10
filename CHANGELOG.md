@@ -23,11 +23,12 @@ release notes written at the time; their dates are the day the version was hande
   takes its nominal meridian band, so the row is a complete scale.
 
 ### Changed
-- "Time zone tint": each zone filled with a colour cycle, like a time zone map, at a chosen opacity (12 %
+- "Time zone style" is one dropdown: Classic (labels inside each zone), One row, D3 (the band), D1 (tinted
+  zones), D1 + D3. The tint: each zone filled with a colour cycle, like a time zone map, at a chosen opacity (12 %
   by default), under the lines - the extent of a zone reads from the colour where the boundaries get busy,
   so the outlines can be faint and the labels large and translucent. Drawn once by the helper from the
   time zone data (`livemap-helper zone-tint`, python3-pillow).
-- A third time zone label placement, "In a band": a translucent strip across the map with a tick at each zone edge, and in
+- D3, the band: a translucent strip across the map with a tick at each zone edge, and in
   it the time large, the offset small above it, and the date only where it is not this computer's date (the
   one time it is news), with its own opacity and this computer's zone marked in amber. "In one row" stays
   as it was.

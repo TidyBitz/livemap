@@ -172,9 +172,8 @@ Kirigami.FormLayout {
     property alias cfg_ZoneLabelSpacing: zoneStyle.letterSpacing
     property alias cfg_ZoneLabelOpacity: zoneStyle.textOpacity
     property alias cfg_ZoneLabelHalo: zoneStyle.halo
-    property alias cfg_ZonePlacement: zonePlacement.currentIndex
+    property alias cfg_ZoneStyle: zoneLook.currentIndex
     property alias cfg_ZoneRowLat: zoneRowLat.value
-    property alias cfg_ZoneTint: zoneTint.checked
     property alias cfg_ZoneTintOpacity: zoneTintOpacity.value
     property alias cfg_ZoneBandOpacity: zoneBandOpacity.value
     property alias cfg_ZoneMarkHome: zoneMarkHome.checked
@@ -971,7 +970,7 @@ Kirigami.FormLayout {
     Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download." }
 
     // ============================================================== Time zones
-    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 2 ? "a band at " + zoneRowLat.displayText : zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
+    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + form.zoneStyles[zoneLook.currentIndex].name.split(":")[0].toLowerCase() : "") : "Off" }
     Source { visible: sec5.open; names: ["Borders (Natural Earth)"] }
     QQC2.CheckBox { visible: sec5.open; id: timeZones; Kirigami.FormData.label: "Show:"; text: "Time zone outlines (Natural Earth)" }
     Note { visible: sec5.open; text: "The zone boundaries as drawn on the Natural Earth time zone map, with the UTC offset written in each zone that is wide enough. Part of the border download." }
@@ -1011,21 +1010,30 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: zoneTextColor; enabled: !zoneTextFollows.checked; showAlphaChannel: false; dialogTitle: "Time zone label colour" }
     }
     LabelStyle { visible: sec5.open; id: zoneStyle; label: "Time zone label style:"; enabled: timeZones.checked && zoneLabels.checked; plated: zonePlate.checked }
+    // One dropdown for the style: it sets the label placement and the tint together (ZoneStyle); the opacity
+    // rows below belong to the styles that use them.
+    readonly property var zoneStyles: [
+        { name: "Classic: labels inside each zone",                       placement: 0, tint: false },
+        { name: "One row of labels, at a latitude",                       placement: 1, tint: false },
+        { name: "D3: a band at a latitude, time large, your zone marked", placement: 2, tint: false },
+        { name: "D1: tinted zones, labels inside each zone",              placement: 0, tint: true },
+        { name: "D1 + D3: tinted zones with the band",                    placement: 2, tint: true } ]
     RowLayout {
         visible: sec5.open
-        Kirigami.FormData.label: "Time zone label placement:"
-        enabled: timeZones.checked && zoneLabels.checked
-        QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude", "In a band, at latitude (time large, offset small, date when it differs)"] }
+        Kirigami.FormData.label: "Time zone style:"
+        enabled: timeZones.checked
+        QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: Kirigami.Units.gridUnit * 24; model: form.zoneStyles.map(function (z) { return z.name }) }
         QQC2.SpinBox {
-            id: zoneRowLat; enabled: zonePlacement.currentIndex >= 1; from: -80; to: 80; stepSize: 5
+            id: zoneRowLat; enabled: form.zoneStyles[zoneLook.currentIndex].placement >= 1; from: -80; to: 80; stepSize: 5
             textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
             valueFromText: function (t) { var n = parseInt(t) || 0; return /S/i.test(t) ? -Math.abs(n) : n }
+            QQC2.ToolTip.text: "The latitude of the row or band"; QQC2.ToolTip.visible: hovered
         }
     }
     RowLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone band:"
-        enabled: timeZones.checked && zoneLabels.checked && zonePlacement.currentIndex === 2
+        enabled: timeZones.checked && zoneLabels.checked && form.zoneStyles[zoneLook.currentIndex].placement === 2
         QQC2.Label { text: "Opacity" }
         Pct { id: zoneBandOpacity; to: 100; label: "The band's dark strip; the labels keep their own opacity" }
         QQC2.CheckBox { id: zoneMarkHome; text: "Mark this computer's zone" }
@@ -1033,11 +1041,11 @@ Kirigami.FormLayout {
     RowLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone tint:"
-        enabled: timeZones.checked
-        QQC2.CheckBox { id: zoneTint; text: "Tint each zone (a colour cycle, like a time zone map)" }
-        Pct { id: zoneTintOpacity; enabled: zoneTint.checked; to: 60; label: "How strongly the zones are coloured; 10-15 % keeps the imagery" }
+        enabled: timeZones.checked && form.zoneStyles[zoneLook.currentIndex].tint
+        QQC2.Label { text: "Opacity" }
+        Pct { id: zoneTintOpacity; to: 60; label: "How strongly the zones are coloured; 10-15 % keeps the imagery" }
     }
-    Note { visible: sec5.open; text: "The tint shows a zone's extent as a colour instead of a line, so the outlines can be faint and the labels large and translucent (raise the label size and lower its opacity for a watermark look). Drawn once from the time zone data (python3-pillow needed) the first time it is switched on." }
+    Note { visible: sec5.open; text: "D1 tints each zone with a colour cycle, like a time zone map, so a zone's extent reads from the colour where the boundaries get busy; the outlines can then be faint and the labels large and translucent (raise the label size, lower its opacity). Drawn once from the time zone data (python3-pillow needed). D3 puts the clocks in a band across the map: the time large, the offset small above it, the date only where it is not this computer's date, with your own zone marked in amber." }
     Note { visible: sec5.open; text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every zone on one line of latitude, placed before the country names and places, which make way for it, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
 
     // #################################################################### Natural events

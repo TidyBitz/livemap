@@ -37,7 +37,8 @@ Item {
     readonly property real zoneStrength: (cfg ? cfg.ZoneOpacity : 35) / 100
     readonly property bool showZoneLabels: cfg ? cfg.ZoneLabels : true
     readonly property int zonePx: Math.round((cfg ? cfg.ZoneLabelSize : 9) * unit)
-    readonly property int zonePlacement: cfg ? cfg.ZonePlacement : 0           // 0 inside each zone, 1 one row, 2 a band
+    readonly property int zoneStyle: cfg ? cfg.ZoneStyle : 0                   // 0 classic, 1 one row, 2 D3 band, 3 D1 tinted, 4 D1 + D3
+    readonly property int zonePlacement: [0, 1, 2, 0, 2][zoneStyle] || 0        // 0 inside each zone, 1 one row, 2 a band
     readonly property bool rowMode: zonePlacement >= 1
     readonly property bool bandMode: zonePlacement === 2
     readonly property int zoneClock: cfg ? cfg.ZoneClock : 0                   // 0 offset, 1 offset and time, 2 offset, time and date, 3 time, 4 time and date
@@ -86,7 +87,7 @@ Item {
     property var zoneLabels: []
     property string zoneTintFile: ""                                  // zones-tint.png once the helper has drawn it
     property real homeOffset: NaN                                     // this computer's UTC offset, for the band's mark
-    readonly property bool wantTint: showZones && (cfg ? cfg.ZoneTint : false)
+    readonly property bool wantTint: showZones && zoneStyle >= 3
     readonly property real tintStrength: (cfg ? cfg.ZoneTintOpacity : 12) / 100
     readonly property real bandStrength: (cfg ? cfg.ZoneBandOpacity : 55) / 100
     readonly property bool markHome: cfg ? cfg.ZoneMarkHome : true
