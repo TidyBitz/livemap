@@ -56,8 +56,7 @@ Item {
         var time = zoneClock12 ? ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " am" : " pm") : (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
         var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         var date = days[d.getUTCDay()] + " " + d.getUTCDate() + " " + months[d.getUTCMonth()];
-        var mm = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]), nom = mm && mm[1] ? parseInt(mm[1]) + (mm[2] ? parseInt(mm[2]) / 60 * (mm[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
-        var first = zoneClock <= 2 ? z[0] + (Math.abs(off - nom) > 0.01 ? " DST" : "") + " \u00b7 " + time : time;
+        var first = zoneClock <= 2 ? offsetText(off) + " \u00b7 " + time : time;
         return (zoneClock === 2 || zoneClock === 4) ? first + "\n" + date : first;
     }
     // The row as a band: the three facts of a zone at three sizes - the time large, the offset small above it, the
@@ -72,11 +71,18 @@ Item {
         var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         var other = d.getUTCDate() !== here.getDate() || d.getUTCMonth() !== here.getMonth();
         var withDate = zoneClock === 2 || zoneClock === 4;
-        // the band is keyed by the standard offset; where the main place is on summer time its clock is an
-        // hour ahead of the band's name, so say so, or two neighbours look like a duplicate
-        var m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]), nominal = m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
-        var dst = Math.abs(off - nominal) > 0.01 ? " \u00b7 DST" : "";
-        return { head: zoneClock <= 2 ? z[0] + dst : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
+        // the caption is the offset in force now (summer time included), the same thing the clock shows: a zone
+        // whose main place is on summer time reads "UTC-5" over Chicago today and "UTC-6" in winter
+        return { head: zoneClock <= 2 ? offsetText(off) : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
+    }
+    function offsetText(off) {                                // -5 -> "UTC-5", 5.5 -> "UTC+5:30", 0 -> "UTC"
+        if (Math.abs(off) < 0.01) return "UTC";
+        var h = Math.floor(Math.abs(off)), m = Math.round((Math.abs(off) - h) * 60);
+        return "UTC" + (off < 0 ? "-" : "+") + h + (m ? ":" + (m < 10 ? "0" : "") + m : "");
+    }
+    function effectiveOffset(z) {                             // the offset in force now, from the label's clock data
+        if (z.length < 7) { var m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(z[0]); return m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0; }
+        return z[5] > 0 && clockMs / 1000 >= z[5] ? z[6] : z[4];
     }
     function longestLine(t) { var parts = t.split("\n"), n = 0; for (var i = 0; i < parts.length; i++) n = Math.max(n, parts[i].length); return n; }
     function lineCount(t) { return t.split("\n").length }
@@ -224,7 +230,7 @@ Item {
         if (!showZones || !showZoneLabels) return [];
         var tick = clockMs;                                   // so the clocks re-fit every minute
         return zoneLabels.slice().sort(function (a, b) { return b[3] - a[3]; })
-            .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
+            .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), off: effectiveOffset(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
     })()
     readonly property var rowZones: (function () {             // one-row mode: the row first, among itself
         if (!rowMode) return [];
@@ -363,7 +369,7 @@ Item {
             }
         }
         Repeater {                                            // D3: this computer's zone marked in amber
-            model: overlay.markHome && !isNaN(overlay.homeOffset) ? overlay.fittedZones.filter(function (z) { var m = /UTC([+-]?\d+(?::\d+)?)?/.exec(z.parts.head || z.text); var v = m && m[1] ? parseFloat(m[1].replace(":30", ".5").replace(":45", ".75")) : 0; return Math.abs(v - overlay.homeOffset) < 0.01; }) : []
+            model: overlay.markHome && !isNaN(overlay.homeOffset) ? overlay.fittedZones.filter(function (z) { return Math.abs(z.off - overlay.homeOffset) < 0.01; }) : []
             Rectangle {
                 required property var modelData
                 x: modelData.x - modelData.w / 2 * overlay.width / 360; y: 0
