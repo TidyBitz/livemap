@@ -112,7 +112,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | The wallpaper package | `~/.local/share/plasma/wallpapers/io.github.tidybitz.livemap.wallpaper/` |
 | The widget package | `~/.local/share/plasma/plasmoids/io.github.tidybitz.livemap.events/` |
 | The helper | `.../livemap.wallpaper/contents/helper/livemap-helper.py` - also what `livemap-helper` runs from a terminal |
-| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`), the event memory (`events.json`, `history.json`, `hotspot-days.json`), and the widget's overrides (`mode.json`, `layers.json`) |
+| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`), the event memory (`events.json`, `history.json`, `hotspot-days.json`), the widget's overrides (`mode.json`, `layers.json`), and your saved styles (`styles/*.json`, plus `previous.json` written before every style apply) |
 | Your settings | Plasma's own: `~/.config/plasma-org.kde.plasma.desktop-appletsrc` for the wallpaper (per screen and per Activity, so each monitor can have its own layers), the widget's in the same file under its applet |
 | Logs | `journalctl --user -f \| grep -i livemap` - the wallpaper logs what it loads, draws and fails to fetch |
 
@@ -176,6 +176,7 @@ wallpaper's helper and caches; nothing is fetched twice.
       contents/helper/livemap-helper.py   every fetch, cache and calculation the QML cannot do; `livemap-helper --help`
       contents/config/main.xml   one <entry> per setting; scripts/check.py keeps it in step with config.qml
       contents/images/           spacecraft, launch-pad and storm icons (CC BY 4.0)
+      contents/styles/*.json     the built-in styles: each base map's recommended colours as the keys that differ from main.xml
     livemap-widget/              the companion widget package (Plasma/Applet)
       contents/ui/main.qml         the Events, Live, Map controls and Status tabs
       contents/ui/configGeneral.qml   its settings page

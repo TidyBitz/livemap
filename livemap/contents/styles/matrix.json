@@ -1,0 +1,29 @@
+{
+ "name": "Matrix",
+ "order": 5,
+ "description": "Black ocean, darkest-green land, graticule, monospace labels with a green glow, scanlines; every line and label green.",
+ "version": 1,
+ "values": {
+  "MapStyle": 5,
+  "BorderColor": "#1f9e5a",
+  "RiverColor": "#157a48",
+  "ZoneColor": "#2ec27e",
+  "PlateLineColor": "#39ff8a",
+  "NameTextFollows": false,
+  "NameTextColor": "#7dffb0",
+  "StateNameTextFollows": false,
+  "StateNameTextColor": "#4fd48a",
+  "CapitalColor": "#b8ffd0",
+  "StateCapitalColor": "#b8ffd0",
+  "CityColor": "#b8ffd0",
+  "QuakeColor": "#39ff8a",
+  "QuakeTextFollows": true,
+  "StormColor": "#b6ff3c",
+  "VolcanoColor": "#ff9d3c",
+  "FireColor": "#ffb03c",
+  "SatColor": "#9dffc4",
+  "LaunchColor": "#7dffb0",
+  "ArcColor": "#2ec27e",
+  "ZoneTextFollows": true
+ }
+}

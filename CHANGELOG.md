@@ -6,11 +6,22 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Styles. A style is a snapshot of the wallpaper's settings: the six built-in ones are each base map with its
+  recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix), yours are
+  saved from the page as it is ("Save as") and kept as JSON in `~/.local/share/livemap/styles/`, where they
+  can be exported, imported and shared. Picking a style sets everything it covers and saves what was there
+  as "Previous" first; changing anything it set marks it "modified", with Save and Reset beside it. Every
+  setting sits in one of four buckets - map base, colours/lines/labels, layers, machine - and the "A style
+  covers" boxes say which an apply touches and a save captures: layers are left out unless ticked, so a
+  layer choice survives trying every style, and the machine bucket (home place, units, frame, profile,
+  data folder) is never part of one. Replaces the one-way "Set every line and label to..." button; the
+  Map section's combo is now the base map of the current style. Helper: `styles keys|list|read|save|
+  delete|export|import`.
 - Two more map styles, both drawn like the dark cartographic one (no imagery, the border download, the
   lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
   look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every
   label in a monospace face with a green glow, and scanlines over the whole screen. Set the line and label
-  colours to greys or greens to complete either with the "Map style colours" button, or keep your own. On
+  colours to greys or greens to complete either (the built-in style of the same name does it), or keep your own. On
   the flat styles the night shade is not drawn over the land (it made the land two tones): the city lights
   alone say where it is night.
 - Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is

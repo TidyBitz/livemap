@@ -537,6 +537,146 @@ Kirigami.FormLayout {
         valueFromText: function (t) { return parseInt(t) || 10 }
     }
 
+
+    // #################################################################### Style
+    // A style is a snapshot of some of this page's settings, kept as JSON by the helper (`styles`): the built-in ones
+    // ship with the package and carry each base map's recommended colours; the user's own live in the data folder.
+    // Picking one writes its values into the controls below, after "Previous" has been saved; editing anything a
+    // style covers marks it modified, and Save / Save as / Reset work on that. Every setting is in one bucket (base,
+    // look, layers, machine) and the Includes boxes say which buckets an apply touches and a save captures.
+    Group { text: "Style" }
+    property string cfg_StyleName
+    property int cfg_StyleIncludes
+    property var styleList: []
+    property var styleKeys: ({ base: [], look: [], layers: [], machine: [] })
+    property var styleValues: ({})          // the current style as its file has it
+    property string styleFileName: ""
+    property string styleDir: ""
+    property bool styleIsBuiltin: true
+    property bool styleLoaded: false
+    property string styleNote: ""
+    readonly property bool hasPrevious: styleList.some(function (s) { return s.id === "user:previous"; })
+    readonly property var includedBuckets: [ "base", "look", "layers" ].filter(function (b, i) { return (form.cfg_StyleIncludes & (1 << i)) !== 0; })
+    function bucketOf(key) {
+        for (var b in styleKeys) if (styleKeys[b].indexOf(key) >= 0) return b;
+        return "machine";
+    }
+    function normValue(v) {
+        if (v === undefined || v === null) return null;
+        if (typeof v === "object" || (typeof v === "string" && v.charAt(0) === "#")) return String(v).toLowerCase();
+        return v;
+    }
+    function collectValues(buckets) {      // this page's current values for the given buckets
+        var out = {};
+        for (var i = 0; i < buckets.length; i++) {
+            var keys = styleKeys[buckets[i]] || [];
+            for (var j = 0; j < keys.length; j++) {
+                var v = form["cfg_" + keys[j]];
+                if (v !== undefined) out[keys[j]] = normValue(v);
+            }
+        }
+        return out;
+    }
+    function styleKeysIncluded(values) {
+        var keys = [];
+        for (var k in values) if (includedBuckets.indexOf(bucketOf(k)) >= 0 && form["cfg_" + k] !== undefined) keys.push(k);
+        return keys.sort();
+    }
+    // the page's values for everything the current style sets, as text: differs from the file's -> modified
+    readonly property string styleSig: {
+        var keys = styleKeysIncluded(styleValues), out = [];
+        for (var i = 0; i < keys.length; i++) out.push(keys[i] + "=" + JSON.stringify(normValue(form["cfg_" + keys[i]])));
+        return out.join("\n");
+    }
+    readonly property string styleFileSig: {
+        var keys = styleKeysIncluded(styleValues), out = [];
+        for (var i = 0; i < keys.length; i++) out.push(keys[i] + "=" + JSON.stringify(normValue(styleValues[keys[i]])));
+        return out.join("\n");
+    }
+    readonly property bool styleModified: styleLoaded && styleSig !== styleFileSig
+    function styleCmd(words) { return "python3 '" + widgetHelper + "' styles " + words + " # " + Date.now(); }
+    function quoted(t) { return "'" + String(t).replace(/'/g, "'\\''") + "'"; }
+    function savePrevious() {
+        styleExec.connectSource(styleCmd("save --id user:previous --name Previous --includes 7 --values " + Qt.btoa(JSON.stringify(collectValues(["base", "look", "layers"])))));
+    }
+    function applyValues(values) {          // write a style's values into the controls, only the included buckets
+        var keys = styleKeysIncluded(values);
+        for (var i = 0; i < keys.length; i++) form["cfg_" + keys[i]] = values[keys[i]];
+    }
+    function applyStyle(id) {
+        if (id !== "user:previous") savePrevious();
+        styleExec.connectSource(styleCmd("read --id " + id + " --name apply"));
+    }
+    function loadStyle(id) { styleExec.connectSource(styleCmd("read --id " + id)); }
+    function saveStyle(id, name) {
+        styleExec.connectSource(styleCmd("save --id " + id + " --name " + quoted(name) + " --includes " + cfg_StyleIncludes
+                                         + " --values " + Qt.btoa(JSON.stringify(collectValues(includedBuckets)))));
+    }
+    P5Support.DataSource {
+        id: styleExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => {
+            disconnectSource(source);
+            var r;
+            try { r = JSON.parse(data.stdout); } catch (e) { form.styleNote = "The helper did not answer: " + String(data.stderr).trim().split("\n").pop(); return; }
+            if (r && r.error) { form.styleNote = r.error; return; }
+            form.styleNote = "";
+            if (source.indexOf("' styles keys") >= 0) { form.styleDir = r.dir || ""; delete r.dir; form.styleKeys = r; return; }
+            if (source.indexOf("' styles list") >= 0) { form.styleList = r; return; }
+            if (source.indexOf("' styles read") >= 0) {
+                form.styleValues = r.values; form.styleFileName = r.name; form.styleIsBuiltin = !!r.builtin;
+                if (source.indexOf("--name apply") >= 0) { form.applyValues(r.values); form.cfg_StyleName = r.id; }
+                form.styleLoaded = true;
+                return;
+            }
+            // save, delete, import: refresh the list, and the current style when it is the one just written
+            styleExec.connectSource(form.styleCmd("list"));
+            if (r.id && source.indexOf("' styles save") >= 0 && r.id !== "user:previous") { form.cfg_StyleName = r.id; form.loadStyle(r.id); }
+            if (r.id && source.indexOf("' styles import") >= 0) form.applyStyle(r.id);
+            if (r.deleted && r.deleted === form.cfg_StyleName) { form.cfg_StyleName = "builtin:seasonal"; form.loadStyle(form.cfg_StyleName); }
+        }
+    }
+    Timer { interval: 900; running: true; onTriggered: { styleExec.connectSource(form.styleCmd("keys")); styleExec.connectSource(form.styleCmd("list")); form.loadStyle(form.cfg_StyleName || "builtin:seasonal"); } }
+    RowLayout {
+        Kirigami.FormData.label: "Style:"
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+        QQC2.ComboBox {
+            id: styleCombo
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+            model: form.styleList.map(function (s) { return s.name + (s.builtin ? "" : s.id === "user:previous" ? "  (before the last apply)" : "  (yours)"); })
+            currentIndex: { var i = form.styleList.findIndex(function (s) { return s.id === form.cfg_StyleName; }); return i; }
+            displayText: currentIndex < 0 ? (form.styleFileName || "(none)") : currentText
+            onActivated: function (i) { var s = form.styleList[i]; if (s) form.applyStyle(s.id); }
+        }
+        QQC2.Label { visible: form.styleModified; text: "● modified"; color: Kirigami.Theme.neutralTextColor }
+        QQC2.Button { text: "Save"; icon.name: "document-save"; enabled: form.styleModified && !form.styleIsBuiltin && form.cfg_StyleName !== "user:previous"; onClicked: form.saveStyle(form.cfg_StyleName, form.styleFileName) }
+        QQC2.Button { text: "Save as…"; icon.name: "document-save-as"; enabled: form.styleLoaded; onClicked: { saveAsName.text = form.styleIsBuiltin ? "My " + form.styleFileName.toLowerCase() : form.styleFileName; saveAsDialog.open(); } }
+        QQC2.Button { text: "Reset"; icon.name: "edit-undo"; enabled: form.styleModified; onClicked: form.applyStyle(form.cfg_StyleName); QQC2.ToolTip.text: "Back to " + form.styleFileName + " as saved"; QQC2.ToolTip.visible: hovered }
+        QQC2.Button {
+            icon.name: "application-menu"; text: "More"
+            onClicked: styleMenu.open()
+            QQC2.Menu {
+                id: styleMenu
+                y: parent.height
+                QQC2.MenuItem { text: "Restore Previous (before the last apply)"; enabled: form.hasPrevious; onTriggered: form.applyStyle("user:previous") }
+                QQC2.MenuItem { text: "Export this style…"; enabled: form.styleLoaded; onTriggered: exportDialog.open() }
+                QQC2.MenuItem { text: "Import a style…"; onTriggered: importDialog.open() }
+                QQC2.MenuItem { text: "Delete " + form.styleFileName; enabled: !form.styleIsBuiltin && form.cfg_StyleName !== "user:previous"; onTriggered: styleExec.connectSource(form.styleCmd("delete --id " + form.cfg_StyleName)) }
+                QQC2.MenuItem { text: "Open the styles folder"; enabled: form.styleDir !== ""; onTriggered: Qt.openUrlExternally("file://" + form.styleDir) }
+            }
+        }
+    }
+    RowLayout {
+        Kirigami.FormData.label: "A style covers:"
+        QQC2.CheckBox { text: "Map base"; checked: (form.cfg_StyleIncludes & 1) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 1) : (form.cfg_StyleIncludes & ~1) }
+        QQC2.CheckBox { text: "Colours, lines and labels"; checked: (form.cfg_StyleIncludes & 2) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 2) : (form.cfg_StyleIncludes & ~2) }
+        QQC2.CheckBox { text: "Layers"; checked: (form.cfg_StyleIncludes & 4) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 4) : (form.cfg_StyleIncludes & ~4) }
+    }
+    Note { text: (form.styleNote !== "" ? form.styleNote + "\n" : "")
+                 + "The built-in styles are each base map with its recommended colours; picking one sets everything it covers, saves what was there as Previous, and marks itself modified as soon as you change any of it. Save as keeps your version (" + (form.cfg_DataDir || "~/.local/share/livemap") + "/styles); the boxes say what an apply touches and a save captures - layers are left out unless you tick them, so your layer choice survives trying every style. Which computer, home place, units, frame and profile are never part of a style." }
+
     // #################################################################### Profile and layers
     Group { text: "Profile and layers" }
 
@@ -633,7 +773,7 @@ Kirigami.FormLayout {
     QQC2.ComboBox {
         visible: sec1.open
         id: mapStyle
-        Kirigami.FormData.label: "Map style:"
+        Kirigami.FormData.label: "Base map:"
         model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)"]
     }
     Note {
@@ -642,8 +782,8 @@ Kirigami.FormLayout {
                "The actual picture from the last day's orbits (Suomi NPP VIIRS corrected reflectance): clouds, snow, smoke and sea ice as they were yesterday, with the seams and night gaps a polar orbit leaves. Fetched for the frame on screen once a day (python3-pillow needed), a few MB.",
                "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
                "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
-               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data. Set the border and label colours to light greys to complete it; the lightest on the GPU.",
-               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything. Set the line and label colours to greens to complete it."][mapStyle.currentIndex]
+               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data; the lightest on the GPU.",
+               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything."][mapStyle.currentIndex]
     }
     RowLayout {
         visible: sec1.open && mapStyle.currentIndex === 3
@@ -653,28 +793,7 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: oceanColor; showAlphaChannel: false; dialogTitle: "Ocean colour" }
         QQC2.Label { text: "ocean" }
     }
-    RowLayout {
-        visible: sec1.open && mapStyle.currentIndex >= 4
-        Kirigami.FormData.label: "Map style colours:"
-        QQC2.Button {
-            text: mapStyle.currentIndex === 5 ? "Set every line and label to Matrix greens" : "Set every line and label to Dark Matter greys"
-            icon.name: "color-management"
-            onClicked: form.applyLook(mapStyle.currentIndex)
-        }
-    }
-    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The style sets the land and ocean; the lines, names and event colours stay yours. This button recolours them to match in one go (country, state, river and time zone lines, country and place names, quake rings, storms, volcanoes, fires, satellites, launches, arcs); change any of them afterwards as you like." }
-    function applyLook(style) {
-        var m = style === 5;
-        var line = m ? "#1f9e5a" : "#5a5a5a", name = m ? "#7dffb0" : "#c8c8c8", place = m ? "#b8ffd0" : "#e0e0e0";
-        borderColor.color = line; riverColor.color = m ? "#157a48" : "#3f4a52"; zoneColor.color = m ? "#2ec27e" : "#6e6e6e"; plateLineColor.color = m ? "#39ff8a" : "#8a6a3a";
-        nameFollows.checked = false; nameTextColor.color = name;
-        stateNameFollows.checked = false; stateNameTextColor.color = m ? "#4fd48a" : "#9a9a9a";
-        capitalColor.color = place; stateCapitalColor.color = place; cityColor.color = place;
-        quakeColor.color = m ? "#39ff8a" : "#ffa640"; quakeFollows.checked = true;
-        stormColor.color = m ? "#b6ff3c" : "#8fd3ff"; volcanoColor.color = m ? "#ff9d3c" : "#ff7a59"; fireColor.color = m ? "#ffb03c" : "#ff6b3c";
-        satColor.color = m ? "#9dffc4" : "#e8ecf0"; launchColor.color = m ? "#7dffb0" : "#ffd166"; arcColor.color = m ? "#2ec27e" : "#8fd3ff";
-        zoneTextFollows.checked = true;
-    }
+    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The base sets the land and ocean only. To take the style's recommended line, name and event colours as well, pick it under Style at the top of the page; everything it sets can be changed afterwards." }
     QQC2.ComboBox {
         visible: sec1.open
         id: mapTone
@@ -1794,6 +1913,32 @@ Kirigami.FormLayout {
         color: Kirigami.Theme.negativeTextColor
     }
 
+    QQC2.Dialog {
+        id: saveAsDialog
+        title: "Save the style as"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: QQC2.Dialog.Save | QQC2.Dialog.Cancel
+        onAccepted: if (saveAsName.text.trim() !== "") form.saveStyle("", saveAsName.text.trim())
+        ColumnLayout {
+            QQC2.Label { text: "A name for this style. It saves " + form.includedBuckets.map(function (b) { return ({ base: "the map base", look: "the colours, lines and labels", layers: "the layers" })[b]; }).join(", ") + " as they are now." ; wrapMode: Text.Wrap; Layout.preferredWidth: Kirigami.Units.gridUnit * 20 }
+            QQC2.TextField { id: saveAsName; Layout.fillWidth: true; placeholderText: "My night map"; onAccepted: saveAsDialog.accept() }
+        }
+    }
+    FileDialog {
+        id: exportDialog
+        title: "Export the style"
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "json"
+        nameFilters: ["Live World Map styles (*.json)"]
+        onAccepted: styleExec.connectSource(form.styleCmd("export --id " + form.cfg_StyleName + " --path " + form.quoted(String(selectedFile).replace(/^file:\/\//, ""))))
+    }
+    FileDialog {
+        id: importDialog
+        title: "Import a style"
+        nameFilters: ["Live World Map styles (*.json)"]
+        onAccepted: styleExec.connectSource(form.styleCmd("import --path " + form.quoted(String(selectedFile).replace(/^file:\/\//, ""))))
+    }
     FileDialog {
         id: picker
         title: "Choose an equirectangular (2:1) world map"

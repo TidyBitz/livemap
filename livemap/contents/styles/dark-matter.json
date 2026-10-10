@@ -1,0 +1,29 @@
+{
+ "name": "Dark Matter",
+ "order": 4,
+ "description": "Near-black cartographic base; every line and label in greys, events in muted warm colours.",
+ "version": 1,
+ "values": {
+  "MapStyle": 4,
+  "BorderColor": "#5a5a5a",
+  "RiverColor": "#3f4a52",
+  "ZoneColor": "#6e6e6e",
+  "PlateLineColor": "#8a6a3a",
+  "NameTextFollows": false,
+  "NameTextColor": "#c8c8c8",
+  "StateNameTextFollows": false,
+  "StateNameTextColor": "#9a9a9a",
+  "CapitalColor": "#e0e0e0",
+  "StateCapitalColor": "#e0e0e0",
+  "CityColor": "#e0e0e0",
+  "QuakeColor": "#ffa640",
+  "QuakeTextFollows": true,
+  "StormColor": "#8fd3ff",
+  "VolcanoColor": "#ff7a59",
+  "FireColor": "#ff6b3c",
+  "SatColor": "#e8ecf0",
+  "LaunchColor": "#ffd166",
+  "ArcColor": "#8fd3ff",
+  "ZoneTextFollows": true
+ }
+}
