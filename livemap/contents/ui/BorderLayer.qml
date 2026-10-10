@@ -73,7 +73,13 @@ Item {
         var withDate = zoneClock === 2 || zoneClock === 4;
         // the caption is the offset in force now (summer time included), the same thing the clock shows: a zone
         // whose main place is on summer time reads "UTC-5" over Chicago today and "UTC-6" in winter
-        return { head: zoneClock <= 2 ? offsetText(off) : "", main: time, foot: withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "" };
+        var date = withDate && other ? days[d.getUTCDay()] + " " + d.getUTCDate() : "";
+        var diff = "";
+        if (bandMode && bandDiff && !isNaN(homeOffset)) {                 // "+6 h" from this computer's zone, "you" for its own
+            var dh = off - homeOffset;
+            diff = Math.abs(dh) < 0.01 ? "you" : (dh > 0 ? "+" : "\u2212") + (Math.abs(dh) % 1 ? Math.abs(dh).toFixed(1) : Math.abs(dh)) + " h";
+        }
+        return { head: zoneClock <= 2 ? offsetText(off) : "", main: time, foot: diff && date ? diff + " \u00b7 " + date : diff || date };
     }
     function offsetText(off) {                                // -5 -> "UTC-5", 5.5 -> "UTC+5:30", 0 -> "UTC"
         if (Math.abs(off) < 0.01) return "UTC";
@@ -102,6 +108,30 @@ Item {
     readonly property real tintStrength: (cfg ? cfg.ZoneTintOpacity : 12) / 100
     readonly property real bandStrength: (cfg ? cfg.ZoneBandOpacity : 55) / 100
     readonly property bool markHome: cfg ? cfg.ZoneMarkHome : true
+    readonly property bool bandSun: cfg ? cfg.ZoneBandSun : true           // day and night across the band, noon and midnight cursors
+    readonly property bool bandDiff: cfg ? cfg.ZoneBandDiff : true         // "+6 h" from this computer's zone under each clock
+    readonly property bool bandMoon: cfg ? cfg.ZoneBandMoon : true         // the moon's phase by this computer's zone
+    readonly property var sun: Geo.sun(new Date(clockMs))                  // where the sun is overhead, for the band
+    // the moon: age in days since new moon from a known new moon (2000-01-06 18:14 UTC), synodic month 29.530589 d
+    readonly property real moonAge: (function () { var d = (clockMs / 1000 - 947182440) / 86400; return ((d % 29.530589) + 29.530589) % 29.530589; })()
+    readonly property real moonLit: (1 - Math.cos(moonAge / 29.530589 * 2 * Math.PI)) / 2
+    readonly property bool moonWaxing: moonAge < 29.530589 / 2
+    readonly property string moonName: (function () {
+        var a = moonAge, p = a / 29.530589;
+        if (p < 0.03 || p > 0.97) return "new moon";
+        if (p < 0.22) return "waxing crescent"; if (p < 0.28) return "first quarter"; if (p < 0.47) return "waxing gibbous";
+        if (p < 0.53) return "full moon"; if (p < 0.72) return "waning gibbous"; if (p < 0.78) return "last quarter"; return "waning crescent";
+    })()
+    readonly property string moonNext: (function () {                      // the next of the four phases, in days
+        var p = moonAge / 29.530589, names = ["first quarter", "full moon", "last quarter", "new moon"], at = [0.25, 0.5, 0.75, 1.0];
+        for (var i = 0; i < 4; i++) if (p < at[i] - 0.01) return names[i] + " in " + Math.max(1, Math.round((at[i] - p) * 29.530589)) + " d";
+        return "new moon in 1 d";
+    })()
+    function dayness(lon) {                                                // 1 full day, 0 full night, between through twilight, at the band's latitude
+        var RAD = Math.PI / 180, lat = zoneRowLat * RAD, dec = sun.lat * RAD, ha = (lon - sun.lon) * RAD;
+        var elev = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha)) / RAD;
+        return Math.max(0, Math.min(1, (elev + 12) / 18));                 // -12 deg (nautical dusk) .. +6 deg
+    }
     readonly property var zoneColours: ["#f67400", "#ffd23f", "#2ecc71", "#3daee9", "#9b59b6", "#da4453", "#1abc9c"]
     function zoneColour(text) {                                       // "UTC+5:30" -> the cycle colour of its hour
         var m = /UTC([+-]?\d+)?/.exec(text || ""), z = m && m[1] ? parseInt(m[1]) : 0;
@@ -224,7 +254,7 @@ Item {
     }
     // the band's height follows what the labels hold: offset line, the time at 1.5x, the date line, and padding
     readonly property real bandHeight: zonePx * (zoneClock === 0 ? 2.6
-                                                 : (zoneClock <= 2 ? 1.5 : 0) + 2.2 + ((zoneClock === 2 || zoneClock === 4) ? 1.5 : 0) + 1.4)
+                                                 : (zoneClock <= 2 ? 1.5 : 0) + 2.2 + ((zoneClock === 2 || zoneClock === 4 || (bandMode && bandDiff)) ? 1.5 : 0) + 1.4)
     readonly property real bandY: (90 - zoneRowLat) / 180 * height
     readonly property var wantedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
@@ -359,6 +389,34 @@ Item {
         y: overlay.bandY - overlay.bandHeight / 2; height: overlay.bandHeight
         color: Qt.rgba(0, 0.02, 0.06, overlay.bandStrength)
         border.color: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, 0.35 * overlay.zoneStrength * 2); border.width: Math.max(1, 0.6 * overlay.unit)
+        Canvas {                                              // day and night along the band: warm where the sun is up, cool where it is night
+            id: dayNight
+            anchors.fill: parent
+            visible: overlay.bandSun
+            readonly property real tick: overlay.clockMs
+            onTickChanged: requestPaint()
+            onWidthChanged: requestPaint()
+            onVisibleChanged: if (visible) requestPaint()
+            onPaint: {
+                var c = getContext("2d"); c.clearRect(0, 0, width, height);
+                var g = c.createLinearGradient(0, 0, width, 0);
+                for (var i = 0; i <= 72; i++) {
+                    var k = overlay.dayness(-180 + i * 5);
+                    g.addColorStop(i / 72, k > 0.5 ? "rgba(255,214,120," + (0.30 * k).toFixed(3) + ")" : "rgba(74,110,192," + (0.28 * (1 - k)).toFixed(3) + ")");
+                }
+                c.fillStyle = g; c.fillRect(0, 0, width, height);
+            }
+        }
+        Repeater {                                            // noon and midnight: where the sun is overhead, and opposite
+            model: overlay.bandSun ? [{ lon: overlay.sun.lon, text: "NOON", warm: true }, { lon: ((overlay.sun.lon + 360) % 360) - 180, text: "MIDNIGHT", warm: false }] : []
+            Item {
+                required property var modelData
+                x: (modelData.lon + 180) / 360 * overlay.width; y: 0; height: parent.height
+                Rectangle { x: -width / 2; width: Math.max(1, 1.2 * overlay.unit); height: parent.height; color: modelData.warm ? "#ffd678" : "#8fb0ff"; opacity: 0.8 }
+                MapLabel { anchors.horizontalCenter: parent.left; y: parent.height - height - 2 * overlay.unit; text: modelData.text; px: Math.round(overlay.zonePx * 0.8); caps: true; letterScale: 1.6
+                           textColor: modelData.warm ? "#ffd678" : "#8fb0ff"; plate: true; plateColor: "#000510"; plateOpacity: 0.75; unit: overlay.unit }
+            }
+        }
         Repeater {                                            // ticks at the zone edges on the row
             model: overlay.fittedZones
             Rectangle {
@@ -376,6 +434,33 @@ Item {
                 width: Math.max(2, modelData.w * overlay.width / 360); height: parent.height
                 color: Qt.rgba(1, 0.82, 0.25, 0.14)
                 border.color: Qt.rgba(1, 0.82, 0.25, 0.9); border.width: Math.max(1, 1.2 * overlay.unit)
+                Canvas {                                      // the moon tonight, in the home column's left margin
+                    visible: overlay.bandMoon
+                    readonly property real r: overlay.zonePx * 0.9
+                    width: r * 2 + 2; height: width
+                    x: 4 * overlay.unit; y: (parent.height - height) / 2
+                    readonly property real lit: overlay.moonLit
+                    readonly property bool waxing: overlay.moonWaxing
+                    onLitChanged: requestPaint()
+                    onVisibleChanged: if (visible) requestPaint()
+                    onPaint: {
+                        var c = getContext("2d"), cx = width / 2, cy = height / 2, R = r;
+                        c.clearRect(0, 0, width, height);
+                        c.fillStyle = "#101820"; c.beginPath(); c.arc(cx, cy, R, 0, 2 * Math.PI); c.fill();
+                        c.strokeStyle = "rgba(207,216,227,0.9)"; c.lineWidth = Math.max(1, 0.7 * overlay.unit); c.stroke();
+                        // the lit part: the lit limb (right side when waxing) from top to bottom, then back along the
+                        // terminator, an ellipse of half-width cos(lit * pi) * R: +R at new moon (no area), 0 at the
+                        // quarters (a straight line), -R at full (the whole disc)
+                        var k = Math.cos(lit * Math.PI); if (Math.abs(k) < 0.002) k = 0.002;
+                        c.fillStyle = "#e8ecf0"; c.beginPath();
+                        c.arc(cx, cy, R, -Math.PI / 2, Math.PI / 2, !waxing);
+                        c.save(); c.translate(cx, cy); c.scale(waxing ? k : -k, 1);
+                        c.arc(0, 0, R, Math.PI / 2, -Math.PI / 2, true);
+                        c.restore(); c.closePath(); c.fill();
+                    }
+                }
+                MapLabel { visible: overlay.bandMoon; x: 4 * overlay.unit + overlay.zonePx * 1.8 + 6 * overlay.unit; y: parent.height - height - 2 * overlay.unit
+                           text: overlay.moonName + " \u00b7 " + overlay.moonNext; px: Math.round(overlay.zonePx * 0.85); textColor: "#e8ecf0"; textOpacity: 0.8; plate: false; haloScale: 0.8; unit: overlay.unit }
             }
         }
     }

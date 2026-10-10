@@ -177,6 +177,9 @@ Kirigami.FormLayout {
     property alias cfg_ZoneTintOpacity: zoneTintOpacity.value
     property alias cfg_ZoneBandOpacity: zoneBandOpacity.value
     property alias cfg_ZoneMarkHome: zoneMarkHome.checked
+    property alias cfg_ZoneBandSun: zoneBandSun.checked
+    property alias cfg_ZoneBandDiff: zoneBandDiff.checked
+    property alias cfg_ZoneBandMoon: zoneBandMoon.checked
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
@@ -1038,6 +1041,15 @@ Kirigami.FormLayout {
         Pct { id: zoneBandOpacity; to: 100; label: "The band's dark strip; the labels keep their own opacity" }
         QQC2.CheckBox { id: zoneMarkHome; text: "Mark this computer's zone" }
     }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone band extras:"
+        enabled: timeZones.checked && zoneLabels.checked && form.zoneStyles[zoneLook.currentIndex].placement === 2
+        QQC2.CheckBox { id: zoneBandSun; text: "Day and night, with noon and midnight" }
+        QQC2.CheckBox { id: zoneBandDiff; text: "Hours from this computer's zone" }
+        QQC2.CheckBox { id: zoneBandMoon; text: "The moon's phase" }
+    }
+    Note { visible: sec5.open; text: "Day and night: the band is warm where the sun is up and cool where it is night at the band's latitude, graded through twilight, and two cursors mark where it is noon and midnight right now; all three slide along the band through the day. Hours from this computer's zone puts '+6 h' under each clock (and 'you' under your own). The moon: tonight's phase drawn in your column, with the next phase. All of it is computed here; nothing on the band can go stale." }
     RowLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone tint:"
