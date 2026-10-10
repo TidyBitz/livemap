@@ -174,6 +174,10 @@ Kirigami.FormLayout {
     property alias cfg_ZoneLabelHalo: zoneStyle.halo
     property alias cfg_ZonePlacement: zonePlacement.currentIndex
     property alias cfg_ZoneRowLat: zoneRowLat.value
+    property alias cfg_ZoneTint: zoneTint.checked
+    property alias cfg_ZoneTintOpacity: zoneTintOpacity.value
+    property alias cfg_ZoneBandOpacity: zoneBandOpacity.value
+    property alias cfg_ZoneMarkHome: zoneMarkHome.checked
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
@@ -1013,11 +1017,27 @@ Kirigami.FormLayout {
         enabled: timeZones.checked && zoneLabels.checked
         QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude", "In a band, at latitude (time large, offset small, date when it differs)"] }
         QQC2.SpinBox {
-            id: zoneRowLat; enabled: zonePlacement.currentIndex === 1; from: -80; to: 80; stepSize: 5
+            id: zoneRowLat; enabled: zonePlacement.currentIndex >= 1; from: -80; to: 80; stepSize: 5
             textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
             valueFromText: function (t) { var n = parseInt(t) || 0; return /S/i.test(t) ? -Math.abs(n) : n }
         }
     }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone band:"
+        enabled: timeZones.checked && zoneLabels.checked && zonePlacement.currentIndex === 2
+        QQC2.Label { text: "Opacity" }
+        Pct { id: zoneBandOpacity; to: 100; label: "The band's dark strip; the labels keep their own opacity" }
+        QQC2.CheckBox { id: zoneMarkHome; text: "Mark this computer's zone" }
+    }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone tint:"
+        enabled: timeZones.checked
+        QQC2.CheckBox { id: zoneTint; text: "Tint each zone (a colour cycle, like a time zone map)" }
+        Pct { id: zoneTintOpacity; enabled: zoneTint.checked; to: 60; label: "How strongly the zones are coloured; 10-15 % keeps the imagery" }
+    }
+    Note { visible: sec5.open; text: "The tint shows a zone's extent as a colour instead of a line, so the outlines can be faint and the labels large and translucent (raise the label size and lower its opacity for a watermark look). Drawn once from the time zone data (python3-pillow needed) the first time it is switched on." }
     Note { visible: sec5.open; text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every zone on one line of latitude, placed before the country names and places, which make way for it, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
 
     // #################################################################### Natural events

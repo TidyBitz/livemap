@@ -84,6 +84,25 @@ Item {
     })()
     property var zoneLines: []
     property var zoneLabels: []
+    property string zoneTintFile: ""                                  // zones-tint.png once the helper has drawn it
+    property real homeOffset: NaN                                     // this computer's UTC offset, for the band's mark
+    readonly property bool wantTint: showZones && (cfg ? cfg.ZoneTint : false)
+    readonly property real tintStrength: (cfg ? cfg.ZoneTintOpacity : 12) / 100
+    readonly property real bandStrength: (cfg ? cfg.ZoneBandOpacity : 55) / 100
+    readonly property bool markHome: cfg ? cfg.ZoneMarkHome : true
+    readonly property var zoneColours: ["#f67400", "#ffd23f", "#2ecc71", "#3daee9", "#9b59b6", "#da4453", "#1abc9c"]
+    function zoneColour(text) {                                       // "UTC+5:30" -> the cycle colour of its hour
+        var m = /UTC([+-]?\d+)?/.exec(text || ""), z = m && m[1] ? parseInt(m[1]) : 0;
+        return zoneColours[((z % 7) + 7) % 7];
+    }
+    // the tint image is drawn by the helper on demand (once); asked for whenever the tint is wanted and missing
+    P5Support.DataSource {
+        id: tintExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => { disconnectSource(source); try { var r = JSON.parse(data.stdout); if (r.file) overlay.zoneTintFile = r.file; } catch (e) {} }
+    }
+    onWantTintChanged: if (wantTint && zoneTintFile === "" && helper !== "") tintExec.connectSource("python3 '" + helper + "' zone-tint # " + Date.now())
 
     property var coastLines: []
     property var borderLines: []
@@ -147,6 +166,9 @@ Item {
                 overlay.coastLines = r.coast; overlay.borderLines = r.borders;
                 overlay.stateLines = r.states; overlay.countryNames = r.names;
                 overlay.zoneLines = r.zones || []; overlay.zoneLabels = r.zone_labels || [];
+                overlay.homeOffset = r.home_offset === null || r.home_offset === undefined ? NaN : r.home_offset;
+                if (r.zone_tint) overlay.zoneTintFile = r.zone_tint;
+                else if (overlay.wantTint && overlay.helper !== "") tintExec.connectSource("python3 '" + overlay.helper + "' zone-tint # " + Date.now());
                 overlay.stateNames = r.state_names || []; overlay.places = r.places || []; overlay.riverLines = r.rivers || [];
                 overlay.note = r.note || "";
                 console.warn("livemap borders:", r.coast.length, "coast lines,", r.borders.length, "border lines,",
@@ -210,6 +232,15 @@ Item {
         return wanted.filter(function (_z, k) { return keep[taken.length + k]; });
     })()
 
+    Image {                                                   // D1: each zone tinted, under every line
+        anchors.fill: parent
+        visible: overlay.wantTint && overlay.zoneTintFile !== ""
+        asynchronous: true
+        sourceSize: Qt.size(4096, 2048)
+        source: visible ? "file://" + overlay.zoneTintFile : ""
+        opacity: overlay.tintStrength
+        smooth: true
+    }
     Shape {
         anchors.fill: parent
         preferredRendererType: Shape.CurveRenderer
@@ -312,7 +343,7 @@ Item {
         visible: overlay.showZones && overlay.showZoneLabels && overlay.bandMode
         x: 0; width: overlay.width
         y: overlay.bandY - overlay.bandHeight / 2; height: overlay.bandHeight
-        color: Qt.rgba(0, 0.02, 0.06, 0.55 * (cfg ? cfg.ZoneLabelOpacity : 100) / 100)
+        color: Qt.rgba(0, 0.02, 0.06, overlay.bandStrength)
         border.color: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, 0.35 * overlay.zoneStrength * 2); border.width: Math.max(1, 0.6 * overlay.unit)
         Repeater {                                            // ticks at the zone edges on the row
             model: overlay.fittedZones
@@ -321,6 +352,16 @@ Item {
                 x: modelData.x - modelData.w / 2 * overlay.width / 360 - width / 2
                 y: 0; width: Math.max(1, 0.8 * overlay.unit); height: parent.height
                 color: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, 0.4)
+            }
+        }
+        Repeater {                                            // D3: this computer's zone marked in amber
+            model: overlay.markHome && !isNaN(overlay.homeOffset) ? overlay.fittedZones.filter(function (z) { var m = /UTC([+-]?\d+(?::\d+)?)?/.exec(z.parts.head || z.text); var v = m && m[1] ? parseFloat(m[1].replace(":30", ".5").replace(":45", ".75")) : 0; return Math.abs(v - overlay.homeOffset) < 0.01; }) : []
+            Rectangle {
+                required property var modelData
+                x: modelData.x - modelData.w / 2 * overlay.width / 360; y: 0
+                width: Math.max(2, modelData.w * overlay.width / 360); height: parent.height
+                color: Qt.rgba(1, 0.82, 0.25, 0.14)
+                border.color: Qt.rgba(1, 0.82, 0.25, 0.9); border.width: Math.max(1, 1.2 * overlay.unit)
             }
         }
     }

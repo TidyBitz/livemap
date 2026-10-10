@@ -477,6 +477,40 @@ def _zone_clock(zone, tz_name):
         return [float(zone), 0, float(zone)]
 
 
+ZONE_TINT = DATA / "zones-tint.png"
+ZONE_COLOURS = ["#f67400", "#ffd23f", "#2ecc71", "#3daee9", "#9b59b6", "#da4453", "#1abc9c"]   # timeanddate's kind of cycle
+
+
+def cmd_zone_tint(_args):
+    """zones-tint.png: the time zone polygons filled with a colour cycle, fully opaque, 4096 x 2048 (the
+    wallpaper sets the opacity). A flat fill stretches fine over a region, so one world image serves every view."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        sys.exit("python3-pillow is needed for the zone tint: sudo dnf install python3-pillow")
+    f = BORDERS / "ne_10m_time_zones.geojson"
+    if not f.exists():
+        sys.exit("the time zone data is missing - press 'Download border data' first")
+    W, H = 4096, 2048
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    n = 0
+    for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+        p, g = feat.get("properties") or {}, feat.get("geometry") or {}
+        zone = p.get("zone")
+        if zone is None:
+            continue
+        colour = ZONE_COLOURS[int(round(zone)) % len(ZONE_COLOURS)]
+        kind, c = g.get("type"), g.get("coordinates") or []
+        polys = [c] if kind == "Polygon" else c if kind == "MultiPolygon" else []
+        for poly in polys:
+            if poly and len(poly[0]) >= 3:
+                d.polygon([((pt[0] + 180) / 360 * W, (90 - pt[1]) / 180 * H) for pt in poly[0]], fill=colour)
+                n += 1
+    im.save(ZONE_TINT, optimize=True)
+    emit({"note": "", "zones": n, "file": str(ZONE_TINT)})
+
+
 def cmd_borders(args):
     scale, step = ("50m", 0.04) if args.detail == "50m" else ("110m", 0.0)
     zones, zone_labels = _zones(args.zone_row) if args.zones else ([], [])
@@ -487,7 +521,7 @@ def cmd_borders(args):
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
-           "zones": zones, "zone_labels": zone_labels,
+           "zones": zones, "zone_labels": zone_labels, "zone_tint": str(ZONE_TINT) if ZONE_TINT.exists() else "",
            # country polygons: the land fill of the cartographic style; the 1:50m file is new in 0.46, so an
            # install that has not downloaded again falls back to the 1:110m one it has
            "land": (_lines("ne_%s_admin_0_countries" % scale, step) or _lines("ne_110m_admin_0_countries", 0.0)) if args.land else []}
@@ -495,6 +529,11 @@ def cmd_borders(args):
     res = {k: v or [] for k, v in res.items()}
     res["note"] = ("Borders: no data for %s yet - press 'Download border data' in the settings, "
                    "or run: livemap-helper fetch-borders" % ", ".join(missing)) if missing else ""
+    try:                                                      # this computer's offset, for the band's "you are here" mark
+        import time as _t
+        res["home_offset"] = -(_t.altzone if _t.daylight and _t.localtime().tm_isdst else _t.timezone) / 3600
+    except Exception:
+        res["home_offset"] = None
     emit(res)
 
 
@@ -3507,6 +3546,7 @@ def main():
     st.add_argument("--offline", action="store_true"); st.add_argument("--names", action="store_true"); st.set_defaults(fn=cmd_status)
     sub.add_parser("fetch-geoip").set_defaults(fn=cmd_fetch_geoip)
     sub.add_parser("fetch-borders").set_defaults(fn=cmd_fetch_borders)
+    sub.add_parser("zone-tint").set_defaults(fn=cmd_zone_tint)
     sub.add_parser("plates").set_defaults(fn=cmd_plates)
     sub.add_parser("fetch-infrastructure").set_defaults(fn=cmd_fetch_infrastructure)
     sub.add_parser("infrastructure").set_defaults(fn=cmd_infrastructure)
