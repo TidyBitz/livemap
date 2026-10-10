@@ -22,7 +22,14 @@
   livemap-helper fetch-geoip         download the free DB-IP City Lite database (~20 MB, monthly)
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
-      --hires                        21600x10800 monthlies for 5K+ screens (~300 MB)
+      --hires                        the 21600x10800 monthly set beside the small one, for regions (~330 MB)
+  livemap-helper frame | fetch-frame --style S --north N --south S --west W --east E --width PX
+                                     is the imagery for that view and style there / build it (the wallpaper calls both;
+                                     styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
+  livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
+  livemap-helper fires | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
+  livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
 Everything is stored in $XDG_DATA_HOME/livemap (usually ~/.local/share/livemap).
 `net` never touches the network: it reads `ss` and an offline database.

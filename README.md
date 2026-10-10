@@ -75,15 +75,48 @@ Download `livemap.zip` from the latest release, then:
     bash livemap.sh install ~/Downloads/livemap.zip
     bash livemap.sh activate                        # make it the wallpaper on every desktop
 
-Then right-click the desktop > *Configure Desktop and Wallpaper* > **Status** > *Download maps and border
-data* (about 350 MB from NASA and Natural Earth, once). Until then the map shows the single image you pick
-in the settings. The widget is under *Add Widgets* as **Live World Map Events**.
+The install restarts plasmashell so the new settings page is there at once. The widget is under *Add
+Widgets* as **Live World Map Events**.
+
+### First run: the downloads
+
+Nothing is bundled but the code, so the map starts as a dark Earth with the live layers on it and a note in
+the corner saying what is missing. Right-click the desktop > *Configure Desktop and Wallpaper*; every
+section that needs a download has a **Download** button on its source line (and a green dot once it is
+there). In the order you will want them:
+
+| Download | Where | Size | What it gives you |
+|---|---|---|---|
+| Seasonal maps and city lights | Map | 35 MB | NASA's 12 monthly Blue Marble images and the Black Marble night picture - the base map and the city lights |
+| Border data | Countries | 12 MB | Coastlines, borders, rivers, country and state names, capitals and cities, time zones, plate boundaries - everything vector |
+| Hi-res seasonal maps | Map | 330 MB | The 21 600 px monthly set; only worth it for a region (Map > Show) or a 5K screen |
+| Oil and gas infrastructure | Oil and gas infrastructure | a few MB | Offshore platforms and refineries; off by default |
+| GeoIP database | Network activity | 20 MB | Offline geolocation for the Network layer; off by default |
+
+The other map styles (today's satellite view, relief, dark cartographic, Dark Matter, Matrix) build their
+own imagery for whatever is on screen when you choose them - a few seconds, a few MB, with a note in the
+corner while they do.
 
 Everything is per user and nothing runs in the background: the wallpaper is QML inside plasmashell, and the
 helper is a Python script (standard library only) that runs for a few seconds per fetch.
 
-Optional extras, each for a feature that is off by default: `python3-maxminddb` for the Network layer,
-QtWebEngine for the embedded ISS and launch streams in the widget, Pillow for faster cloud stitching.
+Optional packages, each named by `doctor`: `python3-pillow` (the map styles other than seasonal, the
+region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (city lights extraction),
+`python3-maxminddb` (the Network layer), QtWebEngine (embedded ISS and launch streams in the widget), and
+`pw-play` / `paplay` for the widget's notification sound (one of them is on any PipeWire or PulseAudio desktop).
+
+### Where things live
+
+| What | Where |
+|---|---|
+| The wallpaper package | `~/.local/share/plasma/wallpapers/io.github.tidybitz.livemap.wallpaper/` |
+| The widget package | `~/.local/share/plasma/plasmoids/io.github.tidybitz.livemap.events/` |
+| The helper | `.../livemap.wallpaper/contents/helper/livemap-helper.py` - also what `livemap-helper` runs from a terminal |
+| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`), the event memory (`events.json`, `history.json`, `hotspot-days.json`), and the widget's overrides (`mode.json`, `layers.json`) |
+| Your settings | Plasma's own: `~/.config/plasma-org.kde.plasma.desktop-appletsrc` for the wallpaper (per screen and per Activity, so each monitor can have its own layers), the widget's in the same file under its applet |
+| Logs | `journalctl --user -f \| grep -i livemap` - the wallpaper logs what it loads, draws and fails to fetch |
+
+`livemap.sh remove` uninstalls the packages and leaves the data folder; `purge` deletes that and the settings too.
 
 ## The script
 
@@ -130,20 +163,35 @@ wallpaper's helper and caches; nothing is fetched twice.
 
 ## Repository layout
 
-    livemap/            the wallpaper package (Plasma/Wallpaper)
-      contents/ui/        QML: main.qml and one file per layer; geo.js for the maths
-      contents/helper/    livemap-helper.py: every fetch, cache and calculation the QML cannot do
-      contents/config/    main.xml, one <entry> per setting
-      contents/images/    spacecraft, launch-pad and storm icons (CC BY 4.0)
-    livemap-widget/     the companion widget package (Plasma/Applet)
-    livemap.sh          install / doctor / activate / remove / purge / status
-    scripts/check.py    static checks (settings ↔ config page, brackets, ids, versions); CI runs it
-    scripts/package.sh  builds livemap.zip
-    CHANGELOG.md        every release, newest first
+    livemap/                     the wallpaper package (Plasma/Wallpaper)
+      metadata.json                id, name, version
+      contents/ui/
+        main.qml                   the map: framing, the still layer (imagery, clouds, night, lights) and one Loader per live layer
+        *Layer.qml                 one file per layer (Quake, Storm, Volcano, Fire, Sat, Launch, Net, Border, Plate, Infra)
+        LabelPass.qml, MapLabel.qml, HaloText.qml   one label layout pass above every layer, and the label itself
+        FrameWatch.qml, PowerWatch.qml, CloudWatch.qml   small watchers that run the helper: imagery per view, power and load, clouds
+        config.qml, StatusPanel.qml   the settings page and its Status section
+        Look.qml                   the appearance singleton (the Matrix style's font and glow)
+        geo.js                     the maths: sun position, label placement, projections, ageing
+      contents/helper/livemap-helper.py   every fetch, cache and calculation the QML cannot do; `livemap-helper --help`
+      contents/config/main.xml   one <entry> per setting; scripts/check.py keeps it in step with config.qml
+      contents/images/           spacecraft, launch-pad and storm icons (CC BY 4.0)
+    livemap-widget/              the companion widget package (Plasma/Applet)
+      contents/ui/main.qml         the Events, Live, Map controls and Status tabs
+      contents/ui/configGeneral.qml   its settings page
+      contents/icons/, contents/sounds/   the flame and satellite icons; the three notification sounds
+    livemap.sh                   install / doctor / activate / remove / purge / status
+    scripts/check.py             static checks (settings <-> config page, brackets, ids, versions); CI runs it
+    scripts/package.sh           builds livemap.zip
+    .github/                     CI (checks on every push; a release on every v* tag), Dependabot, the bug template
+    docs/screenshots/            the pictures in this README
+    CHANGELOG.md                 every release, newest first
 
 Adding a layer: a new `FooLayer.qml`, an `<entry name="ShowFoo">` in main.xml, a `cfg_ShowFoo` alias and a
-tick box in config.qml, and a `Loader` in main.qml. Layers exist only while ticked. `livemap/README.md`
-has the developer notes (how the day/night shade avoids a shader, the `layer` id trap, and so on).
+section in config.qml, and a `Loader` in main.qml. Layers exist only while ticked. The wallpaper and the
+helper talk through JSON on stdout: a layer runs `livemap-helper foo` through a `P5Support.DataSource` and
+parses the answer; the helper never writes to the map. `livemap/README.md` has the developer notes (how
+the day/night shade avoids a shader, the `layer` id trap, and so on).
 
 ## If something does not show up
 
