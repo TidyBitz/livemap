@@ -83,7 +83,7 @@
     <entry name="ZoneLabelSpacing" type="Int"><default>100</default></entry>
     <entry name="ZoneLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="ZoneLabelHalo" type="Int"><default>100</default></entry>
-    <entry name="ZonePlacement" type="Int"><default>0</default></entry>   <!-- 0 inside each zone, 1 one row at ZoneRowLat -->
+    <entry name="ZonePlacement" type="Int"><default>0</default></entry>   <!-- 0 inside each zone, 1 one row at ZoneRowLat, 2 a band at ZoneRowLat -->
     <entry name="ZoneRowLat" type="Int"><default>-55</default></entry>
     <entry name="HomeCity" type="String"><default></default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>

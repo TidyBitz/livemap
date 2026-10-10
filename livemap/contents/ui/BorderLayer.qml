@@ -37,7 +37,9 @@ Item {
     readonly property real zoneStrength: (cfg ? cfg.ZoneOpacity : 35) / 100
     readonly property bool showZoneLabels: cfg ? cfg.ZoneLabels : true
     readonly property int zonePx: Math.round((cfg ? cfg.ZoneLabelSize : 9) * unit)
-    readonly property int zonePlacement: cfg ? cfg.ZonePlacement : 0           // 0 inside each zone, 1 one row
+    readonly property int zonePlacement: cfg ? cfg.ZonePlacement : 0           // 0 inside each zone, 1 one row, 2 a band
+    readonly property bool rowMode: zonePlacement >= 1
+    readonly property bool bandMode: zonePlacement === 2
     readonly property int zoneClock: cfg ? cfg.ZoneClock : 0                   // 0 offset, 1 offset and time, 2 offset, time and date, 3 time, 4 time and date
     readonly property bool zoneClock12: cfg ? cfg.ZoneClock12 : false
     property real clockMs: Date.now()                                          // ticks every minute while the clocks show
@@ -128,7 +130,7 @@ Item {
     // ask the helper again whenever what we need changes
     readonly property string request: helper === "" ? ""
         : "python3 '" + helper + "' borders --detail " + detail + (showStates ? " --states" : "") + (showNames ? " --names" : "")
-          + (showZones ? " --zones" + (zonePlacement === 1 ? " --zone-row " + zoneRowLat : "") : "")
+          + (showZones ? " --zones" + (rowMode ? " --zone-row " + zoneRowLat : "") : "")
           + (showStateNames ? " --state-names" : "") + (showCapitals ? " --capitals" : "") + (showStateCapitals ? " --state-capitals" : "")
           + (cityPop > 0 ? " --city-pop " + cityPop : "") + (showRivers ? " --rivers" : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
@@ -179,7 +181,7 @@ Item {
     // wide enough. In one row: the row was asked for, so every zone's label is placed first (only its
     // neighbours in the row can push it out) and the names make way for it instead.
     function zoneBox(z) {
-        if (zonePlacement === 1) {                            // the band: the time's width, the band's height
+        if (bandMode) {                                       // the band: the time's width, the band's height
             var bw = Math.max(z.parts.main.length * zonePx * 1.5 * 0.62, z.parts.head.length * zonePx * 0.62) + 6 * unit;
             return { x: z.x - bw / 2, y: z.y - bandHeight / 2, w: bw, h: bandHeight };
         }
@@ -195,13 +197,13 @@ Item {
             .map(function (z) { return { text: zoneText(z), parts: zoneParts(z), w: z[3], x: (z[1] + 180) / 360 * width, y: (90 - z[2]) / 180 * height }; });
     })()
     readonly property var rowZones: (function () {             // one-row mode: the row first, among itself
-        if (zonePlacement !== 1) return [];
+        if (!rowMode) return [];
         var keep = Geo.declutter(wantedZones.map(zoneBox), 3 * unit);
         return wantedZones.filter(function (_z, k) { return keep[k]; });
     })()
     readonly property var rowZoneBoxes: rowZones.map(zoneBox)
     readonly property var fittedZones: (function () {
-        if (zonePlacement === 1) return rowZones;
+        if (rowMode) return rowZones;
         var taken = nameBoxes.concat(placeBoxes, stateBoxes);
         var wanted = wantedZones.filter(function (z) { return z.w * width / 360 > longestLine(z.text) * zonePx * 0.7; });
         var keep = Geo.declutter(taken.concat(wanted.map(zoneBox)), 3 * unit);
@@ -307,7 +309,7 @@ Item {
     // The band under the row: a translucent strip the width of the map with a tick at each zone edge, so the
     // labels have a baseline and sit on something instead of on the imagery.
     Rectangle {
-        visible: overlay.showZones && overlay.showZoneLabels && overlay.zonePlacement === 1
+        visible: overlay.showZones && overlay.showZoneLabels && overlay.bandMode
         x: 0; width: overlay.width
         y: overlay.bandY - overlay.bandHeight / 2; height: overlay.bandHeight
         color: Qt.rgba(0, 0.02, 0.06, 0.55 * (cfg ? cfg.ZoneLabelOpacity : 100) / 100)
@@ -323,7 +325,7 @@ Item {
         }
     }
     Repeater {                                                // time zones in the band: offset small, time large, date when it differs
-        model: overlay.zonePlacement === 1 ? overlay.fittedZones : []
+        model: overlay.bandMode ? overlay.fittedZones : []
         Column {
             required property var modelData
             x: modelData.x - width / 2
@@ -336,7 +338,7 @@ Item {
         }
     }
     Repeater {                                                // time zone offsets inside each zone
-        model: overlay.zonePlacement === 1 ? [] : overlay.fittedZones
+        model: overlay.bandMode ? [] : overlay.fittedZones
         MapLabel {
             required property var modelData
             x: modelData.x - width / 2

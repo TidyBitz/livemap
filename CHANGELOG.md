@@ -23,9 +23,9 @@ release notes written at the time; their dates are the day the version was hande
   takes its nominal meridian band, so the row is a complete scale.
 
 ### Changed
-- Time zones in one row are a band: a translucent strip across the map with a tick at each zone edge, and in
+- A third time zone label placement, "In a band": a translucent strip across the map with a tick at each zone edge, and in
   it the time large, the offset small above it, and the date only where it is not this computer's date (the
-  one time it is news) - instead of three facts at one size floating on the imagery.
+  one time it is news). "In one row" stays as it was.
 - City lights in a region are cut from NASA's 13 500 px night picture for exactly the view on screen (the
   whole-world lights, 4 096 px, were stretched eight times across Europe and came out as blobs). The
   picture is kept by `fetch-maps` from now on (night-hires.jpg); an install from before shows a note on the

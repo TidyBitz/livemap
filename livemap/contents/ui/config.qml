@@ -967,7 +967,7 @@ Kirigami.FormLayout {
     Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download." }
 
     // ============================================================== Time zones
-    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
+    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 2 ? "a band at " + zoneRowLat.displayText : zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
     Source { visible: sec5.open; names: ["Borders (Natural Earth)"] }
     QQC2.CheckBox { visible: sec5.open; id: timeZones; Kirigami.FormData.label: "Show:"; text: "Time zone outlines (Natural Earth)" }
     Note { visible: sec5.open; text: "The zone boundaries as drawn on the Natural Earth time zone map, with the UTC offset written in each zone that is wide enough. Part of the border download." }
@@ -1011,7 +1011,7 @@ Kirigami.FormLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone label placement:"
         enabled: timeZones.checked && zoneLabels.checked
-        QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude"] }
+        QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude", "In a band, at latitude (time large, offset small, date when it differs)"] }
         QQC2.SpinBox {
             id: zoneRowLat; enabled: zonePlacement.currentIndex === 1; from: -80; to: 80; stepSize: 5
             textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
