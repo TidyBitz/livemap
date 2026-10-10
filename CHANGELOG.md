@@ -17,8 +17,9 @@ release notes written at the time; their dates are the day the version was hande
   while the widget hid it and nothing said why.
 
 ### Fixed
-- The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 plus the half-hour zones,
-  each on its own meridian the way a printed time zone map is laid out; a zone observing summer time shows
+- The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 plus the half-hour zones
+  a country uses (India, Iran, Afghanistan, Myanmar, central Australia - not Lord Howe or Chatham), each
+  on its own meridian the way a printed time zone map is laid out; a zone observing summer time shows
   its clock an hour on and says "DST". Keyed by the polygons it drifted: a zone whose main place was on
   summer time landed in the wrong column, UTC-6 went missing, and two columns shared a clock.
   "Abbreviations" adds CST / CET / JST to the captions, CDT / BST / CEST in summer.
@@ -39,8 +40,7 @@ release notes written at the time; their dates are the day the version was hande
 - The band's extras (each its own box): day and night along the band - warm where the sun is up, cool
   where it is night at the band's latitude, graded through twilight - with cursors where it is noon and
   midnight right now, all sliding along through the day; the hours from this computer's zone under each
-  clock ("+6 h", "you"); and tonight's moon drawn in your column with its phase and the next one. All
-  computed locally.
+  clock ("+6 h", "you"). All computed locally.
 - D3, the band: a translucent strip across the map with a tick at each zone edge, and in
   it the time large, the offset small above it, and the date only where it is not this computer's date (the
   one time it is news), with its own opacity and this computer's zone marked in amber. "In one row" stays

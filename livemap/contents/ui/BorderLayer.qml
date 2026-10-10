@@ -135,23 +135,7 @@ Item {
     readonly property bool markHome: cfg ? cfg.ZoneMarkHome : true
     readonly property bool bandSun: cfg ? cfg.ZoneBandSun : true           // day and night across the band, noon and midnight cursors
     readonly property bool bandDiff: cfg ? cfg.ZoneBandDiff : true         // "+6 h" from this computer's zone under each clock
-    readonly property bool bandMoon: cfg ? cfg.ZoneBandMoon : true         // the moon's phase by this computer's zone
     readonly property var sun: Geo.sun(new Date(clockMs))                  // where the sun is overhead, for the band
-    // the moon: age in days since new moon from a known new moon (2000-01-06 18:14 UTC), synodic month 29.530589 d
-    readonly property real moonAge: (function () { var d = (clockMs / 1000 - 947182440) / 86400; return ((d % 29.530589) + 29.530589) % 29.530589; })()
-    readonly property real moonLit: (1 - Math.cos(moonAge / 29.530589 * 2 * Math.PI)) / 2
-    readonly property bool moonWaxing: moonAge < 29.530589 / 2
-    readonly property string moonName: (function () {
-        var a = moonAge, p = a / 29.530589;
-        if (p < 0.03 || p > 0.97) return "new moon";
-        if (p < 0.22) return "waxing crescent"; if (p < 0.28) return "first quarter"; if (p < 0.47) return "waxing gibbous";
-        if (p < 0.53) return "full moon"; if (p < 0.72) return "waning gibbous"; if (p < 0.78) return "last quarter"; return "waning crescent";
-    })()
-    readonly property string moonNext: (function () {                      // the next of the four phases, in days
-        var p = moonAge / 29.530589, names = ["first quarter", "full moon", "last quarter", "new moon"], at = [0.25, 0.5, 0.75, 1.0];
-        for (var i = 0; i < 4; i++) if (p < at[i] - 0.01) return names[i] + " in " + Math.max(1, Math.round((at[i] - p) * 29.530589)) + " d";
-        return "new moon in 1 d";
-    })()
     function dayness(lon) {                                                // 1 full day, 0 full night, between through twilight, at the band's latitude
         var RAD = Math.PI / 180, lat = zoneRowLat * RAD, dec = sun.lat * RAD, ha = (lon - sun.lon) * RAD;
         var elev = Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha)) / RAD;
@@ -294,7 +278,9 @@ Item {
             for (var i = 0; i < zoneLabels.length; i++) {
                 var m = /UTC([+-]?\d+)?(?::(\d+))?/.exec(zoneLabels[i][0]);
                 var nominal = m && m[1] ? parseInt(m[1]) + (m[2] ? parseInt(m[2]) / 60 * (m[1].charAt(0) === "-" ? -1 : 1) : 0) : 0;
-                stds[nominal.toFixed(2)] = nominal;
+                // a half-hour zone earns a column when it is a country's worth (India, Iran, Afghanistan, Myanmar,
+                // central Australia), not an island (Lord Howe, Chatham, Eucla): its widest polygon over 3 degrees
+                if (nominal === Math.floor(nominal) || zoneLabels[i][3] >= 3) stds[nominal.toFixed(2)] = nominal;
             }
             for (var key in stds) {
                 var std = stds[key], dst = !!dstZones[key], off = std + (dst ? 1 : 0);
@@ -478,33 +464,6 @@ Item {
                 width: Math.max(2, modelData.w * overlay.width / 360); height: parent.height
                 color: Qt.rgba(1, 0.82, 0.25, 0.14)
                 border.color: Qt.rgba(1, 0.82, 0.25, 0.9); border.width: Math.max(1, 1.2 * overlay.unit)
-                Canvas {                                      // the moon tonight, in the home column's left margin
-                    visible: overlay.bandMoon
-                    readonly property real r: overlay.zonePx * 0.9
-                    width: r * 2 + 2; height: width
-                    x: 4 * overlay.unit; y: (parent.height - height) / 2
-                    readonly property real lit: overlay.moonLit
-                    readonly property bool waxing: overlay.moonWaxing
-                    onLitChanged: requestPaint()
-                    onVisibleChanged: if (visible) requestPaint()
-                    onPaint: {
-                        var c = getContext("2d"), cx = width / 2, cy = height / 2, R = r;
-                        c.clearRect(0, 0, width, height);
-                        c.fillStyle = "#101820"; c.beginPath(); c.arc(cx, cy, R, 0, 2 * Math.PI); c.fill();
-                        c.strokeStyle = "rgba(207,216,227,0.9)"; c.lineWidth = Math.max(1, 0.7 * overlay.unit); c.stroke();
-                        // the lit part: the lit limb (right side when waxing) from top to bottom, then back along the
-                        // terminator, an ellipse of half-width cos(lit * pi) * R: +R at new moon (no area), 0 at the
-                        // quarters (a straight line), -R at full (the whole disc)
-                        var k = Math.cos(lit * Math.PI); if (Math.abs(k) < 0.002) k = 0.002;
-                        c.fillStyle = "#e8ecf0"; c.beginPath();
-                        c.arc(cx, cy, R, -Math.PI / 2, Math.PI / 2, !waxing);
-                        c.save(); c.translate(cx, cy); c.scale(waxing ? k : -k, 1);
-                        c.arc(0, 0, R, Math.PI / 2, -Math.PI / 2, true);
-                        c.restore(); c.closePath(); c.fill();
-                    }
-                }
-                MapLabel { visible: overlay.bandMoon; x: 4 * overlay.unit + overlay.zonePx * 1.8 + 6 * overlay.unit; y: parent.height - height - 2 * overlay.unit
-                           text: overlay.moonName + " \u00b7 " + overlay.moonNext; px: Math.round(overlay.zonePx * 0.85); textColor: "#e8ecf0"; textOpacity: 0.8; plate: false; haloScale: 0.8; unit: overlay.unit }
             }
         }
     }

@@ -179,7 +179,6 @@ Kirigami.FormLayout {
     property alias cfg_ZoneMarkHome: zoneMarkHome.checked
     property alias cfg_ZoneBandSun: zoneBandSun.checked
     property alias cfg_ZoneBandDiff: zoneBandDiff.checked
-    property alias cfg_ZoneBandMoon: zoneBandMoon.checked
     property alias cfg_ZoneAbbrev: zoneAbbrev.checked
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
@@ -1048,10 +1047,9 @@ Kirigami.FormLayout {
         enabled: timeZones.checked && zoneLabels.checked && form.zoneStyles[zoneLook.currentIndex].placement === 2
         QQC2.CheckBox { id: zoneBandSun; text: "Day and night, with noon and midnight" }
         QQC2.CheckBox { id: zoneBandDiff; text: "Hours from this computer's zone" }
-        QQC2.CheckBox { id: zoneBandMoon; text: "The moon's phase" }
         QQC2.CheckBox { id: zoneAbbrev; text: "Abbreviations (CST, CET, JST\u2026)" }
     }
-    Note { visible: sec5.open; text: "The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 (and the half-hour zones), the way a printed time zone map is laid out; a zone on summer time right now shows its clock an hour on and says DST, or its summer abbreviation (CDT, BST, CEST) with abbreviations on. Day and night: the band is warm where the sun is up and cool where it is night at the band's latitude, graded through twilight, and two cursors mark where it is noon and midnight right now; all three slide along the band through the day. Hours from this computer's zone puts '+6 h' under each clock (and 'you' under your own). The moon: tonight's phase drawn in your column, with the next phase. All of it is computed here; nothing on the band can go stale." }
+    Note { visible: sec5.open; text: "The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 (and the half-hour zones), the way a printed time zone map is laid out; a zone on summer time right now shows its clock an hour on and says DST, or its summer abbreviation (CDT, BST, CEST) with abbreviations on. Day and night: the band is warm where the sun is up and cool where it is night at the band's latitude, graded through twilight, and two cursors mark where it is noon and midnight right now; all three slide along the band through the day. Hours from this computer's zone puts '+6 h' under each clock (and 'you' under your own). All of it is computed here; nothing on the band can go stale." }
     RowLayout {
         visible: sec5.open
         Kirigami.FormData.label: "Time zone tint:"
