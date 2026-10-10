@@ -216,7 +216,9 @@ Item {
         var tw = longestLine(z.text) * zonePx * 0.65, th = zonePx * 1.3 * lineCount(z.text);
         return { x: z.x - tw / 2, y: z.y - th / 2, w: tw, h: th };
     }
-    readonly property real bandHeight: zonePx * (zoneClock === 0 ? 2.2 : 4.4)
+    // the band's height follows what the labels hold: offset line, the time at 1.5x, the date line, and padding
+    readonly property real bandHeight: zonePx * (zoneClock === 0 ? 2.6
+                                                 : (zoneClock <= 2 ? 1.5 : 0) + 2.2 + ((zoneClock === 2 || zoneClock === 4) ? 1.5 : 0) + 1.4)
     readonly property real bandY: (90 - zoneRowLat) / 180 * height
     readonly property var wantedZones: (function () {
         if (!showZones || !showZoneLabels) return [];
