@@ -3,6 +3,60 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.47 - unreleased
+
+### Added
+- Two more map styles, both drawn like the dark cartographic one (no imagery, the border download, the
+  lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
+  look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every
+  label in a monospace face with a green glow, and scanlines over the whole screen. Set the line and label
+  colours to greys or greens to complete either with the "Map style colours" button, or keep your own. On
+  the flat styles the night shade is not drawn over the land (it made the land two tones): the city lights
+  alone say where it is night.
+- Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is
+  the savanna, harvest and forestry fires of the season, so the map looked on fire everywhere. "Near people"
+  keeps the fires that can mean evacuations - GDACS orange and red events (rated on the people exposed) and
+  satellite hotspot clusters within 50 km of a city of 100 000 or on such an event; "Orange and red events
+  only" drops the hotspots altogether; "Everything the filters below allow" is the old behaviour. The
+  Events widget follows the same choice (`power --fire-focus`, `hotspots --people`).
+- The settings page says when the companion widget is overriding the map - hiding layers, pausing, plain
+  map - with a button to clear the overrides, since a layer switched on in the settings stayed off the map
+  while the widget hid it and nothing said why.
+
+### Fixed
+- The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 plus the half-hour zones
+  a country uses (India, Iran, Afghanistan, Myanmar, central Australia - not Lord Howe or Chatham), each
+  on its own meridian the way a printed time zone map is laid out; a zone observing summer time shows
+  its clock an hour on and says "DST". Keyed by the polygons it drifted: a zone whose main place was on
+  summer time landed in the wrong column, UTC-6 went missing, and two columns shared a clock.
+  "Abbreviations" adds CST / CET / JST to the captions, CDT / BST / CEST in summer.
+- Time zone captions are the offset in force now, summer time included, like the clock beside them:
+  Chicago reads "UTC-5 · 8:41 pm" today and "UTC-6" in winter. The standard offset as a caption next to a
+  summer-time clock made neighbours look like duplicates and marked the wrong column as home.
+- Time zone labels in one row: a region that did not reach the row's latitude (Europe with the row at the
+  equator) showed none; the row moves to the bottom of what is on screen in that case. UTC+2 and UTC+11
+  were missing from the row where the zone has no land at that latitude: a whole-hour zone without one
+  takes its nominal meridian band, so the row is a complete scale.
+
+### Changed
+- "Time zone style" is one dropdown: Classic (labels inside each zone), One row, D3 (the band), D1 (tinted
+  zones), D1 + D3. The tint: each zone filled with a colour cycle, like a time zone map, at a chosen opacity (12 %
+  by default), under the lines - the extent of a zone reads from the colour where the boundaries get busy,
+  so the outlines can be faint and the labels large and translucent. Drawn once by the helper from the
+  time zone data (`livemap-helper zone-tint`, python3-pillow).
+- The band's extras (each its own box): day and night along the band - warm where the sun is up, cool
+  where it is night at the band's latitude, graded through twilight - with cursors where it is noon and
+  midnight right now, all sliding along through the day; the hours from this computer's zone under each
+  clock ("+6 h", "you"). All computed locally.
+- D3, the band: a translucent strip across the map with a tick at each zone edge, and in
+  it the time large, the offset small above it, and the date only where it is not this computer's date (the
+  one time it is news), with its own opacity and this computer's zone marked in amber. "In one row" stays
+  as it was.
+- City lights in a region are cut from NASA's 13 500 px night picture for exactly the view on screen (the
+  whole-world lights, 4 096 px, were stretched eight times across Europe and came out as blobs). The
+  picture is kept by `fetch-maps` from now on (night-hires.jpg); an install from before shows a note on the
+  City lights status row until the maps are downloaded again.
+
 ## 0.46 - 2026-10-09
 
 ### Added

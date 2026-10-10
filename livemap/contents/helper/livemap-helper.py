@@ -57,7 +57,7 @@ NASA = "https://assets.science.nasa.gov/content/dam/science/esd/eo/images"
 MONTHS = ["january", "february", "march", "april", "may", "june", "july",
           "august", "september", "october", "november", "december"]
 NIGHT_URL = NASA + "/imagerecords/144000/144898/BlackMarble_2016_3km.jpg"
-VERSION = "0.46"
+VERSION = "0.47"
 UA = {"User-Agent": "livemap-wallpaper/" + VERSION}
 NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
 BORDERS = DATA / "borders"
@@ -431,9 +431,19 @@ def _zones(row_lat=None):
                 for a, b in _spans_at(r, lat):
                     if best is None or b - a > best[0]:
                         best = (b - a, (a + b) / 2, lat)
+        if (best is None or best[0] <= 0) and row_lat is not None and -12 <= zone <= 14 and zone == int(zone):
+            # the row is a scale: a whole-hour zone with no land on the row's latitude (UTC+11 is a few islands,
+            # UTC+2 at some latitudes) still gets its label, on its nominal meridian band
+            best = (15.0, zone * 15.0, row_lat)
         if best is None or best[0] <= 0:
             continue
         labels.append([text, round(best[1], 2), round(best[2], 2), round(best[0], 2)] + _zone_clock(zone, p.get("tz_name1st") or ""))
+    if row_lat is not None:                       # one label per offset in the row (the file has several polygons per zone)
+        seen, uniq = set(), []
+        for lab in sorted(labels, key=lambda l: -l[3]):
+            if lab[0] not in seen:
+                seen.add(lab[0]); uniq.append(lab)
+        labels = uniq
     return lines, labels
 
 
@@ -467,6 +477,40 @@ def _zone_clock(zone, tz_name):
         return [float(zone), 0, float(zone)]
 
 
+ZONE_TINT = DATA / "zones-tint.png"
+ZONE_COLOURS = ["#f67400", "#ffd23f", "#2ecc71", "#3daee9", "#9b59b6", "#da4453", "#1abc9c"]   # timeanddate's kind of cycle
+
+
+def cmd_zone_tint(_args):
+    """zones-tint.png: the time zone polygons filled with a colour cycle, fully opaque, 4096 x 2048 (the
+    wallpaper sets the opacity). A flat fill stretches fine over a region, so one world image serves every view."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        sys.exit("python3-pillow is needed for the zone tint: sudo dnf install python3-pillow")
+    f = BORDERS / "ne_10m_time_zones.geojson"
+    if not f.exists():
+        sys.exit("the time zone data is missing - press 'Download border data' first")
+    W, H = 4096, 2048
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    n = 0
+    for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+        p, g = feat.get("properties") or {}, feat.get("geometry") or {}
+        zone = p.get("zone")
+        if zone is None:
+            continue
+        colour = ZONE_COLOURS[int(round(zone)) % len(ZONE_COLOURS)]
+        kind, c = g.get("type"), g.get("coordinates") or []
+        polys = [c] if kind == "Polygon" else c if kind == "MultiPolygon" else []
+        for poly in polys:
+            if poly and len(poly[0]) >= 3:
+                d.polygon([((pt[0] + 180) / 360 * W, (90 - pt[1]) / 180 * H) for pt in poly[0]], fill=colour)
+                n += 1
+    im.save(ZONE_TINT, optimize=True)
+    emit({"note": "", "zones": n, "file": str(ZONE_TINT)})
+
+
 def cmd_borders(args):
     scale, step = ("50m", 0.04) if args.detail == "50m" else ("110m", 0.0)
     zones, zone_labels = _zones(args.zone_row) if args.zones else ([], [])
@@ -477,7 +521,7 @@ def cmd_borders(args):
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
-           "zones": zones, "zone_labels": zone_labels,
+           "zones": zones, "zone_labels": zone_labels, "zone_tint": str(ZONE_TINT) if ZONE_TINT.exists() else "",
            # country polygons: the land fill of the cartographic style; the 1:50m file is new in 0.46, so an
            # install that has not downloaded again falls back to the 1:110m one it has
            "land": (_lines("ne_%s_admin_0_countries" % scale, step) or _lines("ne_110m_admin_0_countries", 0.0)) if args.land else []}
@@ -485,6 +529,13 @@ def cmd_borders(args):
     res = {k: v or [] for k, v in res.items()}
     res["note"] = ("Borders: no data for %s yet - press 'Download border data' in the settings, "
                    "or run: livemap-helper fetch-borders" % ", ".join(missing)) if missing else ""
+    try:                                                      # this computer's offset, for the band's "you are here" mark
+        import time as _t
+        res["home_offset"] = -(_t.altzone if _t.daylight and _t.localtime().tm_isdst else _t.timezone) / 3600
+        res["home_std"] = -_t.timezone / 3600                     # the standard offset: the band's column it belongs to
+    except Exception:
+        res["home_offset"] = None
+        res["home_std"] = None
     emit(res)
 
 
@@ -1619,8 +1670,11 @@ def rate_hotspots(cells, fires=None, now=None):
             if chronic: why.append("regional burning" if regional else "burns most days")
         if days7 >= 2 and "days running" not in " ".join(why):
             why.append("%d d" % days7)
+        # "near people": on a GDACS orange or red event (rated on the people exposed), or within 50 km of a city
+        # of 100 000 or more - the fires that can mean evacuations, as opposed to the savanna burning season
+        people = bool(on_event and on_event["alert"] in ("orange", "red")) or bool(near and near[1] >= 100000 and near[0] <= 50)
         c.update(tier=tier, why=" \u00b7 ".join(why), days=days7, chronic=chronic, near=near[2] if near else "",
-                 event=on_event["id"] if on_event else None)
+                 event=on_event["id"] if on_event else None, people=people)
     stale = [k for k, e in mem.items() if not isinstance(e, dict) or not e.get("days") or e["days"][-1] < cutoff]
     for k in stale:
         mem.pop(k, None)
@@ -1685,7 +1739,8 @@ def cmd_hotspots(args):
         except Exception:
             fires = None
         spots = rate_hotspots(spots, fires or [])
-        spots = [c for c in spots if c["tier"] >= args.min_tier and (c["tier"] > 0 or c["n"] >= args.min_count)]
+        spots = [c for c in spots if c["tier"] >= args.min_tier and (c["tier"] > 0 or c["n"] >= args.min_count)
+                 and (not args.people or c.get("people"))]
     except Exception as e:
         note = "Fire hotspots: %s" % e
     if args.table:
@@ -2693,19 +2748,31 @@ def read_units():
         return [0, 0]
 
 
-def write_layers(shown, units=None):
+def read_fire_focus():
+    """The wallpaper's "Wildfire focus" (0 everything, 1 near people, 2 orange and red events only), for the feed."""
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return int(d.get("fire_focus", 1)) if isinstance(d, dict) else 1
+    except (OSError, ValueError, TypeError):
+        return 1
+
+
+def write_layers(shown, units=None, fire_focus=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
             units = [max(0, min(2, int(x))) for x in units.split(",")][:2]
         except ValueError:
             units = None
-    if read_layers() == shown and (units is None or read_units() == units):
+    if fire_focus is not None:
+        fire_focus = max(0, min(2, int(fire_focus)))
+    if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
         tmp = LAYERS.with_suffix(".tmp%d" % os.getpid())
-        tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(), "at": int(time.time())}), encoding="utf-8")
+        tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(),
+                                   "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass
@@ -2740,7 +2807,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
@@ -2819,6 +2886,7 @@ def cmd_feed(args):
     except (OSError, ValueError):
         mem = {}
     units = read_units()                            # the wallpaper's Units and Storm wind choices
+    fire_focus = read_fire_focus()                  # and its Wildfire focus
     for kind, url_of, title_of in (
             ("storm", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=TC" % it.get("id", ""),
              lambda it: "%s \u00b7 %s%s \u00b7 %s%s%s" % (it.get("name", "?"), it.get("kind", ""), " cat %d" % it["cat"] if it.get("cat") else "", wind_text(float(it.get("wind") or 0), units[1]),
@@ -2839,14 +2907,16 @@ def cmd_feed(args):
             ev = {"kind": kind, "when": when, "title": title, "detail": "GDACS" if kind != "volcano" else "Smithsonian / USGS",
                   "url": url_of(it), "lat": it.get("lat"), "lon": it.get("lon"), "key": "%s:%s:%s" % (kind, key, int(when)),
                   "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1}
+            if kind == "fire" and fire_focus >= 1 and it.get("alert") not in ("orange", "red"):
+                continue                                   # Wildfire focus: only the events GDACS rates on the people exposed
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
-        for c in rate_hotspots(cluster_hotspots(fetch_hotspots()), fires_now or []):
-            if c["tier"] < 2:
+        for c in rate_hotspots(cluster_hotspots(fetch_hotspots()), fires_now or []) if fire_focus < 2 else []:
+            if c["tier"] < 2 or (fire_focus == 1 and not c.get("people")):
                 continue
             items.append({"kind": "fire", "when": now - c["hours"] * 3600, "title": "Fire hotspots \u00b7 %s \u00b7 %s" % (c["why"], "%.1f GW" % (c["frp"] / 1000) if c["frp"] >= 1000 else "%d MW" % c["frp"]),
                           "detail": "NASA FIRMS \u00b7 %d detections" % c["n"], "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@%.2f,%.2f,7z" % (c["lon"], c["lat"]),
@@ -2976,6 +3046,8 @@ def chk_hires():
 
 def chk_night():
     f, png = DATA / "night.jpg", DATA / "lights.png"
+    if png.exists() and not (DATA / "night-hires.jpg").exists():
+        return "warn", "lights.png (4 096 px) only: a region's lights are soft - press Download to keep NASA's 13 500 px night picture for them"
     if png.exists():
         return "ok", "lights.png present (%.1f MB): lights glow over the dimmed map" % (png.stat().st_size / 1e6)
     if f.exists():
@@ -3194,16 +3266,11 @@ def darken_ocean(monthly_path, ref):
     Image.composite(ref.resize(img.size, Image.LANCZOS), img, mask).save(monthly_path, quality=92)
 
 
-def make_lights():
-    """night.jpg is an opaque picture of a dark Earth. For the wallpaper we want only the
-    lights, so they can glow on top of the dimmed map and clouds instead of replacing them:
-    brightness becomes opacity, colour becomes a warm white."""
+def lights_rgba(src):
+    """The lights alone out of an opaque night picture (a PIL RGB image): brightness becomes opacity, colour a
+    warm white, so they can glow on top of the dimmed map and clouds instead of replacing them."""
     import numpy as np
     from PIL import Image
-    Image.MAX_IMAGE_PIXELS = None
-    src = Image.open(DATA / "night.jpg").convert("RGB")
-    if src.width > 4096:                          # the wallpaper paints the lights at up to 4096 x 2048
-        src = src.resize((4096, 2048), Image.LANCZOS)
     a = np.asarray(src, dtype=np.float32)
     lum = a[..., 0] * 0.35 + a[..., 1] * 0.45 + a[..., 2] * 0.20     # blue counts least: unlit land is dark blue
     # unlit land is not black in NASA's picture (deserts and snow are lighter), so find its level in this image:
@@ -3215,8 +3282,29 @@ def make_lights():
     out[..., 1] = (206 + 40 * k).astype(np.uint8)                     # amber towns -> near-white city cores
     out[..., 2] = (140 + 95 * k).astype(np.uint8)
     out[..., 3] = (k * 255).astype(np.uint8)
-    Image.fromarray(out, "RGBA").save(DATA / "lights.png", optimize=True)
-    return float((k > 0.05).mean())
+    return Image.fromarray(out, "RGBA"), float((k > 0.05).mean())
+
+
+def night_source():
+    """The sharpest night picture there is: the 13 500 px original kept by fetch-maps since 0.47, else night.jpg."""
+    for name in ("night-hires.jpg", "night.jpg"):
+        if (DATA / name).exists():
+            return DATA / name
+    return None
+
+
+def make_lights():
+    """lights.png for the whole-world view, from night.jpg (the wallpaper paints these at up to 4096 x 2048)."""
+    import numpy as np
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    src = Image.open(DATA / "night.jpg").convert("RGB")
+    if src.width > 4096:                          # the wallpaper paints the lights at up to 4096 x 2048
+        src = src.resize((4096, 2048), Image.LANCZOS)
+    img, share = lights_rgba(src)
+    img.save(DATA / "lights.png", optimize=True)
+    return share
+
 
 
 def cmd_make_lights(_args):
@@ -3366,15 +3454,15 @@ def cmd_fetch_frame(args):
         gibs_image(GIBS_LAYERS[args.style], n, so, w, e, width, height, day).save(dest / "base.jpg", quality=90)
     else:
         sys.exit("unknown style %r" % args.style)
-    night = DATA / "night.jpg"
-    if night.exists() and not world and args.style != "dark":
-        crop_world_image(night, n, so, w, e, width, height).save(dest / "night.jpg", quality=88)
-        lights = DATA / "lights.png"
-        if lights.exists():
-            im = Image.open(lights).convert("RGBA")
-            W, H = im.size
-            box = (int((w + 180) / 360 * W), int((90 - n) / 180 * H), int(round((e + 180) / 360 * W)), int(round((90 - so) / 180 * H)))
-            im.crop(box).resize((width, height), Image.LANCZOS).save(dest / "lights.png")
+    night = night_source()
+    if night is not None and args.style != "dark":
+        try:                                      # the city lights for this view, from the 13 500 px picture when it is there
+            lw = min(width, 8192); lh = int(round(lw * height / width))
+            img, _share = lights_rgba(crop_world_image(night, n, so, w, e, lw, lh))
+            img.save(dest / "lights.png", optimize=True)
+            print("  city lights cut from %s" % night.name)
+        except ImportError:
+            print("  numpy missing: no city lights for this view (the whole-world lights are stretched instead)")
     meta = {"style": args.style, "frame": [n, so, w, e], "width": width, "height": height, "day": day, "at": int(time.time())}
     (dest / "frame.json").write_text(json.dumps(meta), encoding="utf-8")
     emit({"key": key, "note": "", **meta})
@@ -3434,9 +3522,10 @@ def cmd_fetch_maps(args):
             darken_ocean(dest, ref)
     night = DATA / "night.jpg"
     download(NIGHT_URL, night)
-    try:                                          # 13500x6750 is more than any screen needs
+    try:                                          # 13500x6750 is more than the whole-world view needs, but a region cuts its lights from it
         from PIL import Image
         Image.MAX_IMAGE_PIXELS = None
+        shutil.copyfile(night, DATA / "night-hires.jpg")
         Image.open(night).resize((5400, 2700), Image.LANCZOS).save(night, quality=92)
         make_lights()
         print("  city lights extracted to lights.png")
@@ -3459,11 +3548,13 @@ def main():
     st.add_argument("--offline", action="store_true"); st.add_argument("--names", action="store_true"); st.set_defaults(fn=cmd_status)
     sub.add_parser("fetch-geoip").set_defaults(fn=cmd_fetch_geoip)
     sub.add_parser("fetch-borders").set_defaults(fn=cmd_fetch_borders)
+    sub.add_parser("zone-tint").set_defaults(fn=cmd_zone_tint)
     sub.add_parser("plates").set_defaults(fn=cmd_plates)
     sub.add_parser("fetch-infrastructure").set_defaults(fn=cmd_fetch_infrastructure)
     sub.add_parser("infrastructure").set_defaults(fn=cmd_infrastructure)
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
-    pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.set_defaults(fn=cmd_power)
+    pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
+    pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
     mo = sub.add_parser("mode"); mo.add_argument("--pause", choices=["on", "off"]); mo.add_argument("--plain", choices=["on", "off"])
@@ -3496,6 +3587,7 @@ def main():
     la.set_defaults(fn=cmd_launches)
     hs = sub.add_parser("hotspots"); hs.add_argument("--table", action="store_true"); hs.add_argument("--min-count", type=int, default=3)
     hs.add_argument("--min-tier", type=int, default=0, choices=[0, 1, 2])     # 0 everything, 1 notable and up, 2 needs attention
+    hs.add_argument("--people", action="store_true")                          # only clusters near people (a city of 100k within 50 km, or an orange/red event)
     hs.set_defaults(fn=cmd_hotspots)
     for name, fn in (("fetch-frame", cmd_fetch_frame), ("frame", cmd_frame)):
         fr = sub.add_parser(name); fr.add_argument("--style", default="seasonal", choices=["seasonal", "viirs", "relief", "dark"])

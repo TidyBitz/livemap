@@ -25,6 +25,9 @@ Item {
     readonly property var alertPalette: ({ green: "#5ec46a", orange: "#ff8c00", red: "#e53935" })
     function inkOf(fr) { return alertColors && alertPalette[fr.alert] ? Qt.color(alertPalette[fr.alert]) : ink }
     readonly property int feedChoice: cfg ? cfg.FireSource : 2                // 0 GDACS events, 1 NASA hotspots, 2 both
+    // Wildfire focus: 0 everything the filters allow, 1 near people (hotspots within 50 km of a city of 100 000 or on an
+    // orange/red event; GDACS orange and red), 2 GDACS orange and red events only, no hotspots
+    readonly property int focus: cfg ? cfg.FireFocus : 1
     readonly property int hotMinCount: [3, 10, 25, 50][cfg ? cfg.HotspotMinCount : 1] || 10
     // 0 needs attention only, 1 notable and up, 2 everything: the helper rates every cell (tier 2 / 1 / 0) from
     // persistence, isolation, nearby cities and GDACS events, so a burning season does not cover the map
@@ -32,7 +35,7 @@ Item {
     readonly property int hotMinTier: [2, 1, 0][hotTier] === undefined ? 2 : [2, 1, 0][hotTier]
     property var hotspots: []
     function hotSignificant(c) { return c.tier === undefined ? (c.n >= 25 || c.frp >= 1000) : c.tier >= 2 }
-    readonly property var shownHot: feedChoice === 0 ? [] : hotspots.filter(function (c) { return (c.tier === undefined ? 0 : c.tier) >= hotMinTier && (c.tier > 0 || c.n >= hotMinCount); })
+    readonly property var shownHot: feedChoice === 0 || focus === 2 ? [] : hotspots.filter(function (c) { return (c.tier === undefined ? 0 : c.tier) >= hotMinTier && (c.tier > 0 || c.n >= hotMinCount) && (focus === 0 || c.people); })
     readonly property int minLevel: cfg ? cfg.FireMinLevel : 0            // 0 all, 1 orange and red, 2 red only
     readonly property real minArea: [0, 1000, 10000, 50000][cfg ? cfg.FireMinArea : 0] || 0
     function levelOf(fr) { return fr.alert === "red" ? 2 : fr.alert === "orange" ? 1 : 0 }
@@ -59,7 +62,7 @@ Item {
         return !!(!fr.gone && (((pulseMode & 1) && first >= 0 && first < pulseNewHours) || ((pulseMode & 2) && significant(fr))));
     }
     property var fires: []
-    readonly property var shown: feedChoice === 1 ? [] : fires.filter(function (fr) { return levelOf(fr) >= minLevel && fr.area_ha >= minArea; })
+    readonly property var shown: feedChoice === 1 ? [] : fires.filter(function (fr) { return levelOf(fr) >= Math.max(minLevel, focus > 0 ? 1 : 0) && fr.area_ha >= minArea; })
         .sort(function (a, b) { return levelOf(b) - levelOf(a) || b.area_ha - a.area_ha; })
     property string note: ""
     readonly property string hint: note

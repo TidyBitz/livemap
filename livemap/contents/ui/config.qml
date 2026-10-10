@@ -20,6 +20,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
+import org.kde.plasma.plasma5support as P5Support
 
 Kirigami.FormLayout {
     id: form
@@ -171,8 +172,14 @@ Kirigami.FormLayout {
     property alias cfg_ZoneLabelSpacing: zoneStyle.letterSpacing
     property alias cfg_ZoneLabelOpacity: zoneStyle.textOpacity
     property alias cfg_ZoneLabelHalo: zoneStyle.halo
-    property alias cfg_ZonePlacement: zonePlacement.currentIndex
+    property alias cfg_ZoneStyle: zoneLook.currentIndex
     property alias cfg_ZoneRowLat: zoneRowLat.value
+    property alias cfg_ZoneTintOpacity: zoneTintOpacity.value
+    property alias cfg_ZoneBandOpacity: zoneBandOpacity.value
+    property alias cfg_ZoneMarkHome: zoneMarkHome.checked
+    property alias cfg_ZoneBandSun: zoneBandSun.checked
+    property alias cfg_ZoneBandDiff: zoneBandDiff.checked
+    property alias cfg_ZoneAbbrev: zoneAbbrev.checked
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
@@ -241,6 +248,7 @@ Kirigami.FormLayout {
     property alias cfg_FireMinLevel: fireMinLevel.currentIndex
     property alias cfg_FireMinArea: fireMinArea.currentIndex
     property alias cfg_FireSource: fireSource.currentIndex
+    property alias cfg_FireFocus: fireFocus.currentIndex
     property alias cfg_HotspotMinCount: hotspotMinCount.currentIndex
     property alias cfg_HotspotTier: hotspotTier.currentIndex
     property alias cfg_FireLabels: fireLabels.currentIndex
@@ -532,6 +540,33 @@ Kirigami.FormLayout {
     // #################################################################### Profile and layers
     Group { text: "Profile and layers" }
 
+    // The companion widget's overrides (Map controls: pause, plain map, hidden layers) sit on top of everything
+    // on this page, and a layer switched on here stays off the map while the widget hides it - so say so.
+    property var widgetMode: ({})
+    readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
+    readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+    P5Support.DataSource {
+        id: modeExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => { disconnectSource(source); try { form.widgetMode = JSON.parse(data.stdout) || ({}); } catch (e) {} }
+    }
+    Component.onCompleted: modeExec.connectSource("python3 '" + widgetHelper + "' mode # " + Date.now())
+    RowLayout {
+        visible: form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+        Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
+        QQC2.Label {
+            Layout.fillWidth: true; wrapMode: Text.Wrap
+            text: "The companion widget is overriding the map (Map controls): " + [form.widgetHidden.length > 0 ? "hiding " + form.widgetHidden.join(", ") : "",
+                   form.widgetMode.pause ? "animations paused" : "", form.widgetMode.plain ? "plain map" : ""].filter(function (t) { return t !== ""; }).join("; ")
+                  + ". A layer switched on below stays off the map while the widget hides it."
+        }
+        QQC2.Button { text: "Clear the widget's overrides"; icon.name: "edit-clear"; onClicked: { modeExec.connectSource("python3 '" + form.widgetHelper + "' mode --clear # " + Date.now()); } }
+    }
+
     // The profile sets the levers that cost CPU and GPU time in one go; changing any of them by hand turns
     // the choice into "Custom". Everything it touches can still be changed below.
     readonly property var profiles: [
@@ -592,21 +627,23 @@ Kirigami.FormLayout {
     Group { text: "Map base" }
 
     // ==================================================================== Map
-    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex !== 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
+    SectionHeader { id: sec1; title: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex < 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
     Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"] }
 
     QQC2.ComboBox {
         visible: sec1.open
         id: mapStyle
         Kirigami.FormData.label: "Map style:"
-        model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery)"]
+        model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)"]
     }
     Note {
         visible: sec1.open
         text: ["NASA's Blue Marble Next Generation: one cloud-free composite per month, so the snow line and the vegetation follow the seasons. Downloaded once (fetch-maps); the whole world needs nothing more.",
                "The actual picture from the last day's orbits (Suomi NPP VIIRS corrected reflectance): clouds, snow, smoke and sea ice as they were yesterday, with the seams and night gaps a polar orbit leaves. Fetched for the frame on screen once a day (python3-pillow needed), a few MB.",
                "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
-               "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed."][mapStyle.currentIndex]
+               "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
+               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data. Set the border and label colours to light greys to complete it; the lightest on the GPU.",
+               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything. Set the line and label colours to greens to complete it."][mapStyle.currentIndex]
     }
     RowLayout {
         visible: sec1.open && mapStyle.currentIndex === 3
@@ -616,11 +653,33 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: oceanColor; showAlphaChannel: false; dialogTitle: "Ocean colour" }
         QQC2.Label { text: "ocean" }
     }
+    RowLayout {
+        visible: sec1.open && mapStyle.currentIndex >= 4
+        Kirigami.FormData.label: "Map style colours:"
+        QQC2.Button {
+            text: mapStyle.currentIndex === 5 ? "Set every line and label to Matrix greens" : "Set every line and label to Dark Matter greys"
+            icon.name: "color-management"
+            onClicked: form.applyLook(mapStyle.currentIndex)
+        }
+    }
+    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The style sets the land and ocean; the lines, names and event colours stay yours. This button recolours them to match in one go (country, state, river and time zone lines, country and place names, quake rings, storms, volcanoes, fires, satellites, launches, arcs); change any of them afterwards as you like." }
+    function applyLook(style) {
+        var m = style === 5;
+        var line = m ? "#1f9e5a" : "#5a5a5a", name = m ? "#7dffb0" : "#c8c8c8", place = m ? "#b8ffd0" : "#e0e0e0";
+        borderColor.color = line; riverColor.color = m ? "#157a48" : "#3f4a52"; zoneColor.color = m ? "#2ec27e" : "#6e6e6e"; plateLineColor.color = m ? "#39ff8a" : "#8a6a3a";
+        nameFollows.checked = false; nameTextColor.color = name;
+        stateNameFollows.checked = false; stateNameTextColor.color = m ? "#4fd48a" : "#9a9a9a";
+        capitalColor.color = place; stateCapitalColor.color = place; cityColor.color = place;
+        quakeColor.color = m ? "#39ff8a" : "#ffa640"; quakeFollows.checked = true;
+        stormColor.color = m ? "#b6ff3c" : "#8fd3ff"; volcanoColor.color = m ? "#ff9d3c" : "#ff7a59"; fireColor.color = m ? "#ffb03c" : "#ff6b3c";
+        satColor.color = m ? "#9dffc4" : "#e8ecf0"; launchColor.color = m ? "#7dffb0" : "#ffd166"; arcColor.color = m ? "#2ec27e" : "#8fd3ff";
+        zoneTextFollows.checked = true;
+    }
     QQC2.ComboBox {
         visible: sec1.open
         id: mapTone
         Kirigami.FormData.label: "Map tone:"
-        enabled: mapStyle.currentIndex !== 3
+        enabled: mapStyle.currentIndex < 3
         model: ["Natural", "Muted", "Monochrome", "Blue-tinted", "Sepia"]
     }
     QQC2.CheckBox {
@@ -938,7 +997,7 @@ Kirigami.FormLayout {
     Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download." }
 
     // ============================================================== Time zones
-    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + (zonePlacement.currentIndex === 1 ? "one row at " + zoneRowLat.displayText : "inside each zone") : "") : "Off" }
+    SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + form.zoneStyles[zoneLook.currentIndex].name.split(":")[0].toLowerCase() : "") : "Off" }
     Source { visible: sec5.open; names: ["Borders (Natural Earth)"] }
     QQC2.CheckBox { visible: sec5.open; id: timeZones; Kirigami.FormData.label: "Show:"; text: "Time zone outlines (Natural Earth)" }
     Note { visible: sec5.open; text: "The zone boundaries as drawn on the Natural Earth time zone map, with the UTC offset written in each zone that is wide enough. Part of the border download." }
@@ -978,17 +1037,51 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: zoneTextColor; enabled: !zoneTextFollows.checked; showAlphaChannel: false; dialogTitle: "Time zone label colour" }
     }
     LabelStyle { visible: sec5.open; id: zoneStyle; label: "Time zone label style:"; enabled: timeZones.checked && zoneLabels.checked; plated: zonePlate.checked }
+    // One dropdown for the style: it sets the label placement and the tint together (ZoneStyle); the opacity
+    // rows below belong to the styles that use them.
+    readonly property var zoneStyles: [
+        { name: "Classic: labels inside each zone",                       placement: 0, tint: false },
+        { name: "One row of labels, at a latitude",                       placement: 1, tint: false },
+        { name: "D3: a band at a latitude, time large, your zone marked", placement: 2, tint: false },
+        { name: "D1: tinted zones, labels inside each zone",              placement: 0, tint: true },
+        { name: "D1 + D3: tinted zones with the band",                    placement: 2, tint: true } ]
     RowLayout {
         visible: sec5.open
-        Kirigami.FormData.label: "Time zone label placement:"
-        enabled: timeZones.checked && zoneLabels.checked
-        QQC2.ComboBox { id: zonePlacement; model: ["Inside each zone", "In one row, at latitude"] }
+        Kirigami.FormData.label: "Time zone style:"
+        enabled: timeZones.checked
+        QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: Kirigami.Units.gridUnit * 24; model: form.zoneStyles.map(function (z) { return z.name }) }
         QQC2.SpinBox {
-            id: zoneRowLat; enabled: zonePlacement.currentIndex === 1; from: -80; to: 80; stepSize: 5
+            id: zoneRowLat; enabled: form.zoneStyles[zoneLook.currentIndex].placement >= 1; from: -80; to: 80; stepSize: 5
             textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
             valueFromText: function (t) { var n = parseInt(t) || 0; return /S/i.test(t) ? -Math.abs(n) : n }
+            QQC2.ToolTip.text: "The latitude of the row or band"; QQC2.ToolTip.visible: hovered
         }
     }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone band:"
+        enabled: timeZones.checked && zoneLabels.checked && form.zoneStyles[zoneLook.currentIndex].placement === 2
+        QQC2.Label { text: "Opacity" }
+        Pct { id: zoneBandOpacity; to: 100; label: "The band's dark strip; the labels keep their own opacity" }
+        QQC2.CheckBox { id: zoneMarkHome; text: "Mark this computer's zone" }
+    }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone band extras:"
+        enabled: timeZones.checked && zoneLabels.checked && form.zoneStyles[zoneLook.currentIndex].placement === 2
+        QQC2.CheckBox { id: zoneBandSun; text: "Day and night, with noon and midnight" }
+        QQC2.CheckBox { id: zoneBandDiff; text: "Hours from this computer's zone" }
+        QQC2.CheckBox { id: zoneAbbrev; text: "Abbreviations (CST, CET, JST\u2026)" }
+    }
+    Note { visible: sec5.open; text: "The band is a scale of the standard zones, every hour from UTC-12 to UTC+14 (and the half-hour zones), the way a printed time zone map is laid out; a zone on summer time right now shows its clock an hour on and says DST, or its summer abbreviation (CDT, BST, CEST) with abbreviations on. Day and night: the band is warm where the sun is up and cool where it is night at the band's latitude, graded through twilight, and two cursors mark where it is noon and midnight right now; all three slide along the band through the day. Hours from this computer's zone puts '+6 h' under each clock (and 'you' under your own). All of it is computed here; nothing on the band can go stale." }
+    RowLayout {
+        visible: sec5.open
+        Kirigami.FormData.label: "Time zone tint:"
+        enabled: timeZones.checked && form.zoneStyles[zoneLook.currentIndex].tint
+        QQC2.Label { text: "Opacity" }
+        Pct { id: zoneTintOpacity; to: 60; label: "How strongly the zones are coloured; 10-15 % keeps the imagery" }
+    }
+    Note { visible: sec5.open; text: "D1 tints each zone with a colour cycle, like a time zone map, so a zone's extent reads from the colour where the boundaries get busy; the outlines can then be faint and the labels large and translucent (raise the label size, lower its opacity). Drawn once from the time zone data (python3-pillow needed). D3 puts the clocks in a band across the map: the time large, the offset small above it, the date only where it is not this computer's date, with your own zone marked in amber." }
     Note { visible: sec5.open; text: "Inside each zone: one label per zone area, on the widest stretch of its middle, and never over a country name. In one row: every zone on one line of latitude, placed before the country names and places, which make way for it, the way printed time-zone maps do it - 55° S runs through open ocean for all 25 zones; make sure the frame (Map section) shows that latitude." }
 
     // #################################################################### Natural events
@@ -1260,6 +1353,14 @@ Kirigami.FormLayout {
         enabled: fires.checked
         model: ["GDACS fire events", "NASA satellite hotspots (FIRMS)", "Both"]
     }
+    QQC2.ComboBox {
+        visible: sec9.open
+        id: fireFocus
+        Kirigami.FormData.label: "Wildfire focus:"
+        enabled: fires.checked
+        model: ["Everything the filters below allow", "Near people: a city of 100 000 within 50 km, or an orange / red event", "Orange and red events only (no satellite hotspots)"]
+    }
+    Note { visible: sec9.open; text: "Most of what the satellites see burning is the savanna, harvest and forestry fires of the season - the world looks on fire every day. 'Near people' keeps the fires that can mean evacuations: GDACS rates orange and red on the people exposed, and a hotspot cluster within 50 km of a city of 100 000 is the other case. The Events widget follows the same choice." }
     Note { visible: sec9.open; text: "GDACS: one flame per fire event it rates (green, orange, red) with the burned area; updated daily. NASA FIRMS: what the MODIS satellites detected burning in the last 24 hours, clustered by the helper into half-degree cells (about 3 MB every 3 hours, no key); a smaller flame in the fire colour, sized by fire power." }
     RowLayout {
         visible: sec9.open

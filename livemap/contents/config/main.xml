@@ -54,6 +54,7 @@
     <entry name="StormIconTheme" type="Int"><default>0</default></entry>
     <entry name="StormIconSize" type="Int"><default>22</default></entry>
     <entry name="ShowFires" type="Bool"><default>true</default></entry>
+    <entry name="FireFocus" type="Int"><default>1</default></entry>          <!-- 0 everything, 1 near people, 2 orange and red events only -->
     <entry name="FireColor" type="Color"><default>#ff5a1f</default></entry>
     <entry name="FireAlertColors" type="Bool"><default>true</default></entry>
     <entry name="FireMinLevel" type="Int"><default>0</default></entry>
@@ -82,8 +83,14 @@
     <entry name="ZoneLabelSpacing" type="Int"><default>100</default></entry>
     <entry name="ZoneLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="ZoneLabelHalo" type="Int"><default>100</default></entry>
-    <entry name="ZonePlacement" type="Int"><default>0</default></entry>   <!-- 0 inside each zone, 1 one row at ZoneRowLat -->
+    <entry name="ZoneStyle" type="Int"><default>0</default></entry>       <!-- 0 classic (inside), 1 one row, 2 D3 band, 3 D1 tinted, 4 D1 + D3 -->
     <entry name="ZoneRowLat" type="Int"><default>-55</default></entry>
+    <entry name="ZoneTintOpacity" type="Int"><default>12</default></entry>
+    <entry name="ZoneBandOpacity" type="Int"><default>55</default></entry>
+    <entry name="ZoneMarkHome" type="Bool"><default>true</default></entry>
+    <entry name="ZoneBandSun" type="Bool"><default>true</default></entry>
+    <entry name="ZoneBandDiff" type="Bool"><default>true</default></entry>
+    <entry name="ZoneAbbrev" type="Bool"><default>false</default></entry>
     <entry name="HomeCity" type="String"><default></default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="SatIss" type="Bool"><default>true</default></entry>

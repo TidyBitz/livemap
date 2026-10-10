@@ -46,6 +46,7 @@ WallpaperItem {
             item.plainAt = Qt.binding(function () { return cfg.GuardPlain });
             item.layers = Qt.binding(function () { return root.shownLayers });
             item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
+            item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
@@ -92,9 +93,9 @@ WallpaperItem {
 
     // A few lines in the journal so problems can be diagnosed without guessing.
     // (console.warn, because Fedora's default Qt logging rules hide console.log.)
-    Component.onCompleted: console.warn("livemap: 0.46 loaded - settings:", JSON.stringify({
+    Component.onCompleted: { Look.matrix = cfg.MapStyle === 5; console.warn("livemap: 0.47 loaded - settings:", JSON.stringify({
         seasonal: cfg.Seasonal, fill: cfg.FillMode, dayNight: cfg.ShowDayNight, cityLights: cfg.ShowCityLights,
-        clouds: cfg.ShowClouds, borders: cfg.ShowBorders, quakes: cfg.ShowQuakes, quakeFeed: cfg.QuakeFeed, network: cfg.ShowNetwork }))
+        clouds: cfg.ShowClouds, borders: cfg.ShowBorders, quakes: cfg.ShowQuakes, quakeFeed: cfg.QuakeFeed, network: cfg.ShowNetwork })) }
 
     Rectangle { anchors.fill: parent; color: "#02040c" }
 
@@ -128,9 +129,14 @@ WallpaperItem {
     // with the hi-res set downloaded every view - the whole world too - is cut from the 21 600 px maps.
     readonly property bool hiresMaps: frameLoader.item ? frameLoader.item.hires : false
     readonly property bool wantFrame: mapStyle !== 0 || (cfg.Seasonal && (hiresMaps || (!viewIsWorld && (viewE - viewW) < 200)))
-    readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : mapStyle === 3 ? "dark" : "seasonal"
+    // 3 dark cartographic (own colours), 4 Dark Matter (greys), 5 Matrix (phosphor green): all drawn by the helper as land over ocean
+    readonly property bool flatStyle: mapStyle >= 3
+    readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : flatStyle ? "dark" : "seasonal"
+    readonly property string landColour: mapStyle === 4 ? "#2a2a2a" : mapStyle === 5 ? "#0b2a14" : String(cfg.LandColor)
+    readonly property string oceanColour: mapStyle === 4 ? "#121212" : mapStyle === 5 ? "#020804" : String(cfg.OceanColor)
+    onMapStyleChanged: Look.matrix = mapStyle === 5
     // the dark style is drawn by the helper as an image too: its colours and detail are part of the request
-    readonly property string frameExtra: mapStyle === 3 ? " --land '" + String(cfg.LandColor) + "' --ocean '" + String(cfg.OceanColor) + "' --detail " + (cfg.BorderDetail === 1 ? "50m" : "110m")
+    readonly property string frameExtra: flatStyle ? " --land '" + landColour + "' --ocean '" + oceanColour + "' --detail " + (cfg.BorderDetail === 1 ? "50m" : "110m")
                                        : mapStyle === 0 && !cfg.SeasonalHires ? " --lowres" : ""
     readonly property int frameWidthPx: Math.min(16384, Math.ceil(Math.max(1024, (viewE - viewW) * sx * Screen.devicePixelRatio) / 256) * 256)
     readonly property string frameDir: frameLoader.item && frameLoader.item.ready ? frameLoader.item.dir : ""
@@ -202,7 +208,7 @@ WallpaperItem {
                 onStatusChanged: if (status === Image.Ready) root.lightsPng = true       // probe: lights.png has arrived
             }
             // -- the dark cartographic style: the ocean colour while its image (helper-drawn) is on its way --
-            Rectangle { anchors.fill: parent; visible: root.mapStyle === 3; color: cfg.OceanColor }
+            Rectangle { anchors.fill: parent; visible: root.flatStyle; color: root.oceanColour }
             // -- imagery: the whole world's monthly maps, or the frame's own files; toned by MultiEffect below --
             Item {
                 id: toneView                                  // the screen's part, for the tone effect's texture
@@ -228,7 +234,7 @@ WallpaperItem {
                 Image {                                       // the monthly map, soft, under the picture while it is on its way (and past the world's edge)
                     anchors.fill: parent
                     asynchronous: true
-                    visible: root.wantFrame && !root.viewIsWorld && root.mapStyle !== 3
+                    visible: root.wantFrame && !root.viewIsWorld && !root.flatStyle
                     sourceSize: Qt.size(4096, 2048)
                     source: !visible || !map.sized ? "" : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
                     opacity: root.mapStyle === 0 ? 1 : 0.6     // the same picture as the frame in the seasonal style: only the sharpness changes at the edge
@@ -239,8 +245,8 @@ WallpaperItem {
                     asynchronous: true
                     sourceSize: baseGroup.ftex
                     source: !map.sized ? ""
-                        : root.wantFrame ? (baseGroup.framed ? baseGroup.frameUrl(root.mapStyle === 0 ? "base" + (root.season.a < 10 ? "0" : "") + root.season.a + ".jpg" : root.mapStyle === 3 ? "base.png" : "base.jpg")
-                                                             : root.mapStyle === 3 ? "" : root.seasonal && root.mapStyle === 0 ? root.monthUrl(root.season.a) : root.fallbackUrl)
+                        : root.wantFrame ? (baseGroup.framed ? baseGroup.frameUrl(root.mapStyle === 0 ? "base" + (root.season.a < 10 ? "0" : "") + root.season.a + ".jpg" : root.flatStyle ? "base.png" : "base.jpg")
+                                                             : root.flatStyle ? "" : root.seasonal && root.mapStyle === 0 ? root.monthUrl(root.season.a) : root.fallbackUrl)
                         : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
                     onStatusChanged: {
                         if (status === Image.Error && root.seasonal && !baseGroup.framed) root.seasonalOk = false;
@@ -260,6 +266,24 @@ WallpaperItem {
             }
             }
 
+            // -- the Matrix style's graticule: a faint green grid every 10 degrees, brighter every 30
+            Canvas {
+                anchors.fill: parent
+                visible: root.mapStyle === 5
+                onVisibleChanged: if (visible) requestPaint()
+                onWidthChanged: if (visible) requestPaint()
+                onPaint: {
+                    var c = getContext("2d"); c.clearRect(0, 0, width, height);
+                    for (var lon = -180; lon <= 180; lon += 10) {
+                        c.fillStyle = lon % 30 === 0 ? "rgba(0,255,106,0.22)" : "rgba(0,255,106,0.10)";
+                        c.fillRect(Math.round((lon + 180) / 360 * width), 0, 1, height);
+                    }
+                    for (var lat = -80; lat <= 80; lat += 10) {
+                        c.fillStyle = lat % 30 === 0 ? "rgba(0,255,106,0.22)" : "rgba(0,255,106,0.10)";
+                        c.fillRect(0, Math.round((90 - lat) / 180 * height), width, 1);
+                    }
+                }
+            }
             // -- clouds (remote, refreshed every three hours; stitched locally from the satellites as fallback) --
             // the widget can switch the clouds off or set their opacity on top of the settings (mode.json)
             readonly property bool cloudsWanted: cfg.ShowClouds && root.mode.clouds !== false
@@ -311,7 +335,9 @@ WallpaperItem {
                 // which comes out lighter than either - regular vertical stripes across the night side. Without it
                 // every device pixel belongs to exactly one strip. The smooth upscale hides the hard strip edges.
                 antialiasing: false
-                visible: cfg.ShowDayNight
+                // On the flat styles the night shade would make the land two tones (lit grey, dark grey); there the
+                // city lights alone say where it is night, so the shade only serves as their mask and is not shown.
+                visible: cfg.ShowDayNight && !root.flatStyle
                 transform: Scale { xScale: map.width / shade.width; yScale: map.height / shade.height }
                 property int paints: 0
                 onPaint: {
@@ -320,7 +346,7 @@ WallpaperItem {
                     ctx.clearRect(0, 0, width, height);
                     var n = Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon,
                                            cfg.NightDarkness / 100, "3,5,14", cfg.Twilight);
-                    if (paints++ < 3) console.warn("livemap 0.46: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
+                    if (paints++ < 3) console.warn("livemap 0.47: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
                                  "- gradient columns:", n, "- map", Math.round(map.width) + "x" + Math.round(map.height));
                 }
                 onAvailableChanged: if (available) requestPaint()
@@ -352,7 +378,7 @@ WallpaperItem {
             Canvas {
                 id: glow
                 antialiasing: false                  // same reason as the shade above
-                readonly property bool wanted: lights.wanted && !cfg.LightsGpu && lights.status === Image.Ready
+                readonly property bool wanted: lights.wanted && !cfg.LightsGpu && lights.status === Image.Ready && !frameLights.active
                 readonly property url picture: wanted ? lights.source : ""
                 width: Math.min(4096, Math.max(1024, Math.round(map.width * Screen.devicePixelRatio)))
                 height: Math.round(width / 2)
@@ -386,9 +412,40 @@ WallpaperItem {
                 sourceItem: cfg.LightsGpu ? shade : null
                 smooth: true
             }
+            // City lights cut for the view (frames/<key>/lights.png, from NASA's 13 500 px night picture): sharp
+            // in a region where the whole-world lights would be stretched. Masked by the same shade through a
+            // texture of just the view's part of it; while it loads, the whole-world lights above stay.
+            Image {
+                id: frameLights
+                x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                visible: false
+                asynchronous: true
+                sourceSize: baseGroup.ftex
+                readonly property bool wanted: lights.wanted && baseGroup.framed && !root.viewIsWorld
+                source: wanted ? baseGroup.frameUrl("lights.png") : ""
+                readonly property bool active: wanted && status === Image.Ready
+            }
+            ShaderEffectSource {
+                id: frameShadeTexture
+                visible: false
+                sourceItem: frameLights.active ? shade : null
+                sourceRect: Qt.rect(root.viewW + 180, 90 - root.viewN, root.viewE - root.viewW, root.viewN - root.viewS)   // the shade is 360 x 180: degrees
+                textureSize: Qt.size(1024, Math.max(1, Math.round(1024 * (root.viewN - root.viewS) / Math.max(1, root.viewE - root.viewW))))
+                smooth: true
+            }
+            MultiEffect {
+                x: baseGroup.fx; y: baseGroup.fy; width: baseGroup.fw; height: baseGroup.fh
+                visible: frameLights.active
+                source: frameLights
+                maskEnabled: true
+                maskSource: frameShadeTexture
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1.0
+                opacity: cfg.LightsBrightness / 100
+            }
             MultiEffect {
                 anchors.fill: parent
-                visible: lights.wanted && cfg.LightsGpu && lights.status === Image.Ready
+                visible: lights.wanted && cfg.LightsGpu && lights.status === Image.Ready && !frameLights.active
                 source: lights
                 maskEnabled: true
                 maskSource: shadeTexture
@@ -432,10 +489,21 @@ WallpaperItem {
                 onLoaded: {
                     item.cfg = root.cfg;
                     item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+                    item.viewNorth = Qt.binding(function () { return root.viewN }); item.viewSouth = Qt.binding(function () { return root.viewS });
                 }
                 onStatusChanged: if (status === Loader.Error) console.warn("livemap: border layer failed to load")
             }
         }
+        }
+
+        // -- the Matrix style's scanlines, over the whole screen, cheap: one small tile repeated
+        Image {
+            x: -map.x; y: -map.y; width: root.width; height: root.height
+            visible: root.mapStyle === 5
+            fillMode: Image.Tile
+            source: visible ? "scanlines.png" : ""
+            opacity: 0.35
+            smooth: false
         }
 
         // -- live overlays (the only things that animate) --------------------------
