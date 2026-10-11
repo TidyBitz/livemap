@@ -6,6 +6,9 @@
  * how long the flood has been running. Green events are a basin's seasonal high water and are off by default:
  * the layer shows orange and red only unless asked otherwise. Same life cycle as the other events: pulses while
  * newly reported or when the level changes, ages out once GDACS drops it.
+ * US flood alerts from the National Weather Service (api.weather.gov, no key) join the same list, minutes after
+ * issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), each with the
+ * counties it covers and the warning's own polygon or its forecast zones as the area. Looked at every 10 minutes.
  */
 import QtQuick
 import QtQuick.Window
@@ -52,8 +55,10 @@ Item {
         var first = fl.first_hours === undefined || fl.first_hours === null ? -1 : fl.first_hours;
         return !!(!fl.gone && (((pulseMode & 1) && first >= 0 && first < pulseNewHours) || ((pulseMode & 2) && significant(fl))));
     }
+    readonly property bool wantNws: cfg ? cfg.FloodNws : true
     property var floods: []
-    readonly property var shown: floods.filter(function (fl) { return levelOf(fl) >= minLevel; })
+    property var nws: []
+    readonly property var shown: floods.concat(wantNws ? nws : []).filter(function (fl) { return levelOf(fl) >= minLevel; })
         .sort(function (a, b) { return levelOf(b) - levelOf(a) || (b.days || 0) - (a.days || 0); })
     property string note: ""
     readonly property string hint: note
@@ -82,8 +87,13 @@ Item {
     function peopleText(fl) {
         return (fl.people || []).map(function (p) { return thousands(p[1]) + " " + (words[p[0]] || p[0]); }).join(", ");
     }
+    function untilText(epoch) {
+        var d = new Date(epoch * 1000), now = new Date();
+        return (d.getDate() === now.getDate() ? "" : Qt.formatDate(d, "ddd") + " ") + Qt.formatTime(d, "h:mm ap");
+    }
     function describe(fl) {
-        // "Italy · 3 dead, 1 200 evacuated · 2 d" (the mark's colour is the alert level)
+        // GDACS: "Italy · 3 dead, 1 200 evacuated · 2 d"; NWS: "Flash Flood Warning · Harris, TX; Fort Bend, TX · until 4:15 pm"
+        if (fl.source === "nws") return fl.event + " · " + fl.name + (fl.until ? " · until " + untilText(fl.until) : "");
         var text = fl.name, people = peopleText(fl);
         if (people !== "") text += " · " + people;
         if (fl.days !== undefined && fl.days !== null) text += " · " + (fl.days < 1 ? "today" : Math.round(fl.days) + " d");
@@ -123,6 +133,28 @@ Item {
         onTriggered: overlay.ask()
     }
     onMinLevelChanged: if (helper !== "") ask()
+    P5Support.DataSource {
+        id: nwsExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => {
+            disconnectSource(source);
+            try {
+                var r = JSON.parse(data.stdout);
+                if (r.note && !(r.alerts && r.alerts.length) && overlay.nws.length > 0) { console.warn("livemap nws floods: keeping the previous data -", r.note); return; }
+                overlay.nws = r.alerts || [];
+                if (r.note) overlay.note = r.note;
+                console.warn("livemap nws floods:", overlay.nws.length, "active alerts", r.note || "");
+            } catch (e) { console.warn("livemap nws floods: the helper did not answer properly"); }
+        }
+    }
+    Timer {                                       // warnings are minutes old when issued: every 10 minutes (30 when saving)
+        interval: (overlay.slow ? 30 : 10) * 60000
+        running: overlay.helper !== "" && overlay.wantNws
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: nwsExec.connectSource("python3 '" + overlay.helper + "' nws-floods --stale " + overlay.staleHours + " # " + Date.now())
+    }
 
     Repeater {                                    // the affected areas, under every mark
         model: overlay.showArea ? overlay.shown : []

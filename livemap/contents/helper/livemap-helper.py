@@ -27,7 +27,7 @@
                                      is the imagery for that view and style there / build it (the wallpaper calls both;
                                      styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
   livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
-  livemap-helper fires | floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper fires | floods | nws-floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
   livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
   livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
@@ -1908,6 +1908,149 @@ def chk_floods():
         len(floods), len(hot), ": " + ", ".join("%s (%s)" % (fl["name"], fl["alert"]) for fl in hot[:6]) if hot else "")
 
 
+# US flood alerts from the National Weather Service (api.weather.gov, no key, a user agent with a contact is asked
+# for): flash flood warnings, flood warnings, watches and advisories, each with the counties it covers, when it
+# ends, and a polygon - the warning's own for a storm-based flash flood warning, otherwise the forecast zones
+# or counties it names, fetched once each and kept (zones do not change). Minutes after issue, unlike GDACS.
+NWS_ALERTS = "https://api.weather.gov/alerts/active?status=actual&event=" + urllib.request.quote(
+    "Flash Flood Warning,Flood Warning,Flood Watch,Flash Flood Watch,Flood Advisory,Coastal Flood Warning")
+NWS_ZONES = DATA / "nws-zones"
+NWS_UA = dict(UA, Accept="application/geo+json")
+NWS_UA["User-Agent"] = "livemap-wallpaper/" + VERSION + " (github.com/TidyBitz/livemap)"
+NWS_LEVEL = {"Flash Flood Warning": "red", "Flood Warning": "orange", "Coastal Flood Warning": "orange",
+             "Flood Watch": "green", "Flash Flood Watch": "green", "Flood Advisory": "green"}
+NWS_ZONES_PER_RUN = 40                           # new zone polygons fetched per refresh; the rest come next time (cached for good)
+
+
+def _nws_get(url, timeout=12):
+    import time
+    with urllib.request.urlopen(urllib.request.Request(url, headers=NWS_UA), timeout=timeout) as r:
+        body = r.read(MAX_BODY + 1)
+        if len(body) > MAX_BODY:
+            raise ValueError("response too large")
+        return json.loads(body)
+
+
+def _nws_epoch(text):
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(text)).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def nws_zone_rings(zone_url, budget):
+    """The polygon of one forecast zone or county, from the cache or the API (counting against `budget`)."""
+    zid = zone_url.rstrip("/").split("/")[-1]
+    f = NWS_ZONES / (re.sub(r"[^A-Za-z0-9]", "", zid) + ".json")
+    try:
+        return json.loads(f.read_text(encoding="utf-8")), False
+    except (OSError, ValueError):
+        pass
+    if budget[0] <= 0:
+        return [], False
+    budget[0] -= 1
+    geo = _nws_get(zone_url)
+    rings = flood_area({"features": [geo]})
+    NWS_ZONES.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(rings), encoding="utf-8")
+    return rings, True
+
+
+def _ring_centre(rings):
+    n, sx, sy = 0, 0.0, 0.0
+    for r in rings:
+        for i in range(0, len(r) - 1, 2):
+            sx += r[i]; sy += r[i + 1]; n += 1
+    return (sy / n, sx / n) if n else (None, None)
+
+
+def fetch_nws_floods():
+    import time
+    now = time.time()
+    data = _nws_get(NWS_ALERTS, timeout=20)
+    out, budget, seen = [], [NWS_ZONES_PER_RUN], set()
+    for f in data.get("features", []):
+        pr = f.get("properties") or {}
+        event = pr.get("event") or ""
+        level = NWS_LEVEL.get(event)
+        if not level or pr.get("status") not in (None, "Actual"):
+            continue
+        ends = _nws_epoch(pr.get("ends") or pr.get("expires"))
+        if ends is not None and ends < now:
+            continue
+        aid = pr.get("id") or f.get("id")
+        if aid in seen:
+            continue
+        seen.add(aid)
+        rings, fetched = [], 0
+        g = f.get("geometry")
+        if g and g.get("type") in ("Polygon", "MultiPolygon"):
+            rings = flood_area({"features": [f]})
+        else:
+            for z in (pr.get("affectedZones") or [])[:24]:
+                try:
+                    r, was_fetched = nws_zone_rings(z, budget)
+                    rings += r
+                    fetched += was_fetched
+                except Exception:
+                    pass
+            rings = rings[:12]
+        lat, lon = _ring_centre(rings)
+        if lat is None:
+            continue                               # nothing to place it by yet (zones still to fetch): next time
+        counties = [c.strip() for c in str(pr.get("areaDesc") or "").split(";") if c.strip()]
+        onset = _nws_epoch(pr.get("onset") or pr.get("effective") or pr.get("sent"))
+        out.append({"id": "nws:" + str(aid).split("/")[-1], "source": "nws", "event": event, "name": "; ".join(counties[:3]) + (", +%d" % (len(counties) - 3) if len(counties) > 3 else ""),
+                    "counties": len(counties), "office": str(pr.get("senderName") or "").replace("NWS ", ""), "lat": round(lat, 3), "lon": round(lon, 3),
+                    "alert": level, "severity": pr.get("severity"), "since": "", "days": None, "hours": 0,
+                    "onset": onset, "until": ends, "headline": pr.get("headline") or "", "url": "https://alerts.weather.gov/search?id=" + str(aid).split("/")[-1],
+                    "people": [], "area": rings})
+    return out
+
+
+def nws_floods_cached(max_age_min=10):
+    """The NWS alerts, refreshed when the cache is older than max_age_min; (data, stale_hours, error)."""
+    import time
+    f = DATA / "last-nws-floods.json"
+    try:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        if time.time() - c.get("at", 0) < max_age_min * 60:
+            return c["data"], 0.0, ""
+    except (OSError, ValueError, KeyError):
+        pass
+    return last_good("nws-floods", fetch_nws_floods)
+
+
+def cmd_nws_floods(args):
+    note, alerts = "", []
+    data, stale_h, err = nws_floods_cached(args.max_age)
+    if err:
+        note = stale_note("US flood alerts", stale_h, err, args.stale)
+    try:
+        alerts = remember_events("nwsflood", data or [], lambda a: a["id"], 0.5, sig_of=lambda a: a["alert"])
+        alerts = [a for a in alerts if not a.get("gone")]       # an alert that ended is simply gone: no ageing out
+    except Exception as e:
+        note = note or "US flood alerts: %s" % e
+    if args.table:
+        import time
+        print(note or "%d active NWS flood alerts" % len(alerts))
+        for a in sorted(alerts, key=lambda a: ("green", "orange", "red").index(a["alert"]), reverse=True):
+            print("  %-22s %-7s %-40s %s  until %s  %d rings  first seen %s" % (
+                a["event"][:22], a["alert"], a["name"][:40], a["office"][:18],
+                time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?", len(a["area"]),
+                "%.1f h ago" % a["first_hours"] if a.get("first_hours") is not None else "unknown"))
+    else:
+        emit({"alerts": alerts, "note": note})
+
+
+def chk_nws_floods():
+    alerts = fetch_nws_floods()
+    warn = [a for a in alerts if a["alert"] in ("orange", "red")]
+    return "ok", "%d active flood alerts, %d warnings%s" % (
+        len(alerts), len(warn), ": " + ", ".join("%s (%s)" % (a["name"].split(";")[0], a["event"].replace(" Warning", "")) for a in warn[:5]) if warn else "")
+
+
 # ---------------------------------------------------------------- space -----
 # Satellites: two-line elements from CelesTrak (no key), propagated here with a Kepler + J2 model - the
 # secular part of SGP4 (nodal and apsidal precession, mean-motion correction) without drag and short-period
@@ -3072,6 +3215,17 @@ def cmd_feed(args):
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
+    # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
+    try:
+        nws, _h, _e = nws_floods_cached(10)
+        for a in nws or []:
+            if ["green", "orange", "red"].index(a["alert"]) < flood_level:
+                continue
+            items.append({"kind": "flood", "when": a.get("onset") or now, "title": "%s \u00b7 %s" % (a["event"], a["name"]),
+                          "detail": "NWS %s \u00b7 until %s" % (a["office"], time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?"),
+                          "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
+    except Exception as e:
+        problems.append("nws floods: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
@@ -3347,7 +3501,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Floods (GDACS)", chk_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Floods (GDACS)", chk_floods), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -3958,6 +4112,8 @@ def main():
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)
+    nw = sub.add_parser("nws-floods"); nw.add_argument("--table", action="store_true"); nw.add_argument("--stale", type=float, default=1)
+    nw.add_argument("--max-age", dest="max_age", type=float, default=10); nw.set_defaults(fn=cmd_nws_floods)   # minutes the cache is trusted
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)

@@ -269,6 +269,7 @@ Kirigami.FormLayout {
     property alias cfg_FloodMinLevel: floodMinLevel.currentIndex
     property alias cfg_FloodArea: floodArea.checked
     property alias cfg_FloodAreaOpacity: floodAreaOpacity.value
+    property alias cfg_FloodNws: floodNws.checked
     property alias cfg_FloodLabels: floodLabels.currentIndex
     property alias cfg_FloodLabelSize: floodLabelSize.value
     property alias cfg_FloodLabelPlate: floodPlate.checked
@@ -1560,8 +1561,8 @@ Kirigami.FormLayout {
     Note { visible: sec9.open; text: "Label: place, burned area, how long GDACS has listed it. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A fire ages out once GDACS drops it." }
 
     // ============================================================== Floods
-    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
-    Source { visible: sec9f.open; names: ["Floods (GDACS)"] }
+    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9f.open; names: ["Floods (GDACS)", "US flood alerts (NWS)"] }
 
     QQC2.CheckBox { visible: sec9f.open; id: floods; Kirigami.FormData.label: "Show:"; text: "Floods" }
     Amount {
@@ -1577,8 +1578,10 @@ Kirigami.FormLayout {
         id: floodMinLevel
         Kirigami.FormData.label: "Flood filter:"
         enabled: floods.checked
-        model: ["All levels", "Orange and red", "Red only"]
+        model: ["All levels (GDACS green, NWS watches and advisories too)", "Orange and red (GDACS) · warnings (NWS)", "Red only (GDACS) · flash flood warnings (NWS)"]
     }
+    QQC2.CheckBox { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
+    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). US only; untick outside the US to save the request." }
     Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
     RowLayout {
         visible: sec9f.open

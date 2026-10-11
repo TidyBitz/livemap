@@ -14,6 +14,11 @@ release notes written at the time; their dates are the day the version was hande
   other choices; the Events widget follows the same filter and keeps a Floods header when there are none. Green
   floods keep the flood colour; orange and red take GDACS's. The usual colour, label, pulse and layer
   opacity controls; `floods --table` from a terminal.
+- US flood alerts from the National Weather Service (api.weather.gov, no key) in the same Floods layer,
+  minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green),
+  labelled with the counties and when the alert ends, the warning's own polygon or its forecast zones as the
+  area (zones fetched once and kept in `nws-zones/`). Looked at every 10 minutes; the flood filter applies
+  (warnings only by default); the Events widget lists them with a link to the alert. `nws-floods --table`.
 - Styles. A style is a snapshot of the wallpaper's settings. The six built-in ones are each base map with
   its recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix):
   picking one sets the base and every colour and leaves your sizes, line widths, opacities and label styles

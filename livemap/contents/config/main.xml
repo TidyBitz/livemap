@@ -68,6 +68,7 @@
     <entry name="FloodMinLevel" type="Int"><default>1</default></entry>       <!-- 0 all, 1 orange and red, 2 red only: green floods are a basin's seasonal high water -->
     <entry name="FloodArea" type="Bool"><default>true</default></entry>
     <entry name="FloodAreaOpacity" type="Int"><default>25</default></entry>
+    <entry name="FloodNws" type="Bool"><default>true</default></entry>
     <entry name="HotspotMinCount" type="Int"><default>2</default></entry>
     <entry name="HotspotTier" type="Int"><default>0</default></entry>     <!-- 0 needs attention only, 1 notable and up, 2 everything -->
     <!-- rivers (Natural Earth rivers and lake centerlines) -->
