@@ -2113,6 +2113,7 @@ EFFIS = ("https://maps.effis.emergency.copernicus.eu/effis?service=WFS&version=1
          "&outputformat=geojson&maxfeatures=1500&FILTER=%%3CFilter%%3E%%3CPropertyIsGreaterThanOrEqualTo%%3E%%3CPropertyName%%3Efiredate%%3C%%2FPropertyName%%3E"
          "%%3CLiteral%%3E%s%%3C%%2FLiteral%%3E%%3C%%2FPropertyIsGreaterThanOrEqualTo%%3E%%3C%%2FFilter%%3E")
 CWFIS_STAGE = {"OC": "out of control", "BH": "being held", "UC": "under control", "EX": "out"}
+CWFIS_STALE_DAYS = 14                             # an agency record with no status report for this long is dropped
 INCIDENT_SOURCES = ("nifc", "cwfis", "effis")
 
 
@@ -2202,6 +2203,8 @@ def fetch_cwfis():
         stage = CWFIS_STAGE.get(str(pr.get("stage_of_control_status") or ""), "")
         if stage == "out":
             continue
+        if hours > CWFIS_STALE_DAYS * 24:
+            continue                               # Quebec's list keeps summer fires "out of control" for months: no report in two weeks, not a live fire
         pc = pr.get("percent_contained")
         out.append(_incident("cwfis", pr.get("national_fire_id") or pr.get("id"), "%s fire %s" % (pr.get("agency_code") or "", pr.get("agency_fire_id") or ""),
                              float(lat), float(lon), ha, rings, contained=int(pc) if pc is not None and pc >= 0 else None, stage=stage,
@@ -2287,7 +2290,7 @@ def chk_nifc():
 
 def chk_cwfis():
     its = fetch_cwfis()
-    return "ok", "%d active Canadian fires, %d out of control, %d with a perimeter estimate" % (
+    return "ok", "%d Canadian fires reported on in the last two weeks, %d out of control, %d with a perimeter estimate" % (
         len(its), sum(1 for it in its if it["stage"] == "out of control"), sum(1 for it in its if it["area"]))
 
 

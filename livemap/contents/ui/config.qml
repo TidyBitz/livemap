@@ -1520,7 +1520,7 @@ Kirigami.FormLayout {
             }
         }
     }
-    Note { visible: sec9.open; text: "The incident sources are the fires the agencies are fighting, by name, with the size, containment or stage of control, personnel, and the perimeter where it is mapped: NIFC's interagency perimeters (every open US wildfire, no prescribed burns), CWFIS's active-fires list with its satellite perimeter estimates (Canada), EFFIS's burnt areas of the last three weeks (Europe, the Middle East, North Africa). Looked at every 30 minutes. GDACS adds the rest of the world's rated events; the FIRMS hotspots are the raw satellite detections, off by default because a burning season covers the map with them." }
+    Note { visible: sec9.open; text: "The incident sources are the fires the agencies are fighting, by name, with the size, containment or stage of control, personnel, and the perimeter where it is mapped: NIFC's interagency perimeters (every open US wildfire, no prescribed burns), CWFIS's active-fires list with its satellite perimeter estimates (Canada; a fire with no status report for two weeks is dropped, since some agencies leave summer fires 'out of control' for months), EFFIS's burnt areas of the last three weeks (Europe, the Middle East, North Africa). Looked at every 30 minutes. GDACS adds the rest of the world's rated events; the FIRMS hotspots are the raw satellite detections, off by default because a burning season covers the map with them." }
     RowLayout {
         visible: sec9.open
         Kirigami.FormData.label: "Incident filter:"
