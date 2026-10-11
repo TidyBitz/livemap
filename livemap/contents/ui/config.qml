@@ -411,15 +411,18 @@ Kirigami.FormLayout {
         property QtObject twin: null                 // the section's Show checkbox, when it has one
         property var sourceNames: []                 // the Source rows below: their worst state shows as the dot
         property bool open: false
+        // green: every source answers; orange: some of them do not (the layer still draws from the rest), or one
+        // warns; red: none of the section's sources answer
         readonly property string worst: (function () {
-            var checks = statusLoader.item ? statusLoader.item.checks : [], w = "";
+            var checks = statusLoader.item ? statusLoader.item.checks : [], ok = 0, bad = 0, warn = 0;
             for (var i = 0; i < sourceNames.length; i++) {
                 var c = checks.find(function (x) { return x.name === sourceNames[i]; });
                 if (!c) continue;
-                if (c.state === "error") return "error";
-                if (c.state === "warn") w = "warn"; else if (w === "") w = "ok";
+                if (c.state === "error") bad++; else if (c.state === "warn") warn++; else ok++;
             }
-            return w;
+            if (ok + bad + warn === 0) return "";
+            if (bad > 0) return ok > 0 ? "warn" : "error";
+            return warn > 0 ? "warn" : "ok";
         })()
         Kirigami.FormData.isSection: true
         Layout.fillWidth: true
@@ -444,7 +447,7 @@ Kirigami.FormLayout {
             implicitWidth: Math.round(Kirigami.Units.gridUnit * 0.5); implicitHeight: implicitWidth; radius: implicitWidth / 2
             color: sh.worst === "ok" ? Kirigami.Theme.positiveTextColor : sh.worst === "warn" ? Kirigami.Theme.neutralTextColor
                  : sh.worst === "error" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
-            QQC2.ToolTip.text: sh.worst === "warn" ? "Something to download or a slow source: open the section" : sh.worst === "error" ? "A source is not working: open the section" : sh.worst === "ok" ? "Sources working" : "Not checked yet"
+            QQC2.ToolTip.text: sh.worst === "warn" ? "Some of the sources are not answering, or something is to download: open the section" : sh.worst === "error" ? "None of the sources are working: open the section" : sh.worst === "ok" ? "Every source working" : "Not checked yet"
             QQC2.ToolTip.visible: dotArea.containsMouse
             MouseArea { id: dotArea; anchors.fill: parent; hoverEnabled: true }
         }
