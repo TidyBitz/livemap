@@ -2899,7 +2899,16 @@ def read_fire_focus():
         return 1
 
 
-def write_layers(shown, units=None, fire_focus=None):
+def read_flood_level():
+    """The wallpaper's flood filter (0 all levels, 1 orange and red, 2 red only), for the feed."""
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return int(d.get("flood_level", 1)) if isinstance(d, dict) else 1
+    except (OSError, ValueError, TypeError):
+        return 1
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -2908,13 +2917,17 @@ def write_layers(shown, units=None, fire_focus=None):
             units = None
     if fire_focus is not None:
         fire_focus = max(0, min(2, int(fire_focus)))
-    if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus):
+    if flood_level is not None:
+        flood_level = max(0, min(2, int(flood_level)))
+    if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
+            and (flood_level is None or read_flood_level() == flood_level):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
         tmp = LAYERS.with_suffix(".tmp%d" % os.getpid())
         tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(),
-                                   "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(), "at": int(time.time())}), encoding="utf-8")
+                                   "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(),
+                                   "flood_level": flood_level if flood_level is not None else read_flood_level(), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass
@@ -2949,7 +2962,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
@@ -3029,6 +3042,7 @@ def cmd_feed(args):
         mem = {}
     units = read_units()                            # the wallpaper's Units and Storm wind choices
     fire_focus = read_fire_focus()                  # and its Wildfire focus
+    flood_level = read_flood_level()                # and its flood filter
     for kind, url_of, title_of in (
             ("storm", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=TC" % it.get("id", ""),
              lambda it: "%s \u00b7 %s%s \u00b7 %s%s%s" % (it.get("name", "?"), it.get("kind", ""), " cat %d" % it["cat"] if it.get("cat") else "", wind_text(float(it.get("wind") or 0), units[1]),
@@ -3053,8 +3067,8 @@ def cmd_feed(args):
                   "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1}
             if kind == "fire" and fire_focus >= 1 and it.get("alert") not in ("orange", "red"):
                 continue                                   # Wildfire focus: only the events GDACS rates on the people exposed
-            if kind == "flood" and it.get("alert") not in ("orange", "red"):
-                continue                                   # floods: the green ones are a basin's seasonal high water
+            if kind == "flood" and ["green", "orange", "red"].index(it.get("alert") or "green") < flood_level:
+                continue                                   # the wallpaper's flood filter (green floods are a basin's seasonal high water)
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
@@ -3921,6 +3935,7 @@ def main():
     sub.add_parser("infrastructure").set_defaults(fn=cmd_infrastructure)
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
+    pw.add_argument("--flood-level", dest="flood_level", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)

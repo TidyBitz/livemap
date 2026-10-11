@@ -47,6 +47,7 @@ WallpaperItem {
             item.layers = Qt.binding(function () { return root.shownLayers });
             item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
             item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
+            item.floodLevel = Qt.binding(function () { return cfg.FloodMinLevel });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false

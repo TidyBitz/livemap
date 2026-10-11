@@ -164,7 +164,7 @@ PlasmoidItem {
         if (k === "quake") { var top = 0; for (var i = 0; i < list.length; i++) { var m = parseFloat(String(list[i].title).replace(/^M/, "")); if (m > top) top = m; } return top > 0 ? "strongest M" + top.toFixed(1) : ""; }
         if (k === "storm") { var live = list.filter(function (it) { return !/no longer tracked/.test(it.title); }).length; return live + " active"; }
         if (k === "fire") { var hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return hot ? hot + " hotspot clusters" : ""; }
-        if (k === "flood") { var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
+        if (k === "flood") { if (list.length === 0) return "none at the map's level"; var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
         if (k === "sat") return "live on the map";
         return "";
     }
@@ -176,7 +176,7 @@ PlasmoidItem {
         for (var h = 0; h < hiddenKinds.length; h++) hidden[hiddenKinds[h].kind] = hiddenKinds[h].count;
         for (var k = 0; k < kindList.length; k++) {
             var kind = kindList[k], list = byKind[kind] || [];
-            if (list.length === 0 && !hidden[kind]) continue;
+            if (list.length === 0 && !hidden[kind] && !(kind === "flood" && wanted("flood") && layers !== null)) continue;   // floods: the header stays, saying none
             var open = list.length > 0 && !closed[kind];
             out.push({ head: true, kind: kind, count: hidden[kind] || list.length, hidden: !!hidden[kind] && list.length === 0, fact: kindFact(kind, list), open: open });
             if (open) out = out.concat(list);

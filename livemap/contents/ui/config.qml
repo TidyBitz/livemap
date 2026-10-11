@@ -1579,7 +1579,7 @@ Kirigami.FormLayout {
         enabled: floods.checked
         model: ["All levels", "Orange and red", "Red only"]
     }
-    Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget lists orange and red only." }
+    Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
     RowLayout {
         visible: sec9f.open
         Kirigami.FormData.label: "Affected area:"
@@ -1589,7 +1589,7 @@ Kirigami.FormLayout {
     }
     Note { visible: sec9f.open; text: "The area GDACS reports as affected (the flooded districts), as a faint fill in the flood's colour under the mark. Fetched with the event's figures for the orange and red floods, a few KB each; with 'All levels' for the green ones too." }
     KQuickControls.ColorButton { visible: sec9f.open; id: floodColor; Kirigami.FormData.label: "Flood colour:"; enabled: floods.checked; showAlphaChannel: false; dialogTitle: "Flood colour" }
-    QQC2.CheckBox { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "GDACS colours by alert level (green, orange, red)" }
+    QQC2.CheckBox { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "Orange and red floods in GDACS's alert colours (green ones keep the flood colour)" }
     RowLayout {
         visible: sec9f.open
         Kirigami.FormData.label: "Flood labels:"

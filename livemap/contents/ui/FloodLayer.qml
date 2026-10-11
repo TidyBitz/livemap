@@ -23,8 +23,9 @@ Item {
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property color ink: cfg ? cfg.FloodColor : "#4aa3ff"
     readonly property bool alertColors: cfg ? cfg.FloodAlertColors : true
-    readonly property var alertPalette: ({ green: "#5ec46a", orange: "#ff8c00", red: "#e53935" })
-    function inkOf(fl) { return alertColors && alertPalette[fl.alert] ? Qt.color(alertPalette[fl.alert]) : ink }
+    readonly property var alertPalette: ({ orange: "#ff8c00", red: "#e53935" })
+    // the flood colour for the green events; with the alert colours on, orange and red take GDACS's colours
+    function inkOf(fl) { return alertColors && (fl.alert === "orange" || fl.alert === "red") ? Qt.color(alertPalette[fl.alert]) : ink }
     readonly property int minLevel: cfg ? cfg.FloodMinLevel : 1            // 0 all, 1 orange and red, 2 red only
     function levelOf(fl) { return fl.alert === "red" ? 2 : fl.alert === "orange" ? 1 : 0 }
     readonly property bool showArea: cfg ? cfg.FloodArea : true
