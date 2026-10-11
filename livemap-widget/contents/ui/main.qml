@@ -120,7 +120,7 @@ PlasmoidItem {
         root.nowSec = Date.now() / 1000;
         if (root.mode.full && root.mode.full_until && root.nowSec >= root.mode.full_until) root.refreshMode();   // the helper drops a timed full-speed override when it is over
     } }
-    function isNew(it) { return !it.pin && !it.future && root.nowSec - it.when < root.newSeconds }
+    function isNew(it) { return !it.pin && !it.future && !it.nonew && root.nowSec - it.when < root.newSeconds }
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
     readonly property var kindOrder: ({ alert: 0, launch: 1, storm: 2, flood: 3, volcano: 4, quake: 5, fire: 6, sat: 7 })
     readonly property var shown: (function () {
@@ -512,7 +512,7 @@ PlasmoidItem {
                                 Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
                                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                                 text: (root.grouped ? "" : (root.kindName[modelData.kind] || "") + " \u00b7 ") + (modelData.pin ? modelData.detail
-                                      : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " \u00b7 " + modelData.detail)
+                                      : (modelData.nonew ? "" : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " \u00b7 ") + modelData.detail)
                             }
                             // a storm's oil and gas facilities: a chip for what it crossed, one for what lies in its
                             // path; a click on a chip unfolds the full list under the storm, another folds it back

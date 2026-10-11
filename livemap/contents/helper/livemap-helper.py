@@ -2383,18 +2383,28 @@ def fetch_air_alerts(token=""):
             if code:
                 out[code] = {"status": "A", "types": ["air raid"], "since": None, "places": []}
         source = "mirror"
-    # our own memory of when each alert started, for the sources that do not say (and across their restarts)
+    # Our own memory of when each alert started, for the mirror (which does not say). A start is only known when
+    # this helper saw the oblast go from quiet to alert; an alert already on at the first look has no known start,
+    # and is reported with since = null rather than a made-up time. The memory also says when the last look was,
+    # so a gap in watching (the machine asleep) resets what counts as "seen begin".
     try:
         mem = json.loads(ALERTS_MEMORY.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         mem = {}
+    watching = now - float(mem.get("_at", 0)) < 600          # looked within the last ten minutes: a new alert is a seen start
     for code, e in out.items():
-        if e["since"] is None:
-            e["since"] = mem.get(code) or now
-        mem[code] = e["since"]
+        m = mem.get(code)
+        if e["since"] is not None:
+            mem[code] = {"since": e["since"], "known": True}
+        elif isinstance(m, dict):
+            e["since"] = m["since"] if m.get("known") else None
+        else:
+            mem[code] = {"since": now, "known": watching}
+            e["since"] = now if watching else None
     for code in list(mem):
-        if code not in out:
+        if code != "_at" and code not in out:
             del mem[code]
+    mem["_at"] = now
     try:
         ALERTS_MEMORY.parent.mkdir(parents=True, exist_ok=True)
         ALERTS_MEMORY.write_text(json.dumps(mem), encoding="utf-8")
@@ -3670,7 +3680,8 @@ def cmd_feed(args):
             kinds = a.get("types") or ["air raid"]
             severe = any(k != "air raid" for k in kinds)
             items.append({"kind": "alert", "when": a.get("since") or now, "title": "%s \u00b7 %s%s" % (", ".join(kinds).capitalize(), r["name"], " (part)" if a.get("status") == "P" else ""),
-                          "detail": "alerts.in.ua" + (" \u00b7 " + ", ".join(a["places"]) if a.get("places") else ""), "url": "https://alerts.in.ua/en",
+                          "detail": ("alerts.in.ua" if (aa or {}).get("source") != "mirror" else "mirror, oblast level") + (" \u00b7 " + ", ".join(a["places"]) if a.get("places") else "") + ("" if a.get("since") else " \u00b7 on since before the first look"),
+                          "nonew": not a.get("since"), "url": "https://alerts.in.ua/en",
                           "lat": r["lat"], "lon": r["lon"], "level": 3 if severe else 2, "key": "alert:%s:%d" % (code, int(a.get("since") or now))})
     except Exception as e:
         problems.append("air alerts: %s" % e)
