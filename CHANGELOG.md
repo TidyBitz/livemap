@@ -11,7 +11,8 @@ release notes written at the time; their dates are the day the version was hande
   on their site) the layer also knows the alert type (air raid, artillery shelling, street fighting, chemical,
   nuclear), when it started, and alerts on part of an oblast, drawn lighter and labelled with the place;
   without a token it reads a public mirror of the same data, air raid only, oblast level. Every oblast can be
-  outlined faintly. Once a minute. The oblast polygons ship with the package (Natural Earth, public domain).
+  outlined faintly. Once a minute; off until switched on. The oblast polygons ship with the package (Natural
+  Earth, public domain).
   The Events widget lists the oblasts under alert; shelling or fighting counts as severe for the sound.
   `air-alerts --table`.
 - Named wildfire incidents with perimeters, from the agencies fighting them: NIFC's interagency perimeters
