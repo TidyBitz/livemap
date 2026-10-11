@@ -32,6 +32,10 @@ wallpaper for frames.
 
 ![The United States on the hi-res seasonal map: NWS flood warnings and watches as shaded counties, a tropical storm's track, and the widget listing the alerts by forecast office](docs/screenshots/us-floods.webp)
 
+| | |
+|---|---|
+| ![The widget's Floods group: one row per forecast office and alert type, with the end time](docs/screenshots/widget-floods.webp) | |
+
 *Tropical storms: each piece of the track takes the colour of the wind the storm had at that fix, from depression
 blue through tropical-storm green to category 5 magenta. Forecast cone and points, a dot at every fix, and a ring
 where the storm was first fixed.*
