@@ -36,7 +36,9 @@ Item {
     readonly property string incidentSources: [(sources & 4) ? "nifc" : "", (sources & 8) ? "cwfis" : "", (sources & 16) ? "effis" : ""].filter(function (x) { return x !== ""; }).join(",")
     readonly property real incidentMinHa: [0, 100, 1000, 10000][cfg ? cfg.FireIncidentMin : 1] || 0
     readonly property bool incidentActiveOnly: cfg ? cfg.FireIncidentActive : false
-    readonly property bool showPerimeter: cfg ? cfg.FirePerimeter : true
+    readonly property int incidentMark: cfg ? cfg.FireIncidentMark : 0        // 0 flame and perimeter, 1 perimeter only (flame where none is mapped), 2 flame only
+    readonly property bool showPerimeter: (cfg ? cfg.FirePerimeter : true) && incidentMark !== 2
+    function flameShown(it) { return incidentMark !== 1 || !(it.area && it.area.length) }
     readonly property real perimeterOpacity: (cfg ? cfg.FirePerimeterOpacity : 25) / 100
     property var incidents: []
     // still burning: out of control or being held (Canada), under 90 % contained (US: a fire at 95 % with a skeleton crew
@@ -125,7 +127,7 @@ Item {
                  text: (c.why ? c.why + " \u00b7 " : "") + powerText(c.frp) + " \u00b7 " + c.n + " det. \u00b7 " + Geo.spanText(c.hours), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: hotSignificant(c), alpha: 1 };
     })).concat(shownIncidents.filter(function (it) { return labelMode === 2 || incidentSignificant(it); }).map(function (it) {
-        return { x: px(it.lon), y: py(it.lat), gap: mark * 0.6, side: "right", text: describeIncident(it), px: labelPx,
+        return { x: px(it.lon), y: py(it.lat), gap: flameShown(it) ? mark * 0.6 : mark * 0.2, side: "right", text: describeIncident(it), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: incidentSignificant(it), alpha: 1 };
     }))
 
@@ -249,6 +251,7 @@ Item {
                 border.width: 1.5 * overlay.unit
             }
             FireGlyph {
+                visible: overlay.flameShown(inc.modelData)
                 x: -width / 2; y: -height * 0.75
                 size: overlay.mark * inc.grow
                 color: overlay.ink

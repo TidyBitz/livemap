@@ -256,6 +256,7 @@ Kirigami.FormLayout {
     property alias cfg_FireIncidentMin: fireIncidentMin.currentIndex
     property alias cfg_FireIncidentActive: fireIncidentActive.checked
     property alias cfg_FirePerimeter: firePerimeter.checked
+    property alias cfg_FireIncidentMark: fireIncidentMark.currentIndex
     property alias cfg_FirePerimeterOpacity: firePerimeterOpacity.value
     property alias cfg_FireFocus: fireFocus.currentIndex
     property alias cfg_HotspotMinCount: hotspotMinCount.currentIndex
@@ -1529,11 +1530,13 @@ Kirigami.FormLayout {
     }
     RowLayout {
         visible: sec9.open
-        Kirigami.FormData.label: "Perimeter:"
+        Kirigami.FormData.label: "Incident mark:"
         enabled: fires.checked && (form.cfg_FireSources & 28) !== 0
-        QQC2.CheckBox { id: firePerimeter; text: "Shade the mapped perimeter" }
-        Pct { id: firePerimeterOpacity; enabled: firePerimeter.checked; from: 5; to: 80; label: "Fill opacity" }
+        QQC2.ComboBox { id: fireIncidentMark; model: ["Flame and perimeter", "Perimeter only (flame where none is mapped)", "Flame only"] }
+        QQC2.CheckBox { id: firePerimeter; visible: fireIncidentMark.currentIndex === 0; text: "Shade the perimeter" }
+        Pct { id: firePerimeterOpacity; enabled: firePerimeter.checked || fireIncidentMark.currentIndex === 1; visible: fireIncidentMark.currentIndex !== 2; from: 5; to: 80; label: "Fill opacity" }
     }
+    Note { visible: sec9.open; text: "A flame sits at the perimeter's centre and covers part of it; 'Perimeter only' leaves the shape to speak for itself and keeps the flame for fires the agency has not mapped yet (Canada's smaller ones)." }
     QQC2.ComboBox {
         visible: sec9.open
         id: fireFocus
