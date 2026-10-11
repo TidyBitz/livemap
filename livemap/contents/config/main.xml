@@ -68,6 +68,25 @@
     <entry name="FireIncidentMark" type="Int"><default>0</default></entry>    <!-- 0 flame and perimeter, 1 perimeter only (the flame where none is mapped), 2 flame only -->
     <entry name="FirePerimeterOpacity" type="Int"><default>25</default></entry>
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
+    <entry name="ShowAirAlerts" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertColor" type="Color"><default>#ff3b3b</default></entry>
+    <entry name="AirAlertOpacity" type="Int"><default>35</default></entry>
+    <entry name="AirAlertPartialOpacity" type="Int"><default>18</default></entry>
+    <entry name="AirAlertOutline" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertOutlineOpacity" type="Int"><default>30</default></entry>
+    <entry name="AirAlertToken" type="String"><default></default></entry>
+    <entry name="AirAlertPulse" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 under alert, 2 every oblast -->
+    <entry name="AirAlertLabelSize" type="Int"><default>10</default></entry>
+    <entry name="AirAlertLabelPlate" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertTextFollows" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertTextColor" type="Color"><default>#ff8a8a</default></entry>
+    <entry name="AirAlertLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="AirAlertLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="AirAlertLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="AirAlertLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="AirAlertLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="AirAlertLabelHalo" type="Int"><default>100</default></entry>
     <entry name="FloodColor" type="Color"><default>#4aa3ff</default></entry>
     <entry name="FloodAlertColors" type="Bool"><default>true</default></entry>
     <entry name="FloodMinLevel" type="Int"><default>1</default></entry>       <!-- 0 all, 1 orange and red, 2 red only: green floods are a basin's seasonal high water -->

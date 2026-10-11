@@ -55,7 +55,7 @@ WallpaperItem {
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
     // the event layers switched on, for the companion widget (it can list only what the map shows)
     readonly property string shownLayers: [cfg.ShowQuakes ? "quakes" : "", cfg.ShowVolcanoes ? "volcanoes" : "", cfg.ShowStorms ? "storms" : "",
-                                           cfg.ShowFires ? "fires" : "", cfg.ShowFloods ? "floods" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
+                                           cfg.ShowFires ? "fires" : "", cfg.ShowFloods ? "floods" : "", cfg.ShowAirAlerts ? "alerts" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
                                            cfg.ShowNetwork ? "network" : ""].filter(function (l) { return l !== ""; }).join(",")
     readonly property int guardLevel: powerLoader.item ? powerLoader.item.guardLevel : 0
     readonly property var mode: powerLoader.item ? powerLoader.item.mode : ({})
@@ -567,6 +567,20 @@ WallpaperItem {
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: launch layer failed to load")
         }
         Loader {
+            id: alertLoader
+            opacity: cfg.AirAlertLayerOpacity / 100
+            anchors.fill: parent
+            active: cfg.ShowAirAlerts && root.saving < 2 && !root.hidden("alerts")
+            source: "AlertLayer.qml"
+            onLoaded: {
+                item.cfg = root.cfg;
+                item.fps = Qt.binding(function () { return root.fps });
+                item.slow = Qt.binding(function () { return root.saving === 1 });
+                item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+            }
+            onStatusChanged: if (status === Loader.Error) console.warn("livemap: air alert layer failed to load")
+        }
+        Loader {
             id: floodLoader
             opacity: cfg.FloodLayerOpacity / 100               // the marks and areas; labels have their own opacity
             anchors.fill: parent
@@ -628,6 +642,7 @@ WallpaperItem {
             stormSpecs: stormLoader.item ? stormLoader.item.labelSpecs : []
             fireSpecs: fireLoader.item ? fireLoader.item.labelSpecs : []
             floodSpecs: floodLoader.item ? floodLoader.item.labelSpecs : []
+            alertSpecs: alertLoader.item ? alertLoader.item.labelSpecs : []
             satSpecs: satLoader.item ? satLoader.item.labelSpecs : []
             shifts: satLoader.item ? satLoader.item.labelShifts : ({})
             launchSpecs: launchLoader.item ? launchLoader.item.labelSpecs : []
@@ -654,6 +669,7 @@ WallpaperItem {
             stormLoader.item && stormLoader.item.hint !== "" ? stormLoader.item.hint : "",
             fireLoader.item && fireLoader.item.hint !== "" ? fireLoader.item.hint : "",
             floodLoader.item && floodLoader.item.hint !== "" ? floodLoader.item.hint : "",
+            alertLoader.item && alertLoader.item.hint !== "" ? alertLoader.item.hint : "",
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",
             launchLoader.item && launchLoader.item.hint !== "" ? launchLoader.item.hint : "",
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",

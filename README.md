@@ -60,6 +60,7 @@ where the storm was first fixed.*
 | **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing. Storm labels: name / name and wind / name, type and wind, with the facilities it threatens on a line of their own (Storm label facilities); Storm layer opacity for the icon, track and cone as a whole | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and Pacific, every 30 min |
 | **Wildfires** | The fires the agencies are fighting, by name, with size, containment or stage of control, personnel, and the mapped perimeter as a faint fill: NIFC interagency perimeters (US), CWFIS active fires with satellite perimeter estimates (Canada), EFFIS burnt areas (Europe, Middle East, North Africa); GDACS events for the rest of the world as flames by alert level; NASA FIRMS hotspots optional (off by default, clustered and rated so a burning season does not cover the map). Sources are a set; size and "not yet contained" filters | NIFC, CWFIS, EFFIS every 30 min; GDACS, FIRMS hourly |
 | **Floods** | GDACS flood events as a wave mark coloured by alert level, the affected districts as a faint fill, labelled with what happened to people (dead, evacuated, displaced) and how long the flood has run; orange and red only by default, since GDACS always lists a dozen green basins at seasonal high water. US flood alerts from the National Weather Service join the same layer minutes after issue: flash flood warnings (red), flood warnings (orange), watches (green), with the counties, the end time and the warning polygon or forecast zones as the area | GDACS, hourly; NWS, every 10 min |
+| **Air raid alerts** | Ukraine's civil air-raid alerts by oblast: the region fills in the alert colour while an alert is on, breathing slowly, lower opacity for part of an oblast, every oblast outlined faintly; labelled with the alert type and how long it has been on. Without a token: a public mirror, air raid only; with a free personal token from alerts.in.ua: alert types, partial alerts, start times | alerts.in.ua / mirror, every minute |
 | **Spacecraft** | ISS, Hubble and Tiangong as pictures or symbols moving once a second along a fading ground track (30 min, one or two orbits ahead), altitude in km, mi or nmi | CelesTrak elements, propagated locally (Kepler + J2) |
 | **Rocket launches** | Rocket on its pad with a live countdown; last ten minutes in mm:ss with a growing amber label, "LIFT-OFF" then a lift-off picture; the mission on a line of its own (Launch label mission); Launch layer opacity | The Space Devs Launch Library 2, hourly |
 | **Network activity** *(off by default)* | Arcs from your home city to every host this machine is connected to, animated packets, kernel round-trip times, first-time places highlighted, closed connections fading out; nothing leaves the machine | Local sockets via `ss`, DB-IP Lite offline geolocation, every 10 s |
@@ -153,6 +154,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | Wildfires, world | GDACS events, NASA FIRMS hotspots (MODIS) | hourly |
 | Floods | GDACS events, their Sendai figures and affected-area polygons | hourly |
 | US flood alerts | NWS api.weather.gov active alerts; forecast-zone polygons cached in `nws-zones/` | every 10 min |
+| Air raid alerts | alerts.in.ua (token) or ubilling.net.ua mirror; oblast polygons shipped in `contents/data/` (Natural Earth) | every minute |
 | ISS, Hubble, Tiangong | CelesTrak orbital elements, propagated locally (Kepler + J2) | position every second |
 | Launches | The Space Devs, Launch Library 2 | hourly |
 | Network (off by default) | this machine's sockets, DB-IP Lite geolocation, all local | every 10 s |
@@ -186,6 +188,7 @@ wallpaper's helper and caches; nothing is fetched twice.
       contents/helper/livemap-helper.py   every fetch, cache and calculation the QML cannot do; `livemap-helper --help`
       contents/config/main.xml   one <entry> per setting; scripts/check.py keeps it in step with config.qml
       contents/images/           spacecraft, launch-pad and storm icons (CC BY 4.0)
+      contents/data/ukraine-regions.json   the 27 oblasts for the air raid alerts (Natural Earth 10m admin-1, thinned)
       contents/styles/*.json     the built-in styles: each base map's recommended colours as the keys that differ from main.xml
     livemap-widget/              the companion widget package (Plasma/Applet)
       contents/ui/main.qml         the Events, Live, Map controls and Status tabs

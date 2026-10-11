@@ -141,6 +141,11 @@ Kirigami.FormLayout {
     property alias cfg_FloodLabelSpacing: floodStyle.letterSpacing
     property alias cfg_FloodLabelOpacity: floodStyle.textOpacity
     property alias cfg_FloodLabelHalo: floodStyle.halo
+    property alias cfg_AirAlertLabelBold: alertStyle.bold
+    property alias cfg_AirAlertLabelCaps: alertStyle.caps
+    property alias cfg_AirAlertLabelSpacing: alertStyle.letterSpacing
+    property alias cfg_AirAlertLabelOpacity: alertStyle.textOpacity
+    property alias cfg_AirAlertLabelHalo: alertStyle.halo
     property alias cfg_SatLabelBold: satStyle.bold
     property alias cfg_SatLabelCaps: satStyle.caps
     property alias cfg_SatLabelSpacing: satStyle.letterSpacing
@@ -282,6 +287,20 @@ Kirigami.FormLayout {
     property alias cfg_FloodTextFollows: floodFollows.checked
     property alias cfg_FloodTextColor: floodTextColor.color
     property alias cfg_FloodPulseMode: floodPulseMode.currentIndex
+    // air raid alerts
+    property alias cfg_ShowAirAlerts: airAlerts.checked
+    property alias cfg_AirAlertColor: alertColor.color
+    property alias cfg_AirAlertOpacity: alertOpacity.value
+    property alias cfg_AirAlertPartialOpacity: alertPartialOpacity.value
+    property alias cfg_AirAlertOutline: alertOutline.checked
+    property alias cfg_AirAlertOutlineOpacity: alertOutlineOpacity.value
+    property alias cfg_AirAlertToken: alertToken.text
+    property alias cfg_AirAlertPulse: alertPulse.checked
+    property alias cfg_AirAlertLabels: alertLabels.currentIndex
+    property alias cfg_AirAlertLabelSize: alertLabelSize.value
+    property alias cfg_AirAlertLabelPlate: alertPlate.checked
+    property alias cfg_AirAlertTextFollows: alertFollows.checked
+    property alias cfg_AirAlertTextColor: alertTextColor.color
     // space
     property alias cfg_ShowSats: sats.checked
     property alias cfg_SatIss: satIss.checked
@@ -310,6 +329,7 @@ Kirigami.FormLayout {
     property int cfg_StormLayerOpacity
     property int cfg_FireLayerOpacity
     property int cfg_FloodLayerOpacity
+    property int cfg_AirAlertLayerOpacity
     property int cfg_SatLayerOpacity
     property int cfg_LaunchLayerOpacity
     property int cfg_NetLayerOpacity
@@ -723,7 +743,7 @@ Kirigami.FormLayout {
     property var widgetMode: ({})
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -789,7 +809,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Layers:"
         spacing: 0
         RowLayout { Mirror { twin: quakes; text: "Earthquakes" } Mirror { twin: volcanoes; text: "Volcanoes" } Mirror { twin: storms; text: "Storms" } }
-        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
+        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: airAlerts; text: "Air raid alerts" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
         RowLayout { Mirror { twin: network; text: "Network" } Mirror { twin: timeZones; text: "Time zones" } Mirror { twin: countryNames; text: "Country names" } }
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
         RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
@@ -1655,6 +1675,64 @@ Kirigami.FormLayout {
     Note { visible: sec9f.open; text: "Label: place, what happened to people (dead, evacuated, displaced - GDACS's Sendai figures, where it has them), how long the flood has run. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A flood ages out once GDACS drops it." }
 
     // #################################################################### Space
+    // #################################################################### Civil alerts
+    Group { text: "Civil alerts" }
+
+    // ============================================================== Air raid alerts
+    SectionHeader { id: sec9a; title: "Air raid alerts (Ukraine)"; sourceNames: ["Air raid alerts (alerts.in.ua)"]; twin: airAlerts; summary: airAlerts.checked ? (alertToken.text !== "" ? "alerts.in.ua, with token" : "public mirror, oblast level") + " · fill " + alertOpacity.value + " %" + (alertOutline.checked ? " · outlines" : "") + " · labels: " + alertLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9a.open; names: ["Air raid alerts (alerts.in.ua)"] }
+
+    QQC2.CheckBox { visible: sec9a.open; id: airAlerts; Kirigami.FormData.label: "Show:"; text: "Ukraine's air raid alerts, by oblast" }
+    Amount {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Alert layer opacity:"
+        enabled: airAlerts.checked
+        from: 10; to: 100
+        value: form.cfg_AirAlertLayerOpacity
+        onValueChanged: form.cfg_AirAlertLayerOpacity = value
+    }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "alerts.in.ua token:"
+        enabled: airAlerts.checked
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 30
+        QQC2.TextField { id: alertToken; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: "optional: a personal token from alerts.in.ua/api-request" }
+    }
+    Note { visible: sec9a.open; text: "Without a token the layer reads a public mirror of the same data (ubilling.net.ua): which oblasts are under air raid alert, once a minute. With a personal token (free for personal use, requested at alerts.in.ua/api-request; the limit is 8-10 requests a minute and this makes one) it reads alerts.in.ua itself: the alert type too (air raid, artillery shelling, street fighting, chemical, nuclear), when it started, and alerts on part of an oblast - a raion, hromada or city - drawn at the lower opacity and labelled with the place. Not for critical use: the data can lag, as the service itself says. The oblast outlines ship with the wallpaper (Natural Earth)." }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Alert fill:"
+        enabled: airAlerts.checked
+        KQuickControls.ColorButton { id: alertColor; showAlphaChannel: false; dialogTitle: "Air raid alert colour" }
+        Pct { id: alertOpacity; from: 10; to: 80; label: "Whole oblast under alert" }
+        Pct { id: alertPartialOpacity; from: 0; to: 60; label: "Part of the oblast under alert (with a token)" }
+        QQC2.CheckBox { id: alertPulse; text: "Breathe" }
+    }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Oblast outlines:"
+        enabled: airAlerts.checked
+        QQC2.CheckBox { id: alertOutline; text: "Outline every oblast, alert or not" }
+        Pct { id: alertOutlineOpacity; enabled: alertOutline.checked; from: 5; to: 100; label: "Outline opacity" }
+    }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Alert labels:"
+        enabled: airAlerts.checked
+        QQC2.ComboBox { id: alertLabels; model: ["None", "Oblasts under alert", "Every oblast (name only when quiet)"] }
+        Px { id: alertLabelSize; from: 4; to: 24 }
+    }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Alert label text:"
+        enabled: airAlerts.checked && alertLabels.currentIndex > 0
+        QQC2.CheckBox { id: alertPlate; text: "Plate" }
+        QQC2.CheckBox { id: alertFollows; text: "Text follows the alert colour" }
+        KQuickControls.ColorButton { id: alertTextColor; enabled: !alertFollows.checked; showAlphaChannel: false; dialogTitle: "Alert label colour" }
+    }
+    LabelStyle { visible: sec9a.open; id: alertStyle; label: "Alert label style:"; enabled: airAlerts.checked && alertLabels.currentIndex > 0; plated: alertPlate.checked }
+    Note { visible: sec9a.open; text: "Label: oblast, the alert type, how long it has been on ('Kharkiv · air raid · 23 min'); a partial alert says 'part: Kupiansk'. The Events widget lists the oblasts under alert; an alert that is not an air raid (shelling, fighting) counts as severe for the sound." }
+
     Group { text: "Space" }
 
     // ============================================================= Satellites

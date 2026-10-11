@@ -40,15 +40,15 @@ PlasmoidItem {
     property real lastSeen: 0                     // newest event time the user has looked at
     readonly property string feedName: Plasmoid.configuration.QuakeFeed || "4.5_day"
 
-    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", launch: "↑", sat: "◆" })   // text fallbacks
+    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", alert: "⚠", launch: "↑", sat: "◆" })   // text fallbacks
     function kindIconUrl(kind) { return kind === "fire" || kind === "sat" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
-    readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", launch: "Launch", sat: "Satellite" })
-    readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", launch: "launches", sat: "sats" })
+    readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", alert: "Air raid alert", launch: "Launch", sat: "Satellite" })
+    readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", alert: "alerts", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
     function wanted(kind) {
         var c = Plasmoid.configuration;
         var own = kind === "quake" ? c.ShowQuakes : kind === "volcano" ? c.ShowVolcanoes : kind === "storm" ? c.ShowStorms
-                : kind === "fire" ? c.ShowFires : kind === "flood" ? c.ShowFloods : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
+                : kind === "fire" ? c.ShowFires : kind === "flood" ? c.ShowFloods : kind === "alert" ? c.ShowAlerts : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
         if (!own) return false;
         if (c.FollowMap && layers !== null && layerOf[kind]) return layers.indexOf(layerOf[kind]) >= 0;   // only what the map shows
         return true;
@@ -122,7 +122,7 @@ PlasmoidItem {
     } }
     function isNew(it) { return !it.pin && !it.future && root.nowSec - it.when < root.newSeconds }
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
-    readonly property var kindOrder: ({ launch: 0, storm: 1, flood: 2, volcano: 3, quake: 4, fire: 5, sat: 6 })
+    readonly property var kindOrder: ({ alert: 0, launch: 1, storm: 2, flood: 3, volcano: 4, quake: 5, fire: 6, sat: 7 })
     readonly property var shown: (function () {
         var list = (range > 0 ? pastItems : items).filter(function (it) { return wanted(it.kind); });
         var mode = sortMode;
@@ -139,9 +139,9 @@ PlasmoidItem {
     })()
     // ---- groups: one collapsible block per kind, with a count and the one fact that matters ----------------
     readonly property bool grouped: Plasmoid.configuration.Grouped
-    readonly property var kindPlural: ({ launch: "Launches", storm: "Storms", flood: "Floods", volcano: "Volcanoes", quake: "Earthquakes", fire: "Wildfires", sat: "Satellites" })
+    readonly property var kindPlural: ({ alert: "Air raid alerts", launch: "Launches", storm: "Storms", flood: "Floods", volcano: "Volcanoes", quake: "Earthquakes", fire: "Wildfires", sat: "Satellites" })
     property var closed: ({})                     // kinds folded away, by the user; the header stays
-    readonly property var kindList: ["launch", "storm", "flood", "volcano", "quake", "fire", "sat"]
+    readonly property var kindList: ["alert", "launch", "storm", "flood", "volcano", "quake", "fire", "sat"]
     function toggleKind(k) { var c = Object.assign({}, closed); if (c[k]) delete c[k]; else c[k] = true; closed = c; }
     readonly property bool anyOpen: rows.some(function (r) { return r.head && r.open; })
     function toggleAll() {
@@ -154,7 +154,7 @@ PlasmoidItem {
         var src = range > 0 ? pastItems : items, out = {};
         for (var i = 0; i < src.length; i++) {
             var k = src[i].kind, c = Plasmoid.configuration;
-            var own = k === "quake" ? c.ShowQuakes : k === "volcano" ? c.ShowVolcanoes : k === "storm" ? c.ShowStorms : k === "fire" ? c.ShowFires : k === "flood" ? c.ShowFloods : k === "launch" ? c.ShowLaunches : k === "sat" ? c.ShowSats : true;
+            var own = k === "quake" ? c.ShowQuakes : k === "volcano" ? c.ShowVolcanoes : k === "storm" ? c.ShowStorms : k === "fire" ? c.ShowFires : k === "flood" ? c.ShowFloods : k === "alert" ? c.ShowAlerts : k === "launch" ? c.ShowLaunches : k === "sat" ? c.ShowSats : true;
             if (own && !wanted(k)) out[k] = (out[k] || 0) + 1;
         }
         return Object.keys(out).map(function (k) { return { kind: k, count: out[k] }; });
@@ -164,6 +164,7 @@ PlasmoidItem {
         if (k === "quake") { var top = 0; for (var i = 0; i < list.length; i++) { var m = parseFloat(String(list[i].title).replace(/^M/, "")); if (m > top) top = m; } return top > 0 ? "strongest M" + top.toFixed(1) : ""; }
         if (k === "storm") { var live = list.filter(function (it) { return !/no longer tracked/.test(it.title); }).length; return live + " active"; }
         if (k === "fire") { var big = list.filter(function (it) { return (it.level || 0) >= 3; }).length, hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return [big ? big + " over 10k ha" : "", hot ? hot + " hotspot clusters" : ""].filter(function (t) { return t !== ""; }).join(" · "); }
+        if (k === "alert") { var sev = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return list.length + " oblast" + (list.length === 1 ? "" : "s") + (sev ? " · " + sev + " beyond air raid" : ""); }
         if (k === "flood") { if (list.length === 0) return "none at the map's level"; var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
         if (k === "sat") return "live on the map";
         return "";
@@ -658,7 +659,7 @@ PlasmoidItem {
             GridLayout {
                 columns: 2
                 Repeater {
-                    model: [["quakes", "Earthquakes"], ["volcanoes", "Volcanoes"], ["storms", "Storms"], ["fires", "Wildfires"], ["floods", "Floods"], ["sats", "Satellites"], ["launches", "Launches"], ["network", "Network"]]
+                    model: [["quakes", "Earthquakes"], ["volcanoes", "Volcanoes"], ["storms", "Storms"], ["fires", "Wildfires"], ["floods", "Floods"], ["alerts", "Air raid alerts"], ["sats", "Satellites"], ["launches", "Launches"], ["network", "Network"]]
                     PC3.CheckBox {
                         required property var modelData
                         text: modelData[1]

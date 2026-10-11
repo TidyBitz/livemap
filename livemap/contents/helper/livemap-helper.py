@@ -27,7 +27,7 @@
                                      is the imagery for that view and style there / build it (the wallpaper calls both;
                                      styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
   livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
-  livemap-helper fires | incidents | floods | nws-floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper fires | incidents | floods | nws-floods | air-alerts | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
   livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
   livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
@@ -2300,6 +2300,148 @@ def chk_effis():
         len(its), ": " + ", ".join("%s %d ha" % (it["name"], it["area_ha"]) for it in sorted(its, key=lambda it: -it["area_ha"])[:3]) if its else "")
 
 
+# ---------------------------------------------------------------- air raid alerts ----
+# Ukraine's civil air-raid alerts by oblast, from alerts.in.ua (the volunteer API behind most alert apps; a free
+# personal token from alerts.in.ua/api-request, 8-10 requests a minute allowed, this asks once a minute) or, with
+# no token, a public mirror of the same data at oblast level (ubilling.net.ua, no key, air raid only). The oblast
+# polygons ship with the package (Natural Earth 10m admin-1, thinned): data/ukraine-regions.json, keyed by ISO 3166-2.
+ALERTS_API = "https://api.alerts.in.ua/v1/alerts/active.json"
+ALERTS_MIRROR = "https://ubilling.net.ua/aerialalerts/?json=true"
+ALERTS_MEMORY = DATA / "air-alerts.json"
+UA_REGIONS = Path(__file__).resolve().parent.parent / "data" / "ukraine-regions.json"
+# the oblast names the sources use (Ukrainian), by ISO 3166-2 code; matched on the stem so "м. Київ", "Київ" and
+# "Київська область" all land
+UA_STEMS = {"UA-43": "крим", "UA-07": "волин", "UA-05": "вінниц", "UA-12": "дніпропетров", "UA-14": "донец", "UA-18": "житомир",
+            "UA-21": "закарпат", "UA-23": "запорі", "UA-26": "івано-франків", "UA-30": "київ", "UA-32": "київська", "UA-35": "кіровоград",
+            "UA-09": "луган", "UA-46": "львів", "UA-48": "миколаїв", "UA-51": "одес", "UA-53": "полтав", "UA-56": "рівнен",
+            "UA-40": "севастополь", "UA-59": "сум", "UA-61": "тернопіл", "UA-63": "харків", "UA-65": "херсон", "UA-68": "хмельниц",
+            "UA-71": "черкас", "UA-77": "чернівец", "UA-74": "чернігів"}
+ALERT_TYPES = {"air_raid": "air raid", "artillery_shelling": "artillery shelling", "urban_fights": "street fighting",
+               "chemical": "chemical threat", "nuclear": "nuclear threat"}
+
+
+def ua_region_code(title):
+    """ISO code for an oblast title in Ukrainian ("Київська область", "м. Київ", "Автономна Республіка Крим")."""
+    t = str(title or "").lower().replace("м.", "").replace("область", "").replace("автономна республіка", "").strip()
+    if t.startswith("київська") or (t.startswith("київ") and "область" in str(title).lower()):
+        return "UA-32"
+    for code, stem in UA_STEMS.items():
+        if code in ("UA-32",):
+            continue
+        if t.startswith(stem):
+            return code
+    return None
+
+
+def ua_regions():
+    try:
+        return json.loads(UA_REGIONS.read_text(encoding="utf-8")).get("regions", [])
+    except (OSError, ValueError):
+        return []
+
+
+def fetch_air_alerts(token=""):
+    """{code: {status, types, since}} for every oblast with something active. status A (the whole oblast),
+    P (part of it: a raion, hromada or city) from the API; the mirror only knows A."""
+    import time
+    now = time.time()
+    out = {}
+    if token:
+        req = urllib.request.Request(ALERTS_API, headers=dict(UA, Authorization="Bearer " + token, Accept="application/json"))
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read(MAX_BODY))
+        for a in data.get("alerts", []):
+            code = ua_region_code(a.get("location_oblast") or a.get("location_title"))
+            if not code:
+                continue
+            whole = a.get("location_type") == "oblast"
+            since = None
+            try:
+                from datetime import datetime
+                since = datetime.fromisoformat(str(a.get("started_at")).replace("Z", "+00:00")).timestamp()
+            except (ValueError, TypeError):
+                pass
+            e = out.setdefault(code, {"status": "N", "types": [], "since": None, "places": []})
+            if whole:
+                e["status"] = "A"
+            elif e["status"] != "A":
+                e["status"] = "P"
+                if a.get("location_title") and len(e["places"]) < 4:
+                    e["places"].append(a.get("location_title_en") or a.get("location_title"))
+            t = ALERT_TYPES.get(a.get("alert_type") or "", a.get("alert_type") or "")
+            if t and t not in e["types"]:
+                e["types"].append(t)
+            if since and (e["since"] is None or since < e["since"]):
+                e["since"] = since
+        source = "alerts.in.ua"
+    else:
+        data = json.loads(_http(ALERTS_MIRROR, timeout=15)[2])
+        for title, st in (data.get("states") or {}).items():
+            if not (st or {}).get("alertnow"):
+                continue
+            code = ua_region_code(title)
+            if code:
+                out[code] = {"status": "A", "types": ["air raid"], "since": None, "places": []}
+        source = "mirror"
+    # our own memory of when each alert started, for the sources that do not say (and across their restarts)
+    try:
+        mem = json.loads(ALERTS_MEMORY.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        mem = {}
+    for code, e in out.items():
+        if e["since"] is None:
+            e["since"] = mem.get(code) or now
+        mem[code] = e["since"]
+    for code in list(mem):
+        if code not in out:
+            del mem[code]
+    try:
+        ALERTS_MEMORY.parent.mkdir(parents=True, exist_ok=True)
+        ALERTS_MEMORY.write_text(json.dumps(mem), encoding="utf-8")
+    except OSError:
+        pass
+    return {"alerts": out, "source": source, "at": now}
+
+
+def cmd_air_alerts(args):
+    """`air-alerts [--token T] [--table]`: the oblasts under alert, with the regions' polygons on request (`--regions`)."""
+    import time
+    token = args.token or os.environ.get("LIVEMAP_ALERTS_TOKEN", "")
+    data, stale_h, err = last_good("air-alerts", lambda: fetch_air_alerts(token))
+    note = ""
+    if err:
+        note = stale_note("Air raid alerts", stale_h, err, args.stale)
+    alerts = (data or {}).get("alerts", {})
+    regions = ua_regions()
+    rows = []
+    for r in regions:
+        e = alerts.get(r["code"])
+        row = {"code": r["code"], "name": r["name"], "lat": r["lat"], "lon": r["lon"],
+               "status": e["status"] if e else "N", "types": e["types"] if e else [], "since": e["since"] if e else None, "places": e["places"] if e else []}
+        if args.regions:
+            row["rings"] = r["rings"]
+        rows.append(row)
+    if args.table:
+        print(note or "%d oblasts under alert (%s)" % (sum(1 for a in alerts.values() if a["status"] != "N"), (data or {}).get("source", "?")))
+        for row in rows:
+            if row["status"] == "N":
+                continue
+            print("  %-6s %-28s %s  %s  %s%s" % (row["code"], row["name"], row["status"], ", ".join(row["types"]),
+                                                 "%.0f min" % ((time.time() - row["since"]) / 60) if row["since"] else "",
+                                                 "  (" + ", ".join(row["places"]) + ")" if row["places"] else ""))
+    else:
+        emit({"regions": rows, "source": (data or {}).get("source", ""), "note": note, "stale_hours": stale_h})
+
+
+def chk_air_alerts():
+    token = os.environ.get("LIVEMAP_ALERTS_TOKEN", "")
+    d = fetch_air_alerts(token)
+    on = [c for c, a in d["alerts"].items() if a["status"] != "N"]
+    names = {r["code"]: r["name"] for r in ua_regions()}
+    return "ok", "%d of 27 oblasts under alert (%s%s)%s" % (len(on), d["source"], "" if token else ": no token, oblast level only",
+                                                             ": " + ", ".join(names.get(c, c) for c in on[:8]) if on else "")
+
+
 # ---------------------------------------------------------------- space -----
 # Satellites: two-line elements from CelesTrak (no key), propagated here with a Kepler + J2 model - the
 # secular part of SGP4 (nodal and apsidal precession, mean-motion correction) without drag and short-period
@@ -3258,7 +3400,7 @@ def gpu_busy():
 
 
 LAYERS = DATA / "layers.json"
-LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "launches", "sats", "network")
+LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "alerts", "launches", "sats", "network")
 
 
 def read_layers():
@@ -3508,6 +3650,30 @@ def cmd_feed(args):
                               "level": 3 if active and it["area_ha"] >= 10000 else 2 if active and big else 1})
     except Exception as e:
         problems.append("incidents: %s" % e)
+    # air raid alerts: the wallpaper's minute-by-minute cache when fresh (it carries the token's detail), else the mirror
+    try:
+        f = DATA / "last-air-alerts.json"
+        aa = None
+        try:
+            c = json.loads(f.read_text(encoding="utf-8"))
+            if now - c.get("at", 0) < 180:
+                aa = c["data"]
+        except (OSError, ValueError, KeyError):
+            pass
+        if aa is None:
+            aa, _h, _e = last_good("air-alerts", lambda: fetch_air_alerts(""))
+        names = {r["code"]: r for r in ua_regions()}
+        for code, a in ((aa or {}).get("alerts") or {}).items():
+            r = names.get(code)
+            if not r or a.get("status") == "N":
+                continue
+            kinds = a.get("types") or ["air raid"]
+            severe = any(k != "air raid" for k in kinds)
+            items.append({"kind": "alert", "when": a.get("since") or now, "title": "%s \u00b7 %s%s" % (", ".join(kinds).capitalize(), r["name"], " (part)" if a.get("status") == "P" else ""),
+                          "detail": "alerts.in.ua" + (" \u00b7 " + ", ".join(a["places"]) if a.get("places") else ""), "url": "https://alerts.in.ua/en",
+                          "lat": r["lat"], "lon": r["lon"], "level": 3 if severe else 2, "key": "alert:%s:%d" % (code, int(a.get("since") or now))})
+    except Exception as e:
+        problems.append("air alerts: %s" % e)
     # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
     try:
         nws, _h, _e = nws_floods_cached(10)
@@ -3573,7 +3739,7 @@ def cmd_feed(args):
     # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
     # sorts behind every quake of the day); they are already filtered to the ones that matter.
     def kept(it):
-        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit - len(keep))]
     items = sorted(keep + rest, key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
@@ -3800,7 +3966,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -4412,6 +4578,8 @@ def main():
     inc = sub.add_parser("incidents"); inc.add_argument("--sources"); inc.add_argument("--min-ha", dest="min_ha", type=float, default=0)
     inc.add_argument("--max-age", dest="max_age", type=float, default=30); inc.add_argument("--keep", type=float, default=48)
     inc.add_argument("--stale", type=float, default=6); inc.add_argument("--table", action="store_true"); inc.set_defaults(fn=cmd_incidents)
+    aa = sub.add_parser("air-alerts"); aa.add_argument("--token", default=""); aa.add_argument("--regions", action="store_true")
+    aa.add_argument("--stale", type=float, default=1); aa.add_argument("--table", action="store_true"); aa.set_defaults(fn=cmd_air_alerts)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)
