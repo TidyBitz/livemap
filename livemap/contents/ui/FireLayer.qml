@@ -177,7 +177,7 @@ Item {
         triggeredOnStart: true
         onTriggered: overlay.askIncidents()
     }
-    onIncidentSourcesChanged: if (helper !== "" && incidentSources !== "") askIncidents(); else incidents = []
+    onIncidentSourcesChanged: { if (helper !== "" && incidentSources !== "") askIncidents(); else incidents = []; }
     onIncidentMinHaChanged: if (helper !== "" && incidentSources !== "") askIncidents()
     P5Support.DataSource {
         id: hotExec
