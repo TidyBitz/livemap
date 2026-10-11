@@ -4,7 +4,7 @@
  * places them together, so labels from different layers no longer print over each other either, and
  * flips or nudges them to stay on the screen.
  *
- * Priority: network (yours), satellites, launches, storms, wildfires, earthquakes, volcanoes - the first ones get their space first.
+ * Priority: network (yours), satellites, launches, storms, wildfires, floods, earthquakes, volcanoes - the first ones get their space first.
  * Country names are not here on purpose: they are part of the map and belong underneath everything.
  */
 import QtQuick
@@ -17,6 +17,7 @@ Item {
     property var netSpecs: []
     property var stormSpecs: []
     property var fireSpecs: []
+    property var floodSpecs: []
     property var satSpecs: []
     property var shifts: ({})                            // per spec key: how far it has moved since its layout position
     function shiftX(spec) { var sh = spec.key ? shifts[spec.key] : null; return sh ? sh.dx : 0 }
@@ -42,14 +43,14 @@ Item {
                    : { bold: false, caps: false, spacing: 1, alpha: 1, halo: 1 };
     }
     property var styles: ({ net: style("Net"), sat: style("Sat"), launch: style("Launch"), storm: style("Storm"),
-                            fire: style("Fire"), quake: style("Quake"), volcano: style("Volcano"), infra: style("Infra") })
+                            fire: style("Fire"), flood: style("Flood"), quake: style("Quake"), volcano: style("Volcano"), infra: style("Infra") })
     // Dotted reads, so QML re-evaluates this when any of the 35 settings changes; the styles are rebuilt from it.
-    readonly property string styleKey: !cfg ? "" : [cfg.NetLabelBold, cfg.NetLabelCaps, cfg.NetLabelSpacing, cfg.NetLabelOpacity, cfg.NetLabelHalo, cfg.SatLabelBold, cfg.SatLabelCaps, cfg.SatLabelSpacing, cfg.SatLabelOpacity, cfg.SatLabelHalo, cfg.LaunchLabelBold, cfg.LaunchLabelCaps, cfg.LaunchLabelSpacing, cfg.LaunchLabelOpacity, cfg.LaunchLabelHalo, cfg.StormLabelBold, cfg.StormLabelCaps, cfg.StormLabelSpacing, cfg.StormLabelOpacity, cfg.StormLabelHalo, cfg.FireLabelBold, cfg.FireLabelCaps, cfg.FireLabelSpacing, cfg.FireLabelOpacity, cfg.FireLabelHalo, cfg.QuakeLabelBold, cfg.QuakeLabelCaps, cfg.QuakeLabelSpacing, cfg.QuakeLabelOpacity, cfg.QuakeLabelHalo, cfg.VolcanoLabelBold, cfg.VolcanoLabelCaps, cfg.VolcanoLabelSpacing, cfg.VolcanoLabelOpacity, cfg.VolcanoLabelHalo, cfg.InfraLabelBold, cfg.InfraLabelCaps, cfg.InfraLabelSpacing, cfg.InfraLabelOpacity, cfg.InfraLabelHalo].join(",")
+    readonly property string styleKey: !cfg ? "" : [cfg.NetLabelBold, cfg.NetLabelCaps, cfg.NetLabelSpacing, cfg.NetLabelOpacity, cfg.NetLabelHalo, cfg.SatLabelBold, cfg.SatLabelCaps, cfg.SatLabelSpacing, cfg.SatLabelOpacity, cfg.SatLabelHalo, cfg.LaunchLabelBold, cfg.LaunchLabelCaps, cfg.LaunchLabelSpacing, cfg.LaunchLabelOpacity, cfg.LaunchLabelHalo, cfg.StormLabelBold, cfg.StormLabelCaps, cfg.StormLabelSpacing, cfg.StormLabelOpacity, cfg.StormLabelHalo, cfg.FireLabelBold, cfg.FireLabelCaps, cfg.FireLabelSpacing, cfg.FireLabelOpacity, cfg.FireLabelHalo, cfg.FloodLabelBold, cfg.FloodLabelCaps, cfg.FloodLabelSpacing, cfg.FloodLabelOpacity, cfg.FloodLabelHalo, cfg.QuakeLabelBold, cfg.QuakeLabelCaps, cfg.QuakeLabelSpacing, cfg.QuakeLabelOpacity, cfg.QuakeLabelHalo, cfg.VolcanoLabelBold, cfg.VolcanoLabelCaps, cfg.VolcanoLabelSpacing, cfg.VolcanoLabelOpacity, cfg.VolcanoLabelHalo, cfg.InfraLabelBold, cfg.InfraLabelCaps, cfg.InfraLabelSpacing, cfg.InfraLabelOpacity, cfg.InfraLabelHalo].join(",")
     onStyleKeyChanged: { styles = { net: style("Net"), sat: style("Sat"), launch: style("Launch"), storm: style("Storm"),
-                                    fire: style("Fire"), quake: style("Quake"), volcano: style("Volcano"), infra: style("Infra") }; relayout(); }
+                                    fire: style("Fire"), flood: style("Flood"), quake: style("Quake"), volcano: style("Volcano"), infra: style("Infra") }; relayout(); }
     function tag(list, kind) { return list.map(function (s) { var t = Object.assign({}, s); t.kind = kind; return t; }); }
     readonly property var specs: [].concat(tag(netSpecs, "net"), tag(satSpecs, "sat"), tag(launchSpecs, "launch"), tag(stormSpecs, "storm"),
-                                           tag(fireSpecs, "fire"), tag(quakeSpecs, "quake"), tag(volcanoSpecs, "volcano"), tag(infraSpecs, "infra"))
+                                           tag(fireSpecs, "fire"), tag(floodSpecs, "flood"), tag(quakeSpecs, "quake"), tag(volcanoSpecs, "volcano"), tag(infraSpecs, "infra"))
 
     // Real text sizes, so the layout uses the width each label will actually have. Done in a handler,
     // not a binding: setting the meter's text inside a binding would re-trigger that same binding.

@@ -27,7 +27,7 @@
                                      is the imagery for that view and style there / build it (the wallpaper calls both;
                                      styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
   livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
-  livemap-helper fires | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper fires | floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
   livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
   livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
@@ -1773,6 +1773,141 @@ def chk_fires():
         len(fires), len(hot), ": " + ", ".join("%s (%s)" % (fr["name"], fr["alert"]) for fr in hot[:6]) if hot else "")
 
 
+# ---------------------------------------------------------------- floods ----
+# Floods from the same GDACS list (eventtype FL): one event per river basin or region, rated green / orange / red on
+# the people exposed, with the dates. For the orange and red ones (what the map shows by default) two more small
+# requests: the event data, whose "sendai" entries say what happened to people (deaths, displaced, evacuated,
+# rescued), and the geometry, whose polygons are the affected area, drawn as a faint fill under the mark.
+SENDAI_ORDER = ("death", "dead", "killed", "missing", "injured", "evacuated", "displaced", "homeless", "affected", "rescued")
+FLOOD_POLY_POINTS = 160                          # per ring, after thinning; the fill is a hint, not a survey
+
+
+def _sendai_summary(details):
+    """'3 dead, 1 200 evacuated' from the event data's sendai entries: the latest figure per kind, worst first."""
+    best = {}
+    for e in (details.get("properties") or {}).get("sendai") or []:
+        name = str(e.get("sendainame") or "").lower().strip()
+        try:
+            v = int(float(str(e.get("sendaivalue") or "0").replace(",", "")))
+        except ValueError:
+            continue
+        if not name or v <= 0:
+            continue
+        if e.get("latest") or name not in best or v > best[name]:
+            best[name] = max(v, best.get(name, 0)) if not e.get("latest") else v
+    rank = {k: i for i, k in enumerate(SENDAI_ORDER)}
+    parts = sorted(best.items(), key=lambda kv: (rank.get(kv[0], 99), -kv[1]))
+    return [[k, v] for k, v in parts[:3]]
+
+
+def _thin(ring, keep):
+    if len(ring) <= keep:
+        return ring
+    step = len(ring) / float(keep)
+    return [ring[int(i * step)] for i in range(keep)] + [ring[-1]]
+
+
+def flood_area(geo):
+    """The affected-area polygons of a GDACS flood geometry, thinned, as flat [lon, lat, ...] rings."""
+    rings = []
+    for f in geo.get("features", []):
+        g, pr = f.get("geometry") or {}, f.get("properties") or {}
+        kind, c = g.get("type"), g.get("coordinates") or []
+        if kind == "Polygon":
+            polys = [c]
+        elif kind == "MultiPolygon":
+            polys = c
+        else:
+            continue
+        for poly in polys:
+            if not poly:
+                continue
+            ring = [(x[0], x[1]) for x in poly[0]]
+            if len(ring) < 4:
+                continue
+            for part in _split(_thin(ring, FLOOD_POLY_POINTS)):
+                rings.append(part)
+    rings.sort(key=lambda r: -len(r))
+    return rings[:12]
+
+
+def fetch_floods(detail_levels=("orange", "red")):
+    import time
+    from datetime import datetime
+    body = json.dumps(gdacs_list()).encode()
+    now, floods, seen = time.time(), [], set()
+    for f in json.loads(body).get("features", []):
+        pr = f.get("properties") or {}
+        if pr.get("eventtype") != "FL" or str(pr.get("iscurrent", "true")).lower() != "true":
+            continue
+        fid = pr.get("eventid")
+        if fid in seen:
+            continue
+        seen.add(fid)
+        lon, lat = (f.get("geometry") or {}).get("coordinates", [0, 0])[:2]
+        hours, since, days = None, "", None
+        try:
+            hours = round((now - datetime.strptime(str(pr.get("datemodified") or pr.get("todate"))[:19], "%Y-%m-%dT%H:%M:%S").timestamp()) / 3600, 1)
+        except (ValueError, TypeError):
+            pass
+        try:
+            start = datetime.strptime(str(pr.get("fromdate"))[:19], "%Y-%m-%dT%H:%M:%S")
+            since = start.strftime("%Y %b %d")
+            days = max(0, round((now - start.timestamp()) / 86400, 1))
+        except (ValueError, TypeError):
+            pass
+        name = re.sub(r"^floods? in ", "", str(pr.get("name") or pr.get("description") or ""), flags=re.I).strip() or pr.get("country") or "Flood"
+        countries = [c.get("countryname") for c in pr.get("affectedcountries") or [] if c.get("countryname")]
+        fl = {"id": fid, "episode": pr.get("episodeid"), "name": name, "country": pr.get("country", ""), "countries": countries[:4],
+              "lat": lat, "lon": lon, "alert": str(pr.get("alertlevel") or "green").lower(), "score": pr.get("alertscore"),
+              "since": since, "days": days, "hours": hours, "people": [], "area": []}
+        if fl["alert"] in detail_levels:
+            urls = pr.get("url") or {}
+            try:
+                fl["people"] = _sendai_summary(json.loads(_http(urls.get("details"), timeout=12)[2]))
+            except Exception as e:
+                fl["problem"] = "details: %s" % e
+            try:
+                fl["area"] = flood_area(json.loads(_http(urls.get("geometry"), timeout=15, limit=MAX_BODY)[2]))
+            except Exception as e:
+                fl["problem"] = "geometry: %s" % e
+        floods.append(fl)
+    return floods
+
+
+def people_text(people):
+    return ", ".join("%s %s" % (format(v, ",").replace(",", " "), k) for k, v in people)
+
+
+def cmd_floods(args):
+    note, floods = "", []
+    levels = ("green", "orange", "red") if args.all else ("orange", "red")
+    data, stale_h, err = last_good("floods", lambda: fetch_floods(levels))
+    if err:
+        note = stale_note("Floods", stale_h, err, args.stale)
+    try:
+        floods = remember_events("flood", data or [], lambda fl: fl["id"], args.keep, sig_of=lambda fl: fl["alert"])
+    except Exception as e:
+        note = note or "Floods: %s" % e
+    if args.table:
+        print(note or "%d current flood events (GDACS)" % len(floods))
+        for fl in sorted(floods, key=lambda fl: ("green", "orange", "red").index(fl["alert"]) if fl["alert"] in ("green", "orange", "red") else -1, reverse=True):
+            print("  %-30s %-7s at %6.1f, %6.1f  since %s (%s d)  %s  %d rings  first seen %s%s%s" % (
+                fl["name"][:30], fl["alert"], fl["lat"], fl["lon"], fl["since"] or "?", fl["days"], people_text(fl["people"]) or "-", len(fl["area"]),
+                "%.0f h ago" % fl["first_hours"] if fl.get("first_hours") is not None else "unknown",
+                "  CHANGED from %s %.0f h ago" % (fl["changed_from"], fl["changed_hours"]) if fl.get("changed_from") else "",
+                "  GONE (%.0f h ago)" % fl["hours"] if fl.get("gone") else ""))
+    else:
+        emit({"floods": floods, "note": note})
+
+
+def chk_floods():
+    floods = fetch_floods(())
+    hot = [fl for fl in floods if fl["alert"] in ("orange", "red")]
+    return "ok", "%d current flood events, %d orange or red%s" % (
+        len(floods), len(hot), ": " + ", ".join("%s (%s)" % (fl["name"], fl["alert"]) for fl in hot[:6]) if hot else "")
+
+
 # ---------------------------------------------------------------- space -----
 # Satellites: two-line elements from CelesTrak (no key), propagated here with a Kepler + J2 model - the
 # secular part of SGP4 (nodal and apsidal precession, mean-motion correction) without drag and short-period
@@ -2731,7 +2866,7 @@ def gpu_busy():
 
 
 LAYERS = DATA / "layers.json"
-LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "launches", "sats", "network")
+LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "launches", "sats", "network")
 
 
 def read_layers():
@@ -2902,7 +3037,9 @@ def cmd_feed(args):
             ("volcano", lambda it: "https://volcano.si.edu/search_volcano.cfm?keyword=%s" % urllib.request.quote(it.get("name", "")),
              lambda it: "%s \u00b7 %s" % (it.get("name", "?"), (it.get("level") + " (" + it.get("alert", "") + ")") if it.get("alert") else "new eruption" if it.get("status") == "new" else "active")),
             ("fire", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=WF" % it.get("id", ""),
-             lambda it: "%s \u00b7 %s \u00b7 %s" % (it.get("name", "?"), it.get("alert", ""), area_text(float(it.get("area_ha") or 0), units[0])))):
+             lambda it: "%s \u00b7 %s \u00b7 %s" % (it.get("name", "?"), it.get("alert", ""), area_text(float(it.get("area_ha") or 0), units[0]))),
+            ("flood", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=FL" % it.get("id", ""),
+             lambda it: "%s \u00b7 %s flood%s" % (it.get("name", "?"), it.get("alert", ""), " \u00b7 " + people_text(it["people"]) if it.get("people") else ""))):
         for key, e in (mem.get(kind) or {}).items():
             it = e.get("item") or {}
             if not it:
@@ -2916,6 +3053,8 @@ def cmd_feed(args):
                   "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1}
             if kind == "fire" and fire_focus >= 1 and it.get("alert") not in ("orange", "red"):
                 continue                                   # Wildfire focus: only the events GDACS rates on the people exposed
+            if kind == "flood" and it.get("alert") not in ("orange", "red"):
+                continue                                   # floods: the green ones are a basin's seasonal high water
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
@@ -3194,7 +3333,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Floods (GDACS)", chk_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -3801,6 +3940,9 @@ def main():
     fi = sub.add_parser("fires"); fi.add_argument("--table", action="store_true"); fi.add_argument("--keep", type=float, default=48)
     fi.add_argument("--stale", type=float, default=6)
     fi.set_defaults(fn=cmd_fires)
+    fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
+    fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
+    fd.set_defaults(fn=cmd_floods)
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)

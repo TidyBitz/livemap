@@ -62,6 +62,12 @@
     <entry name="FireMinLevel" type="Int"><default>0</default></entry>
     <entry name="FireMinArea" type="Int"><default>0</default></entry>
     <entry name="FireSource" type="Int"><default>2</default></entry>
+    <entry name="ShowFloods" type="Bool"><default>true</default></entry>
+    <entry name="FloodColor" type="Color"><default>#4aa3ff</default></entry>
+    <entry name="FloodAlertColors" type="Bool"><default>true</default></entry>
+    <entry name="FloodMinLevel" type="Int"><default>1</default></entry>       <!-- 0 all, 1 orange and red, 2 red only: green floods are a basin's seasonal high water -->
+    <entry name="FloodArea" type="Bool"><default>true</default></entry>
+    <entry name="FloodAreaOpacity" type="Int"><default>25</default></entry>
     <entry name="HotspotMinCount" type="Int"><default>2</default></entry>
     <entry name="HotspotTier" type="Int"><default>0</default></entry>     <!-- 0 needs attention only, 1 notable and up, 2 everything -->
     <!-- rivers (Natural Earth rivers and lake centerlines) -->
@@ -173,6 +179,12 @@
     <entry name="FireTextFollows" type="Bool"><default>true</default></entry>
     <entry name="FireTextColor" type="Color"><default>#ff9a60</default></entry>
     <entry name="FirePulseMode" type="Int"><default>3</default></entry>
+    <entry name="FloodLabels" type="Int"><default>1</default></entry>
+    <entry name="FloodLabelSize" type="Int"><default>10</default></entry>
+    <entry name="FloodLabelPlate" type="Bool"><default>true</default></entry>
+    <entry name="FloodTextFollows" type="Bool"><default>true</default></entry>
+    <entry name="FloodTextColor" type="Color"><default>#8ec5ff</default></entry>
+    <entry name="FloodPulseMode" type="Int"><default>3</default></entry>
     <entry name="QuakePulseMag" type="Int"><default>55</default></entry>
     <entry name="PulseDuration" type="Int"><default>2800</default></entry>
     <entry name="PulsePeriod" type="Int"><default>5</default></entry>
@@ -256,6 +268,7 @@
     <entry name="VolcanoLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="StormLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="FireLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="FloodLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="SatLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="LaunchLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="NetLayerOpacity" type="Int"><default>100</default></entry>
@@ -303,6 +316,11 @@
     <entry name="FireLabelSpacing" type="Int"><default>100</default></entry>
     <entry name="FireLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="FireLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="FloodLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="FloodLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="FloodLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="FloodLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="FloodLabelHalo" type="Int"><default>100</default></entry>
     <entry name="SatLabelBold" type="Bool"><default>false</default></entry>
     <entry name="SatLabelCaps" type="Bool"><default>false</default></entry>
     <entry name="SatLabelSpacing" type="Int"><default>100</default></entry>

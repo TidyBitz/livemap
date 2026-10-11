@@ -6,6 +6,13 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Floods, from the same GDACS list as the storms and wildfires: one event per river basin or region, rated
+  green / orange / red on the people exposed, drawn as a wave mark in the alert colour with the affected
+  districts as a faint fill underneath and a label saying what happened to people (GDACS's Sendai figures:
+  dead, evacuated, displaced, rescued) and how long the flood has run. Orange and red only by default -
+  GDACS always lists a dozen green basins at seasonal high water - with "All levels" and "Red only" as the
+  other choices; the Events widget lists the orange and red ones. The usual colour, label, pulse and layer
+  opacity controls; `floods --table` from a terminal.
 - Styles. A style is a snapshot of the wallpaper's settings. The six built-in ones are each base map with
   its recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix):
   picking one sets the base and every colour and leaves your sizes, line widths, opacities and label styles

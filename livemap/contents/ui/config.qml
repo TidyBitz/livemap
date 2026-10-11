@@ -136,6 +136,11 @@ Kirigami.FormLayout {
     property alias cfg_FireLabelSpacing: fireStyle.letterSpacing
     property alias cfg_FireLabelOpacity: fireStyle.textOpacity
     property alias cfg_FireLabelHalo: fireStyle.halo
+    property alias cfg_FloodLabelBold: floodStyle.bold
+    property alias cfg_FloodLabelCaps: floodStyle.caps
+    property alias cfg_FloodLabelSpacing: floodStyle.letterSpacing
+    property alias cfg_FloodLabelOpacity: floodStyle.textOpacity
+    property alias cfg_FloodLabelHalo: floodStyle.halo
     property alias cfg_SatLabelBold: satStyle.bold
     property alias cfg_SatLabelCaps: satStyle.caps
     property alias cfg_SatLabelSpacing: satStyle.letterSpacing
@@ -257,6 +262,19 @@ Kirigami.FormLayout {
     property alias cfg_FireTextFollows: fireFollows.checked
     property alias cfg_FireTextColor: fireTextColor.color
     property alias cfg_FirePulseMode: firePulseMode.currentIndex
+    // floods
+    property alias cfg_ShowFloods: floods.checked
+    property alias cfg_FloodColor: floodColor.color
+    property alias cfg_FloodAlertColors: floodAlertColors.checked
+    property alias cfg_FloodMinLevel: floodMinLevel.currentIndex
+    property alias cfg_FloodArea: floodArea.checked
+    property alias cfg_FloodAreaOpacity: floodAreaOpacity.value
+    property alias cfg_FloodLabels: floodLabels.currentIndex
+    property alias cfg_FloodLabelSize: floodLabelSize.value
+    property alias cfg_FloodLabelPlate: floodPlate.checked
+    property alias cfg_FloodTextFollows: floodFollows.checked
+    property alias cfg_FloodTextColor: floodTextColor.color
+    property alias cfg_FloodPulseMode: floodPulseMode.currentIndex
     // space
     property alias cfg_ShowSats: sats.checked
     property alias cfg_SatIss: satIss.checked
@@ -284,6 +302,7 @@ Kirigami.FormLayout {
     property int cfg_VolcanoLayerOpacity
     property int cfg_StormLayerOpacity
     property int cfg_FireLayerOpacity
+    property int cfg_FloodLayerOpacity
     property int cfg_SatLayerOpacity
     property int cfg_LaunchLayerOpacity
     property int cfg_NetLayerOpacity
@@ -694,7 +713,7 @@ Kirigami.FormLayout {
     property var widgetMode: ({})
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -760,7 +779,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Layers:"
         spacing: 0
         RowLayout { Mirror { twin: quakes; text: "Earthquakes" } Mirror { twin: volcanoes; text: "Volcanoes" } Mirror { twin: storms; text: "Storms" } }
-        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
+        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
         RowLayout { Mirror { twin: network; text: "Network" } Mirror { twin: timeZones; text: "Time zones" } Mirror { twin: countryNames; text: "Country names" } }
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
         RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
@@ -1539,6 +1558,62 @@ Kirigami.FormLayout {
         model: form.pulseChoices
     }
     Note { visible: sec9.open; text: "Label: place, burned area, how long GDACS has listed it. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A fire ages out once GDACS drops it." }
+
+    // ============================================================== Floods
+    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9f.open; names: ["Floods (GDACS)"] }
+
+    QQC2.CheckBox { visible: sec9f.open; id: floods; Kirigami.FormData.label: "Show:"; text: "Floods" }
+    Amount {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood layer opacity:"
+        enabled: floods.checked
+        from: 10; to: 100
+        value: form.cfg_FloodLayerOpacity
+        onValueChanged: form.cfg_FloodLayerOpacity = value
+    }
+    QQC2.ComboBox {
+        visible: sec9f.open
+        id: floodMinLevel
+        Kirigami.FormData.label: "Flood filter:"
+        enabled: floods.checked
+        model: ["All levels", "Orange and red", "Red only"]
+    }
+    Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget lists orange and red only." }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Affected area:"
+        enabled: floods.checked
+        QQC2.CheckBox { id: floodArea; text: "Shade the affected area" }
+        Pct { id: floodAreaOpacity; enabled: floodArea.checked; from: 5; to: 80; label: "Fill opacity" }
+    }
+    Note { visible: sec9f.open; text: "The area GDACS reports as affected (the flooded districts), as a faint fill in the flood's colour under the mark. Fetched with the event's figures for the orange and red floods, a few KB each; with 'All levels' for the green ones too." }
+    KQuickControls.ColorButton { visible: sec9f.open; id: floodColor; Kirigami.FormData.label: "Flood colour:"; enabled: floods.checked; showAlphaChannel: false; dialogTitle: "Flood colour" }
+    QQC2.CheckBox { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "GDACS colours by alert level (green, orange, red)" }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood labels:"
+        enabled: floods.checked
+        QQC2.ComboBox { id: floodLabels; model: ["None", "Orange and red only", "All"] }
+        Px { id: floodLabelSize; from: 4; to: 24 }
+    }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood label text:"
+        enabled: floods.checked && floodLabels.currentIndex > 0
+        QQC2.CheckBox { id: floodPlate; text: "Plate" }
+        QQC2.CheckBox { id: floodFollows; text: "Text follows the flood colour" }
+        KQuickControls.ColorButton { id: floodTextColor; enabled: !floodFollows.checked; showAlphaChannel: false; dialogTitle: "Flood label colour" }
+    }
+    LabelStyle { visible: sec9f.open; id: floodStyle; label: "Flood label style:"; enabled: floods.checked && floodLabels.currentIndex > 0; plated: floodPlate.checked }
+    QQC2.ComboBox {
+        visible: sec9f.open
+        id: floodPulseMode
+        Kirigami.FormData.label: "Flood pulse:"
+        enabled: floods.checked
+        model: form.pulseChoices
+    }
+    Note { visible: sec9f.open; text: "Label: place, what happened to people (dead, evacuated, displaced - GDACS's Sendai figures, where it has them), how long the flood has run. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A flood ages out once GDACS drops it." }
 
     // #################################################################### Space
     Group { text: "Space" }
