@@ -18,7 +18,10 @@ release notes written at the time; their dates are the day the version was hande
   minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green),
   labelled with the counties and when the alert ends, the warning's own polygon or its forecast zones as the
   area (zones fetched once and kept in `nws-zones/`). Looked at every 10 minutes; the flood filter applies
-  (warnings only by default); the Events widget lists them with a link to the alert. `nws-floods --table`.
+  (warnings only by default). A wet week has an office issue a flood warning per river gauge, so by default
+  one office's warnings of a type are one mark, one label and one area ("Flood Warning · 9 counties ·
+  Greenville-Spartanburg"), with "Every alert on its own" as the option; flood labels gain "Red only" so the
+  text can stay on flash floods. The Events widget lists them with a link. `nws-floods --table [--each]`.
 - Styles. A style is a snapshot of the wallpaper's settings. The six built-in ones are each base map with
   its recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix):
   picking one sets the base and every colour and leaves your sizes, line widths, opacities and label styles

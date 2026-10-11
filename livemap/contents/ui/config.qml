@@ -270,6 +270,7 @@ Kirigami.FormLayout {
     property alias cfg_FloodArea: floodArea.checked
     property alias cfg_FloodAreaOpacity: floodAreaOpacity.value
     property alias cfg_FloodNws: floodNws.checked
+    property alias cfg_FloodNwsEach: floodNwsEach.checked
     property alias cfg_FloodLabels: floodLabels.currentIndex
     property alias cfg_FloodLabelSize: floodLabelSize.value
     property alias cfg_FloodLabelPlate: floodPlate.checked
@@ -1581,7 +1582,8 @@ Kirigami.FormLayout {
         model: ["All levels (GDACS green, NWS watches and advisories too)", "Orange and red (GDACS) · warnings (NWS)", "Red only (GDACS) · flash flood warnings (NWS)"]
     }
     QQC2.CheckBox { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
-    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). US only; untick outside the US to save the request." }
+    QQC2.CheckBox { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && floodNws.checked; text: "Every alert on its own (unticked: one mark per forecast office and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
+    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). A wet week has an office issue a flood warning per river gauge, so by default an office's warnings of one type are one mark, one label and one area; 'Red only' under labels keeps the text to flash floods. US only; untick outside the US to save the request." }
     Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
     RowLayout {
         visible: sec9f.open
@@ -1597,7 +1599,7 @@ Kirigami.FormLayout {
         visible: sec9f.open
         Kirigami.FormData.label: "Flood labels:"
         enabled: floods.checked
-        QQC2.ComboBox { id: floodLabels; model: ["None", "Orange and red only", "All"] }
+        QQC2.ComboBox { id: floodLabels; model: ["None", "Orange and red only", "All", "Red only (flash flood warnings)"] }
         Px { id: floodLabelSize; from: 4; to: 24 }
     }
     RowLayout {

@@ -69,6 +69,7 @@
     <entry name="FloodArea" type="Bool"><default>true</default></entry>
     <entry name="FloodAreaOpacity" type="Int"><default>25</default></entry>
     <entry name="FloodNws" type="Bool"><default>true</default></entry>
+    <entry name="FloodNwsEach" type="Bool"><default>false</default></entry>   <!-- every NWS alert on its own; default one mark per office and alert type -->
     <entry name="HotspotMinCount" type="Int"><default>2</default></entry>
     <entry name="HotspotTier" type="Int"><default>0</default></entry>     <!-- 0 needs attention only, 1 notable and up, 2 everything -->
     <!-- rivers (Natural Earth rivers and lake centerlines) -->
@@ -180,7 +181,7 @@
     <entry name="FireTextFollows" type="Bool"><default>true</default></entry>
     <entry name="FireTextColor" type="Color"><default>#ff9a60</default></entry>
     <entry name="FirePulseMode" type="Int"><default>3</default></entry>
-    <entry name="FloodLabels" type="Int"><default>2</default></entry>      <!-- the level filter already keeps the count down: label every flood shown -->
+    <entry name="FloodLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 orange and red, 2 all, 3 red only -->
     <entry name="FloodLabelSize" type="Int"><default>10</default></entry>
     <entry name="FloodLabelPlate" type="Bool"><default>true</default></entry>
     <entry name="FloodTextFollows" type="Bool"><default>true</default></entry>

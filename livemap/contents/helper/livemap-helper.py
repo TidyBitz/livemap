@@ -2009,6 +2009,45 @@ def fetch_nws_floods():
     return out
 
 
+def group_nws(alerts):
+    """One item per office and alert type: a wet week brings an office to issue a flood warning per river gauge,
+    and 28 marks and labels in one state say less than 'Flood Warning · 9 counties · Greenville-Spartanburg'."""
+    groups = {}
+    for a in alerts:
+        k = (a["office"], a["event"])
+        g = groups.get(k)
+        if g is None:
+            g = groups[k] = dict(a, members=[], area=[], counties_list=[], lats=[], lons=[], counties=0)
+            g["id"] = "nws:" + re.sub(r"[^A-Za-z0-9]+", "-", a["office"] + "-" + a["event"]).strip("-").lower()
+        g["members"].append(a["id"])
+        g["counties"] += a.get("counties") or 0
+        g["area"] = (g["area"] + a["area"])[:24]
+        g["counties_list"] += [c.strip() for c in a["name"].replace(", +", ";+").split(";") if c.strip() and not c.strip().startswith("+")]
+        g["lats"].append(a["lat"]); g["lons"].append(a["lon"])
+        if a.get("until") and (not g.get("until") or a["until"] > g["until"]):
+            g["until"] = a["until"]
+        if a.get("onset") and (not g.get("onset") or a["onset"] < g["onset"]):
+            g["onset"] = a["onset"]
+        if a.get("first_hours") is not None and (g.get("first_hours") is None or a["first_hours"] < g["first_hours"]):
+            g["first_hours"] = a["first_hours"]
+    out = []
+    for g in groups.values():
+        n = len(g["members"])
+        seen, counties = set(), []
+        for c in g["counties_list"]:
+            if c not in seen:
+                seen.add(c); counties.append(c)
+        g["lat"] = round(sum(g["lats"]) / len(g["lats"]), 3); g["lon"] = round(sum(g["lons"]) / len(g["lons"]), 3)
+        g["count"] = n
+        g["counties"] = max(len(counties), g["counties"])   # the sum of the alerts' counts, or the named ones
+        g["name"] = ("%d counties" % g["counties"] if g["counties"] > 2 else "; ".join(counties)) + (" \u00b7 " + g["office"] if g["office"] else "")
+        g["url"] = "https://alerts.weather.gov/search?area=" + urllib.request.quote(g["office"]) if n > 1 else g["url"]
+        for k in ("members", "counties_list", "lats", "lons"):
+            g.pop(k, None)
+        out.append(g)
+    return out
+
+
 def nws_floods_cached(max_age_min=10):
     """The NWS alerts, refreshed when the cache is older than max_age_min; (data, stale_hours, error)."""
     import time
@@ -2030,14 +2069,16 @@ def cmd_nws_floods(args):
     try:
         alerts = remember_events("nwsflood", data or [], lambda a: a["id"], 0.5, sig_of=lambda a: a["alert"])
         alerts = [a for a in alerts if not a.get("gone")]       # an alert that ended is simply gone: no ageing out
+        if not args.each:
+            alerts = group_nws(alerts)
     except Exception as e:
         note = note or "US flood alerts: %s" % e
     if args.table:
         import time
         print(note or "%d active NWS flood alerts" % len(alerts))
         for a in sorted(alerts, key=lambda a: ("green", "orange", "red").index(a["alert"]), reverse=True):
-            print("  %-22s %-7s %-40s %s  until %s  %d rings  first seen %s" % (
-                a["event"][:22], a["alert"], a["name"][:40], a["office"][:18],
+            print("  %-22s %-7s %-44s %s  until %s  %d rings  first seen %s" % (
+                a["event"][:22], a["alert"], a["name"][:44], "" if not args.each else a["office"][:18],
                 time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?", len(a["area"]),
                 "%.1f h ago" % a["first_hours"] if a.get("first_hours") is not None else "unknown"))
     else:
@@ -3051,7 +3092,15 @@ def read_flood_level():
         return 1
 
 
-def write_layers(shown, units=None, fire_focus=None, flood_level=None):
+def read_layers_flag(name, default=False):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return bool(d.get(name, default)) if isinstance(d, dict) else default
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -3063,14 +3112,15 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None):
     if flood_level is not None:
         flood_level = max(0, min(2, int(flood_level)))
     if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
-            and (flood_level is None or read_flood_level() == flood_level):
+            and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
         tmp = LAYERS.with_suffix(".tmp%d" % os.getpid())
         tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(),
                                    "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(),
-                                   "flood_level": flood_level if flood_level is not None else read_flood_level(), "at": int(time.time())}), encoding="utf-8")
+                                   "flood_level": flood_level if flood_level is not None else read_flood_level(),
+                                   "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass
@@ -3105,7 +3155,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
@@ -3218,11 +3268,13 @@ def cmd_feed(args):
     # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
     try:
         nws, _h, _e = nws_floods_cached(10)
+        if not read_layers_flag("nws_each"):
+            nws = group_nws(nws or [])
         for a in nws or []:
             if ["green", "orange", "red"].index(a["alert"]) < flood_level:
                 continue
             items.append({"kind": "flood", "when": a.get("onset") or now, "title": "%s \u00b7 %s" % (a["event"], a["name"]),
-                          "detail": "NWS %s \u00b7 until %s" % (a["office"], time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?"),
+                          "detail": "NWS%s \u00b7 until %s" % ("" if a.get("count") else " " + a["office"], time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?"),
                           "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
     except Exception as e:
         problems.append("nws floods: %s" % e)
@@ -4089,7 +4141,7 @@ def main():
     sub.add_parser("infrastructure").set_defaults(fn=cmd_infrastructure)
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
-    pw.add_argument("--flood-level", dest="flood_level", type=int)
+    pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -4113,7 +4165,8 @@ def main():
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)
     nw = sub.add_parser("nws-floods"); nw.add_argument("--table", action="store_true"); nw.add_argument("--stale", type=float, default=1)
-    nw.add_argument("--max-age", dest="max_age", type=float, default=10); nw.set_defaults(fn=cmd_nws_floods)   # minutes the cache is trusted
+    nw.add_argument("--max-age", dest="max_age", type=float, default=10)   # minutes the cache is trusted
+    nw.add_argument("--each", action="store_true"); nw.set_defaults(fn=cmd_nws_floods)   # every alert on its own, not one per office and type
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)

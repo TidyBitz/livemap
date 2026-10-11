@@ -33,7 +33,8 @@ Item {
     function levelOf(fl) { return fl.alert === "red" ? 2 : fl.alert === "orange" ? 1 : 0 }
     readonly property bool showArea: cfg ? cfg.FloodArea : true
     readonly property real areaOpacity: (cfg ? cfg.FloodAreaOpacity : 25) / 100
-    readonly property int labelMode: cfg ? cfg.FloodLabels : 1             // 0 none, 1 orange and red, 2 all
+    readonly property int labelMode: cfg ? cfg.FloodLabels : 1             // 0 none, 1 orange and red, 2 all, 3 red only
+    readonly property bool nwsEach: cfg ? cfg.FloodNwsEach : false         // every NWS alert on its own, not one per office and type
     readonly property int labelPx: Math.round((cfg ? cfg.FloodLabelSize : 10) * unit)
     readonly property bool labelPlate: cfg ? cfg.FloodLabelPlate : true
     readonly property color labelColor: cfg && !cfg.FloodTextFollows ? cfg.FloodTextColor : ink
@@ -99,7 +100,7 @@ Item {
         if (fl.days !== undefined && fl.days !== null) text += " · " + (fl.days < 1 ? "today" : Math.round(fl.days) + " d");
         return text;
     }
-    readonly property var labelSpecs: labelMode === 0 ? [] : shown.filter(function (fl) { return labelMode === 2 || significant(fl); }).map(function (fl) {
+    readonly property var labelSpecs: labelMode === 0 ? [] : shown.filter(function (fl) { return labelMode === 2 || (labelMode === 3 ? fl.alert === "red" : significant(fl)); }).map(function (fl) {
         return { x: px(fl.lon), y: py(fl.lat), gap: mark * 0.6, side: "right",
                  text: describe(fl), px: labelPx, color: Geo.mix(labelInkOf(fl), agedColor, agedOf(fl)), plate: labelPlate,
                  bold: significant(fl), alpha: 1 - 0.4 * agedOf(fl) };
@@ -153,8 +154,10 @@ Item {
         running: overlay.helper !== "" && overlay.wantNws
         repeat: true
         triggeredOnStart: true
-        onTriggered: nwsExec.connectSource("python3 '" + overlay.helper + "' nws-floods --stale " + overlay.staleHours + " # " + Date.now())
+        onTriggered: overlay.askNws()
     }
+    function askNws() { nwsExec.connectSource("python3 '" + helper + "' nws-floods --stale " + staleHours + (nwsEach ? " --each" : "") + " # " + Date.now()) }
+    onNwsEachChanged: if (helper !== "" && wantNws) askNws()
 
     Repeater {                                    // the affected areas, under every mark
         model: overlay.showArea ? overlay.shown : []
