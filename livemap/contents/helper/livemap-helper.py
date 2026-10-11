@@ -3707,7 +3707,7 @@ def cmd_styles(args):
             emit({"error": "built-in styles cannot be overwritten; save as a new one"})
             return
         if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last HISTORY_KEEP
-            HISTORY.mkdir(parents=True, exist_ok=True)
+            os.makedirs(HISTORY, exist_ok=True)           # two saves can race here (the original and a previous): both tolerate it
             now = int(time.time())
             sid = "history:" + str(now)
             stamp = time.strftime("%a %H:%M", time.localtime(now))
@@ -3718,7 +3718,7 @@ def cmd_styles(args):
         if sid == "user:original" and (STYLES / "original.json").exists():
             emit({"id": sid, "kept": True})               # taken once, the first time the page opens with styles: never overwritten
             return
-        STYLES.mkdir(parents=True, exist_ok=True)
+        os.makedirs(STYLES, exist_ok=True)
         path = _style_path(sid)
         name = args.name or path.stem.replace("-", " ").title()
         path.write_text(json.dumps({"name": name, "includes": includes, "at": int(time.time()), "version": 1,
@@ -3750,7 +3750,7 @@ def cmd_styles(args):
         if not s or not isinstance(s.get("values"), dict):
             emit({"error": "not a Live World Map style file"})
             return
-        STYLES.mkdir(parents=True, exist_ok=True)
+        os.makedirs(STYLES, exist_ok=True)
         name = s.get("name") or Path(args.path).stem
         slug = _slug(name)
         if slug == "previous":
