@@ -296,6 +296,8 @@ Kirigami.FormLayout {
     property alias cfg_AirAlertOutlineOpacity: alertOutlineOpacity.value
     property alias cfg_AirAlertToken: alertToken.text
     property alias cfg_AirAlertPulse: alertPulse.checked
+    property alias cfg_AirAlertLongHours: alertLongHours.value
+    property alias cfg_AirAlertLongStyle: alertLongStyle.currentIndex
     property alias cfg_AirAlertLabels: alertLabels.currentIndex
     property alias cfg_AirAlertLabelSize: alertLabelSize.value
     property alias cfg_AirAlertLabelPlate: alertPlate.checked
@@ -1708,6 +1710,15 @@ Kirigami.FormLayout {
         Pct { id: alertPartialOpacity; from: 0; to: 60; label: "Part of the oblast under alert (with a token)" }
         QQC2.CheckBox { id: alertPulse; text: "Breathe" }
     }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "Long-running alerts:"
+        enabled: airAlerts.checked
+        QQC2.ComboBox { id: alertLongStyle; model: ["Drawn like any other", "Lighter, without the breath", "Outline only"] }
+        Hours { id: alertLongHours; from: 0; to: 168; enabled: alertLongStyle.currentIndex > 0 }
+        QQC2.Label { text: "and over"; opacity: 0.7 }
+    }
+    Note { visible: sec9a.open; text: "An alert clears from the map the minute the all-clear is given; nothing is kept on. But the frontline oblasts (Luhansk, Donetsk, Kharkiv, Zaporizhzhia, Kherson, Crimea) have been under alert for months on end, so past this many hours an alert is drawn lighter or as an outline and a fresh alert elsewhere stands out. 0 hours: never. An alert already on at the first look counts from that look." }
     RowLayout {
         visible: sec9a.open
         Kirigami.FormData.label: "Oblast outlines:"

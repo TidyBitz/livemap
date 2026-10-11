@@ -76,6 +76,8 @@
     <entry name="AirAlertOutlineOpacity" type="Int"><default>30</default></entry>
     <entry name="AirAlertToken" type="String"><default></default></entry>
     <entry name="AirAlertPulse" type="Bool"><default>true</default></entry>
+    <entry name="AirAlertLongHours" type="Int"><default>6</default></entry>    <!-- an alert on longer than this is "long-running" (the frontline oblasts, months on end); 0 never -->
+    <entry name="AirAlertLongStyle" type="Int"><default>1</default></entry>    <!-- 0 as any other, 1 lighter fill and no breath, 2 outline only -->
     <entry name="AirAlertLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 under alert, 2 every oblast -->
     <entry name="AirAlertLabelSize" type="Int"><default>10</default></entry>
     <entry name="AirAlertLabelPlate" type="Bool"><default>true</default></entry>

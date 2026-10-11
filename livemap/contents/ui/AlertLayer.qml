@@ -30,6 +30,12 @@ Item {
     readonly property bool labelPlate: cfg ? cfg.AirAlertLabelPlate : true
     readonly property color labelColor: cfg && !cfg.AirAlertTextFollows ? cfg.AirAlertTextColor : ink
     readonly property bool pulse: cfg ? cfg.AirAlertPulse : true
+    // the frontline oblasts are under alert for months on end: past this many hours an alert is long-running and
+    // drawn lighter (or as an outline), so a fresh alert elsewhere stands out. An alert whose start is unknown
+    // (already on at the first look, from the mirror) counts from the first look.
+    readonly property real longHours: cfg ? cfg.AirAlertLongHours : 6
+    readonly property int longStyle: cfg ? cfg.AirAlertLongStyle : 1
+    function longRunning(r) { return longHours > 0 && (r.status !== "N") && (nowSec - (r.since || r.first_seen || nowSec)) > longHours * 3600 }
     readonly property real mark: Math.round((cfg ? cfg.AirAlertLabelSize : 10) * unit)
     property var regions: []
     property string feedSource: ""
@@ -65,12 +71,13 @@ Item {
         if (r.status === "P") parts.push("part" + (r.places && r.places.length ? ": " + r.places.join(", ") : ""));
         if (r.types && r.types.length) parts.push(r.types.join(", "));
         if (r.since) parts.push(Geo.spanText(Math.max(0, nowSec - r.since) / 3600));
+        else if (r.first_seen && nowSec - r.first_seen > longHours * 3600 && longHours > 0) parts.push("over " + Geo.spanText(nowSec - r.first_seen > 0 ? (nowSec - r.first_seen) / 3600 : 0));
         return parts.join(" · ");
     }
     readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 || r.status !== "N"; }).map(function (r) {
         return { x: px(r.lon), y: py(r.lat), gap: mark * 0.3, side: "below",
                  text: r.status === "N" ? r.name : describe(r), px: labelPx, color: r.status === "N" ? Qt.rgba(labelColor.r, labelColor.g, labelColor.b, 0.6) : labelColor,
-                 plate: labelPlate && r.status !== "N", bold: r.status === "A", alpha: r.status === "N" ? 0.7 : 1 };
+                 plate: labelPlate && r.status !== "N", bold: r.status === "A" && !longRunning(r), alpha: r.status === "N" ? 0.7 : longRunning(r) ? 0.75 : 1 };
     })
 
     P5Support.DataSource {
@@ -106,7 +113,9 @@ Item {
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             visible: modelData.status !== "N" || overlay.outline
-            readonly property real fill: modelData.status === "A" ? overlay.fillOpacity * overlay.breath : modelData.status === "P" ? overlay.partialOpacity * overlay.breath : 0
+            readonly property bool long: overlay.longRunning(modelData)
+            readonly property real base: modelData.status === "A" ? overlay.fillOpacity : modelData.status === "P" ? overlay.partialOpacity : 0
+            readonly property real fill: long ? (overlay.longStyle === 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath) : base * overlay.breath
             ShapePath {
                 fillColor: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, region.fill)
                 strokeColor: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, region.modelData.status !== "N" ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)

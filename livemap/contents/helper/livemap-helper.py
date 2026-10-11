@@ -2395,12 +2395,14 @@ def fetch_air_alerts(token=""):
     for code, e in out.items():
         m = mem.get(code)
         if e["since"] is not None:
-            mem[code] = {"since": e["since"], "known": True}
+            mem[code] = {"since": e["since"], "known": True, "first_seen": (m or {}).get("first_seen", now) if isinstance(m, dict) else now}
         elif isinstance(m, dict):
             e["since"] = m["since"] if m.get("known") else None
+            m.setdefault("first_seen", m["since"])
         else:
-            mem[code] = {"since": now, "known": watching}
+            mem[code] = {"since": now, "known": watching, "first_seen": now}
             e["since"] = now if watching else None
+        e["first_seen"] = mem[code].get("first_seen", now)
     for code in list(mem):
         if code != "_at" and code not in out:
             del mem[code]
@@ -2427,7 +2429,8 @@ def cmd_air_alerts(args):
     for r in regions:
         e = alerts.get(r["code"])
         row = {"code": r["code"], "name": r["name"], "lat": r["lat"], "lon": r["lon"],
-               "status": e["status"] if e else "N", "types": e["types"] if e else [], "since": e["since"] if e else None, "places": e["places"] if e else []}
+               "status": e["status"] if e else "N", "types": e["types"] if e else [], "since": e["since"] if e else None, "places": e["places"] if e else [],
+               "first_seen": e.get("first_seen") if e else None}
         if args.regions:
             row["rings"] = r["rings"]
         rows.append(row)
