@@ -163,7 +163,7 @@ PlasmoidItem {
         if (k === "launch") { var next = list.filter(function (it) { return it.future && it.when > nowSec; }).sort(function (a, b) { return a.when - b.when; })[0]; return next ? "next " + ago(next.when) : ""; }
         if (k === "quake") { var top = 0; for (var i = 0; i < list.length; i++) { var m = parseFloat(String(list[i].title).replace(/^M/, "")); if (m > top) top = m; } return top > 0 ? "strongest M" + top.toFixed(1) : ""; }
         if (k === "storm") { var live = list.filter(function (it) { return !/no longer tracked/.test(it.title); }).length; return live + " active"; }
-        if (k === "fire") { var hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return hot ? hot + " hotspot clusters" : ""; }
+        if (k === "fire") { var big = list.filter(function (it) { return (it.level || 0) >= 3; }).length, hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return [big ? big + " over 10k ha" : "", hot ? hot + " hotspot clusters" : ""].filter(function (t) { return t !== ""; }).join(" · "); }
         if (k === "flood") { if (list.length === 0) return "none at the map's level"; var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
         if (k === "sat") return "live on the map";
         return "";

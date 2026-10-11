@@ -29,6 +29,7 @@ Item {
     property int fireFocus: 1                     // the Wildfire focus, for the widget's feed
     property int floodLevel: 1                    // the flood filter, likewise
     property bool nwsEach: false                  // every NWS alert on its own, likewise
+    property int fireSources: 29                  // the wildfire sources on, likewise
     property bool helperOk: true
 
     P5Support.DataSource {
@@ -71,6 +72,6 @@ Item {
         running: watch.helper !== ""
         repeat: true
         triggeredOnStart: true
-        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " # " + Date.now())
+        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " --fire-sources " + watch.fireSources + " # " + Date.now())
     }
 }

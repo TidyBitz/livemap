@@ -49,6 +49,7 @@ WallpaperItem {
             item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
             item.floodLevel = Qt.binding(function () { return cfg.FloodMinLevel });
             item.nwsEach = Qt.binding(function () { return cfg.FloodNwsEach });
+            item.fireSources = Qt.binding(function () { return cfg.FireSources });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false

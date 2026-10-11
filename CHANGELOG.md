@@ -6,6 +6,14 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Named wildfire incidents with perimeters, from the agencies fighting them: NIFC's interagency perimeters
+  (every open US wildfire, with acres, percent contained, personnel, discovery date; prescribed burns left
+  out), CWFIS's active-fires list joined to its satellite perimeter estimates (Canada: size, stage of control)
+  and EFFIS's burnt areas of the last three weeks (Europe, the Middle East, North Africa). A flame sized by
+  area over the perimeter as a faint fill, labelled "Bouquet · 1.0k ac · 35 % contained · 600 personnel · 3 d";
+  size and "not yet contained" filters. The wildfire sources are now a set of boxes (GDACS, the three incident
+  sources, FIRMS hotspots); the incidents are on and the hotspots off by default, which is what makes the
+  layer quiet enough to leave on. The Events widget lists the big or uncontained ones. `incidents --table`.
 - Floods, from the same GDACS list as the storms and wildfires: one event per river basin or region, rated
   green / orange / red on the people exposed, drawn as a wave mark in the alert colour with the affected
   districts as a faint fill underneath and a label saying what happened to people (GDACS's Sendai figures:

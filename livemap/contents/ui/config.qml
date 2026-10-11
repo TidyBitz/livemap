@@ -252,7 +252,11 @@ Kirigami.FormLayout {
     property alias cfg_FireAlertColors: fireAlertColors.checked
     property alias cfg_FireMinLevel: fireMinLevel.currentIndex
     property alias cfg_FireMinArea: fireMinArea.currentIndex
-    property alias cfg_FireSource: fireSource.currentIndex
+    property int cfg_FireSources
+    property alias cfg_FireIncidentMin: fireIncidentMin.currentIndex
+    property alias cfg_FireIncidentActive: fireIncidentActive.checked
+    property alias cfg_FirePerimeter: firePerimeter.checked
+    property alias cfg_FirePerimeterOpacity: firePerimeterOpacity.value
     property alias cfg_FireFocus: fireFocus.currentIndex
     property alias cfg_HotspotMinCount: hotspotMinCount.currentIndex
     property alias cfg_HotspotTier: hotspotTier.currentIndex
@@ -1483,8 +1487,10 @@ Kirigami.FormLayout {
     Note { visible: sec8.open; text: "Newly reported = GDACS started tracking it less than the 'Newly reported' hours ago; significant = hurricane strength (category 1 and up). A storm ages from its latest advisory and greys out once GDACS stops tracking it." }
 
     // ============================================================== Wildfires
-    SectionHeader { id: sec9; title: "Wildfires"; sourceNames: ["Wildfires (GDACS)", "Fire hotspots (NASA FIRMS)"]; twin: fires; summary: fires.checked ? fireSource.currentText + " · hotspots: " + hotspotTier.currentText.toLowerCase() + " · labels: " + fireLabels.currentText.toLowerCase() : "Off" }
-    Source { visible: sec9.open; names: ["Wildfires (GDACS)", "Fire hotspots (NASA FIRMS)"] }
+    readonly property var fireSourceList: [[1, "GDACS events (world)"], [4, "US incidents (NIFC)"], [8, "Canada (CWFIS)"], [16, "Europe, Middle East, North Africa (EFFIS)"], [2, "NASA satellite hotspots (FIRMS)"]]
+    readonly property string fireSourcesText: fireSourceList.filter(function (x) { return (form.cfg_FireSources & x[0]) !== 0; }).map(function (x) { return x[1].replace(/ \(.*\)/, ""); }).join(", ") || "no source"
+    SectionHeader { id: sec9; title: "Wildfires"; sourceNames: ["Wildfires (GDACS)", "US fire incidents (NIFC)", "Canadian fires (CWFIS)", "European burnt areas (EFFIS)", "Fire hotspots (NASA FIRMS)"]; twin: fires; summary: fires.checked ? form.fireSourcesText + ((form.cfg_FireSources & 2) ? " · hotspots: " + hotspotTier.currentText.toLowerCase() : "") + " · labels: " + fireLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9.open; names: ["Wildfires (GDACS)", "US fire incidents (NIFC)", "Canadian fires (CWFIS)", "European burnt areas (EFFIS)", "Fire hotspots (NASA FIRMS)"] }
 
     QQC2.CheckBox { visible: sec9.open; id: fires; Kirigami.FormData.label: "Show:"; text: "Wildfires" }
     Amount {
@@ -1495,12 +1501,35 @@ Kirigami.FormLayout {
         value: form.cfg_FireLayerOpacity
         onValueChanged: form.cfg_FireLayerOpacity = value
     }
-    QQC2.ComboBox {
+    ColumnLayout {
         visible: sec9.open
-        id: fireSource
         Kirigami.FormData.label: "Wildfire sources:"
         enabled: fires.checked
-        model: ["GDACS fire events", "NASA satellite hotspots (FIRMS)", "Both"]
+        spacing: 0
+        Repeater {
+            model: form.fireSourceList
+            QQC2.CheckBox {
+                required property var modelData
+                text: modelData[1]
+                checked: (form.cfg_FireSources & modelData[0]) !== 0
+                onToggled: form.cfg_FireSources = checked ? (form.cfg_FireSources | modelData[0]) : (form.cfg_FireSources & ~modelData[0])
+            }
+        }
+    }
+    Note { visible: sec9.open; text: "The incident sources are the fires the agencies are fighting, by name, with the size, containment or stage of control, personnel, and the perimeter where it is mapped: NIFC's interagency perimeters (every open US wildfire, no prescribed burns), CWFIS's active-fires list with its satellite perimeter estimates (Canada), EFFIS's burnt areas of the last three weeks (Europe, the Middle East, North Africa). Looked at every 30 minutes. GDACS adds the rest of the world's rated events; the FIRMS hotspots are the raw satellite detections, off by default because a burning season covers the map with them." }
+    RowLayout {
+        visible: sec9.open
+        Kirigami.FormData.label: "Incident filter:"
+        enabled: fires.checked && (form.cfg_FireSources & 28) !== 0
+        QQC2.ComboBox { id: fireIncidentMin; model: ["Any size", "100 ha (250 ac) and up", "1 000 ha and up", "10 000 ha and up"] }
+        QQC2.CheckBox { id: fireIncidentActive; text: "Only fires not yet contained" }
+    }
+    RowLayout {
+        visible: sec9.open
+        Kirigami.FormData.label: "Perimeter:"
+        enabled: fires.checked && (form.cfg_FireSources & 28) !== 0
+        QQC2.CheckBox { id: firePerimeter; text: "Shade the mapped perimeter" }
+        Pct { id: firePerimeterOpacity; enabled: firePerimeter.checked; from: 5; to: 80; label: "Fill opacity" }
     }
     QQC2.ComboBox {
         visible: sec9.open
@@ -1510,11 +1539,10 @@ Kirigami.FormLayout {
         model: ["Everything the filters below allow", "Near people: a city of 100 000 within 50 km, or an orange / red event", "Orange and red events only (no satellite hotspots)"]
     }
     Note { visible: sec9.open; text: "Most of what the satellites see burning is the savanna, harvest and forestry fires of the season - the world looks on fire every day. 'Near people' keeps the fires that can mean evacuations: GDACS rates orange and red on the people exposed, and a hotspot cluster within 50 km of a city of 100 000 is the other case. The Events widget follows the same choice." }
-    Note { visible: sec9.open; text: "GDACS: one flame per fire event it rates (green, orange, red) with the burned area; updated daily. NASA FIRMS: what the MODIS satellites detected burning in the last 24 hours, clustered by the helper into half-degree cells (about 3 MB every 3 hours, no key); a smaller flame in the fire colour, sized by fire power." }
     RowLayout {
         visible: sec9.open
         Kirigami.FormData.label: "GDACS fire filter:"
-        enabled: fires.checked && fireSource.currentIndex !== 1
+        enabled: fires.checked && (form.cfg_FireSources & 1) !== 0
         QQC2.ComboBox { id: fireMinLevel; model: ["All levels", "Orange and red", "Red only"] }
         QQC2.ComboBox { id: fireMinArea; model: ["Any size", "1 000 ha and up", "10 000 ha and up", "50 000 ha and up"] }
     }
@@ -1522,7 +1550,7 @@ Kirigami.FormLayout {
         visible: sec9.open
         id: hotspotTier
         Kirigami.FormData.label: "Hotspot filter:"
-        enabled: fires.checked && fireSource.currentIndex !== 0
+        enabled: fires.checked && (form.cfg_FireSources & 2) !== 0
         model: ["Needs attention only", "Notable and up", "Everything"]
     }
     Note { visible: sec9.open; text: "Needs attention: on a GDACS orange or red event, near a city, burning for days in isolation, very large, or a usually quiet cell flaring up. Notable: 25+ detections or 1 GW, a smaller fire near a town, on a GDACS event; drawn as dots, labelled only with 'All' labels. Regional burning seasons (a carpet of burning cells, the savanna and harvest fires) stay notable at most, so the map is not covered in them." }
@@ -1530,7 +1558,7 @@ Kirigami.FormLayout {
         visible: sec9.open
         id: hotspotMinCount
         Kirigami.FormData.label: "Hotspot cells:"
-        enabled: fires.checked && fireSource.currentIndex !== 0 && hotspotTier.currentIndex === 2
+        enabled: fires.checked && (form.cfg_FireSources & 2) !== 0 && hotspotTier.currentIndex === 2
         model: ["3+ detections per cell", "10+ detections per cell", "25+ detections per cell", "50+ detections per cell"]
     }
     Note { visible: sec9.open; text: "GDACS rates most fires green (it scores humanitarian impact, not size), so a GDACS flame's size follows the burned area and only its colour the level. A hotspot cell that needs attention gets the flame, a label saying why, and the pulse." }
@@ -1559,7 +1587,7 @@ Kirigami.FormLayout {
         enabled: fires.checked
         model: form.pulseChoices
     }
-    Note { visible: sec9.open; text: "Label: place, burned area, how long GDACS has listed it. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A fire ages out once GDACS drops it." }
+    Note { visible: sec9.open; text: "Labels: an incident reads name, size, containment or stage, personnel and age ('Bouquet · 1.0k ac · 35 % contained · 600 personnel · 3 d'); a GDACS event reads place, burned area and how long it has been listed. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = a GDACS orange or red, or an uncontained incident of 1 000 ha. A fire ages out once its source drops it." }
 
     // ============================================================== Floods
     SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }

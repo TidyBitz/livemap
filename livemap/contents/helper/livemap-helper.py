@@ -27,7 +27,7 @@
                                      is the imagery for that view and style there / build it (the wallpaper calls both;
                                      styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
   livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
-  livemap-helper fires | floods | nws-floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper fires | incidents | floods | nws-floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
   livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
   livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
@@ -2092,6 +2092,211 @@ def chk_nws_floods():
         len(alerts), len(warn), ": " + ", ".join("%s (%s)" % (a["name"].split(";")[0], a["event"].replace(" Warning", "")) for a in warn[:5]) if warn else "")
 
 
+# ---------------------------------------------------------- named fire incidents ----
+# The fires the agencies are actually fighting, with names, sizes, containment and (where mapped) the perimeter -
+# the layer the satellite hotspots and GDACS's green ratings never give:
+#  - NIFC WFIGS (US): the interagency "current perimeters" layer, one polygon per open incident, with acres,
+#    percent contained, personnel, discovery date; no key (ArcGIS REST, GeoJSON, simplified server-side).
+#  - CWFIS (Canada): the national active-fires list (agency, size in ha, stage of control: out of control /
+#    being held / under control) and the M3 perimeter estimates from satellite hotspots, joined by distance.
+#  - EFFIS (Europe, Middle East, North Africa): Copernicus's rapid damage assessment burnt areas (MODIS,
+#    polygons with country, province, commune, hectares, fire date), the last weeks of them.
+NIFC = ("https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query"
+        "?where=attr_IncidentTypeCategory%3D%27WF%27&outFields=attr_IncidentName,attr_IncidentSize,attr_PercentContained,attr_FireDiscoveryDateTime,"
+        "attr_ModifiedOnDateTime_dt,attr_TotalIncidentPersonnel,attr_POOState,attr_POOCounty,attr_FireBehaviorGeneral,attr_IrwinID"
+        "&outSR=4326&geometryPrecision=3&maxAllowableOffset=0.004&resultRecordCount=2000&f=geojson")
+CWFIS_FIRES = ("https://geoserver.cwfif.nrcan.gc.ca/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json"
+               "&typeName=public:cwfif_national_activefires&count=2000&CQL_FILTER=now()%3E%3Drecord_start%20AND%20now()%3C%3Drecord_end")
+CWFIS_PERIMS = ("https://cwfis.cfs.nrcan.gc.ca/geoserver/wfs?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json"
+                "&typeName=public:m3_polygons_current&srsName=EPSG:4326&count=2000&CQL_FILTER=lastdate%%20%%3E%%20%%27%s%%27")
+EFFIS = ("https://maps.effis.emergency.copernicus.eu/effis?service=WFS&version=1.1.0&request=GetFeature&typename=ms:modis.ba.poly"
+         "&outputformat=geojson&maxfeatures=1500&FILTER=%%3CFilter%%3E%%3CPropertyIsGreaterThanOrEqualTo%%3E%%3CPropertyName%%3Efiredate%%3C%%2FPropertyName%%3E"
+         "%%3CLiteral%%3E%s%%3C%%2FLiteral%%3E%%3C%%2FPropertyIsGreaterThanOrEqualTo%%3E%%3C%%2FFilter%%3E")
+CWFIS_STAGE = {"OC": "out of control", "BH": "being held", "UC": "under control", "EX": "out"}
+INCIDENT_SOURCES = ("nifc", "cwfis", "effis")
+
+
+def _incident(source, iid, name, lat, lon, ha, rings, **more):
+    it = {"id": "%s:%s" % (source, iid), "source": source, "name": name, "lat": round(lat, 3), "lon": round(lon, 3),
+          "area_ha": round(ha), "area": rings[:12], "contained": None, "stage": "", "personnel": 0, "since": "", "days": None,
+          "hours": 0, "region": "", "alert": "incident"}
+    it.update(more)
+    return it
+
+
+def _poly_centre(rings):
+    lat, lon = _ring_centre(rings)
+    return lat, lon
+
+
+def fetch_nifc():
+    """US incidents with perimeters: one per open wildfire (prescribed burns left out by the query)."""
+    from datetime import datetime
+    geo = json.loads(_http(NIFC, timeout=40, limit=MAX_BODY)[2])
+    if "error" in geo:
+        raise ValueError("NIFC: %s" % (geo["error"].get("message") or geo["error"]))
+    now, out = time.time(), []
+    for f in geo.get("features", []):
+        pr = f.get("properties") or {}
+        rings = flood_area({"features": [f]})
+        lat, lon = _poly_centre(rings)
+        if lat is None:
+            continue
+        since, days = "", None
+        t = pr.get("attr_FireDiscoveryDateTime")
+        if t:
+            since = datetime.utcfromtimestamp(t / 1000).strftime("%Y %b %d")
+            days = max(0, round((now - t / 1000) / 86400, 1))
+        mod = pr.get("attr_ModifiedOnDateTime_dt")
+        acres = float(pr.get("attr_IncidentSize") or 0)
+        out.append(_incident("nifc", pr.get("attr_IrwinID") or pr.get("attr_IncidentName"), str(pr.get("attr_IncidentName") or "Fire").title(),
+                             lat, lon, acres * 0.4046856, rings,
+                             contained=None if pr.get("attr_PercentContained") is None else int(pr["attr_PercentContained"]),
+                             personnel=int(pr.get("attr_TotalIncidentPersonnel") or 0), since=since, days=days,
+                             hours=round((now - mod / 1000) / 3600, 1) if mod else 0,
+                             region=", ".join(x for x in (pr.get("attr_POOCounty"), pr.get("attr_POOState")) if x),
+                             behaviour=str(pr.get("attr_FireBehaviorGeneral") or "").lower(),
+                             url="https://inciweb.wildfire.gov/"))
+    return out
+
+
+def fetch_cwfis():
+    """Canada: the active-fires list joined to the nearest M3 perimeter estimate of the last two weeks."""
+    from datetime import datetime
+    now = time.time()
+    fires = json.loads(_http(CWFIS_FIRES, timeout=30)[2]).get("features", [])
+    try:
+        since_day = datetime.utcfromtimestamp(now - 14 * 86400).strftime("%Y-%m-%d")
+        perims = json.loads(_http(CWFIS_PERIMS % since_day, timeout=40, limit=MAX_BODY)[2]).get("features", [])
+    except Exception:
+        perims = []
+    polys = []
+    for f in perims:
+        rings = flood_area({"features": [f]})
+        lat, lon = _poly_centre(rings)
+        if lat is not None:
+            polys.append((lat, lon, rings, float((f.get("properties") or {}).get("area") or 0)))
+    out = []
+    for f in fires:
+        pr = f.get("properties") or {}
+        if pr.get("fire_was_prescribed"):
+            continue
+        lat, lon = pr.get("latitude"), pr.get("longitude")
+        if lat is None or lon is None:
+            continue
+        ha = float(pr.get("fire_size") or 0)
+        rings = []
+        best = None
+        for plat, plon, prings, parea in polys:            # the perimeter estimate nearest the agency's point, within 15 km
+            d = haversine_km(lat, lon, plat, plon)
+            if d < 15 and (best is None or d < best[0]):
+                best = (d, prings)
+        if best:
+            rings = best[1]
+        sd = pr.get("status_date") or pr.get("situation_report_date") or ""
+        hours = 0
+        try:
+            hours = round((now - datetime.strptime(str(sd)[:19], "%Y-%m-%dT%H:%M:%S").timestamp()) / 3600, 1)
+        except (ValueError, TypeError):
+            pass
+        stage = CWFIS_STAGE.get(str(pr.get("stage_of_control_status") or ""), "")
+        if stage == "out":
+            continue
+        pc = pr.get("percent_contained")
+        out.append(_incident("cwfis", pr.get("national_fire_id") or pr.get("id"), "%s fire %s" % (pr.get("agency_code") or "", pr.get("agency_fire_id") or ""),
+                             float(lat), float(lon), ha, rings, contained=int(pc) if pc is not None and pc >= 0 else None, stage=stage,
+                             hours=hours, region=str(pr.get("agency_code") or ""), url="https://cwfis.cfs.nrcan.gc.ca/interactive-map"))
+    return out
+
+
+def fetch_effis():
+    """Europe, Middle East and North Africa: EFFIS burnt areas of the last three weeks (MODIS rapid damage assessment)."""
+    from datetime import datetime
+    now = time.time()
+    since_day = datetime.utcfromtimestamp(now - 21 * 86400).strftime("%Y-%m-%d")
+    geo = json.loads(_http(EFFIS % since_day, timeout=40, limit=MAX_BODY)[2])
+    out = []
+    for f in geo.get("features", []):
+        pr = f.get("properties") or {}
+        rings = flood_area({"features": [f]})
+        lat, lon = _poly_centre(rings)
+        if lat is None:
+            continue
+        since, days, hours = "", None, 0
+        try:
+            t = datetime.strptime(str(pr.get("firedate"))[:10], "%Y-%m-%d").timestamp()
+            since = datetime.utcfromtimestamp(t).strftime("%Y %b %d")
+            days = max(0, round((now - t) / 86400, 1))
+        except (ValueError, TypeError):
+            pass
+        try:
+            hours = round((now - datetime.strptime(str(pr.get("lastupdate"))[:19], "%Y-%m-%d %H:%M:%S").timestamp()) / 3600, 1)
+        except (ValueError, TypeError):
+            pass
+        name = ", ".join(x for x in (pr.get("commune"), pr.get("province")) if x) or str(pr.get("country") or "Fire")
+        out.append(_incident("effis", pr.get("id") or f.get("id"), name, lat, lon, float(pr.get("area_ha") or 0), rings,
+                             since=since, days=days, hours=hours, region=str(pr.get("country") or ""),
+                             url="https://forest-fire.emergency.copernicus.eu/apps/effis_current_situation/"))
+    return out
+
+
+INCIDENT_FETCH = {"nifc": fetch_nifc, "cwfis": fetch_cwfis, "effis": fetch_effis}
+
+
+def incidents_cached(source, max_age_min=30):
+    f = DATA / ("last-%s.json" % source)
+    try:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        if time.time() - c.get("at", 0) < max_age_min * 60:
+            return c["data"], 0.0, ""
+    except (OSError, ValueError, KeyError):
+        pass
+    return last_good(source, INCIDENT_FETCH[source])
+
+
+def cmd_incidents(args):
+    """`incidents --sources nifc,cwfis,effis [--min-ha 100] [--table]`: the named fires, with perimeters where mapped."""
+    notes, items = [], []
+    wanted = [x for x in (args.sources or ",".join(INCIDENT_SOURCES)).split(",") if x in INCIDENT_SOURCES]
+    for src in wanted:
+        data, stale_h, err = incidents_cached(src, args.max_age)
+        if err:
+            notes.append(stale_note({"nifc": "US fire incidents", "cwfis": "Canadian fires", "effis": "European burnt areas"}[src], stale_h, err, args.stale))
+        items += [it for it in (data or []) if it["area_ha"] >= args.min_ha]
+    try:
+        items = remember_events("incident", items, lambda it: it["id"], args.keep, sig_of=lambda it: "%s/%s" % (it.get("stage"), (it.get("contained") or 0) // 25))
+    except Exception as e:
+        notes.append("Fire incidents: %s" % e)
+    note = "; ".join(n for n in notes if n)
+    if args.table:
+        print(note or "%d fire incidents (%s)" % (len(items), ", ".join(wanted)))
+        for it in sorted(items, key=lambda it: -it["area_ha"]):
+            print("  %-6s %-34s %9d ha  %-14s %s%s  at %.2f, %.2f  %d rings%s" % (
+                it["source"], it["name"][:34], it["area_ha"], it.get("stage") or ("%d %% contained" % it["contained"] if it.get("contained") is not None else ""),
+                it.get("region", "")[:20], "  %d personnel" % it["personnel"] if it.get("personnel") else "", it["lat"], it["lon"], len(it["area"]),
+                "  GONE" if it.get("gone") else ""))
+    else:
+        emit({"incidents": items, "note": note})
+
+
+def chk_nifc():
+    its = fetch_nifc()
+    big = sorted(its, key=lambda it: -it["area_ha"])[:3]
+    return "ok", "%d open US wildfire incidents with perimeters%s" % (len(its), ": " + ", ".join("%s %d ha" % (it["name"], it["area_ha"]) for it in big) if big else "")
+
+
+def chk_cwfis():
+    its = fetch_cwfis()
+    return "ok", "%d active Canadian fires, %d out of control, %d with a perimeter estimate" % (
+        len(its), sum(1 for it in its if it["stage"] == "out of control"), sum(1 for it in its if it["area"]))
+
+
+def chk_effis():
+    its = fetch_effis()
+    return "ok", "%d burnt areas mapped in the last three weeks (EFFIS)%s" % (
+        len(its), ": " + ", ".join("%s %d ha" % (it["name"], it["area_ha"]) for it in sorted(its, key=lambda it: -it["area_ha"])[:3]) if its else "")
+
+
 # ---------------------------------------------------------------- space -----
 # Satellites: two-line elements from CelesTrak (no key), propagated here with a Kepler + J2 model - the
 # secular part of SGP4 (nodal and apsidal precession, mean-motion correction) without drag and short-period
@@ -3100,7 +3305,15 @@ def read_layers_flag(name, default=False):
         return default
 
 
-def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None):
+def read_fire_sources():
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return int(d.get("fire_sources", 29)) if isinstance(d, dict) else 29
+    except (OSError, ValueError, TypeError):
+        return 29
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -3112,7 +3325,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
     if flood_level is not None:
         flood_level = max(0, min(2, int(flood_level)))
     if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
-            and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)):
+            and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)) \
+            and (fire_sources is None or read_fire_sources() == int(fire_sources)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -3120,7 +3334,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
         tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(),
                                    "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(),
                                    "flood_level": flood_level if flood_level is not None else read_flood_level(),
-                                   "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"), "at": int(time.time())}), encoding="utf-8")
+                                   "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"),
+                                   "fire_sources": int(fire_sources) if fire_sources is not None else read_fire_sources(), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass
@@ -3155,7 +3370,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None), getattr(args, "fire_sources", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
@@ -3265,6 +3480,31 @@ def cmd_feed(args):
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
+    # named fire incidents (NIFC, CWFIS, EFFIS: the sources the wallpaper has on; cached half an hour)
+    try:
+        bits = read_fire_sources()
+        for src, bit in (("nifc", 4), ("cwfis", 8), ("effis", 16)):
+            if not (bits & bit):
+                continue
+            data, _h, _e = incidents_cached(src, 30)
+            for it in data or []:
+                active = it.get("stage") in ("out of control", "being held") or (it.get("contained") is not None and it["contained"] < 100) or (src == "effis" and (it.get("days") or 99) < 7)
+                big = it["area_ha"] >= 1000 or it.get("personnel", 0) >= 100 or it.get("stage") == "out of control"
+                if fire_focus > 0 and not big:
+                    continue
+                parts = [it["name"], area_text(float(it["area_ha"]), units[0])]
+                if it.get("contained") is not None:
+                    parts.append("%d %% contained" % it["contained"])
+                elif it.get("stage"):
+                    parts.append(it["stage"])
+                if it.get("personnel"):
+                    parts.append("%d personnel" % it["personnel"])
+                items.append({"kind": "fire", "when": now - (it.get("hours") or 0) * 3600, "title": " \u00b7 ".join(parts),
+                              "detail": "%s%s" % (src.upper(), " \u00b7 " + it["region"] if it.get("region") else ""), "url": it.get("url", ""),
+                              "lat": it["lat"], "lon": it["lon"], "key": it["id"],
+                              "level": 3 if active and it["area_ha"] >= 10000 else 2 if active and big else 1})
+    except Exception as e:
+        problems.append("incidents: %s" % e)
     # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
     try:
         nws, _h, _e = nws_floods_cached(10)
@@ -3553,7 +3793,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Floods (GDACS)", chk_floods), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -4142,6 +4382,7 @@ def main():
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
+    pw.add_argument("--fire-sources", dest="fire_sources", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -4161,6 +4402,9 @@ def main():
     fi = sub.add_parser("fires"); fi.add_argument("--table", action="store_true"); fi.add_argument("--keep", type=float, default=48)
     fi.add_argument("--stale", type=float, default=6)
     fi.set_defaults(fn=cmd_fires)
+    inc = sub.add_parser("incidents"); inc.add_argument("--sources"); inc.add_argument("--min-ha", dest="min_ha", type=float, default=0)
+    inc.add_argument("--max-age", dest="max_age", type=float, default=30); inc.add_argument("--keep", type=float, default=48)
+    inc.add_argument("--stale", type=float, default=6); inc.add_argument("--table", action="store_true"); inc.set_defaults(fn=cmd_incidents)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)

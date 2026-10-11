@@ -61,7 +61,11 @@
     <entry name="FireAlertColors" type="Bool"><default>true</default></entry>
     <entry name="FireMinLevel" type="Int"><default>0</default></entry>
     <entry name="FireMinArea" type="Int"><default>0</default></entry>
-    <entry name="FireSource" type="Int"><default>2</default></entry>
+    <entry name="FireSources" type="Int"><default>29</default></entry>      <!-- bits: 1 GDACS events, 2 NASA hotspots, 4 US incidents (NIFC), 8 Canada (CWFIS), 16 Europe (EFFIS) -->
+    <entry name="FireIncidentMin" type="Int"><default>1</default></entry>   <!-- 0 any size, 1 100 ha, 2 1 000 ha, 3 10 000 ha -->
+    <entry name="FireIncidentActive" type="Bool"><default>false</default></entry>
+    <entry name="FirePerimeter" type="Bool"><default>true</default></entry>
+    <entry name="FirePerimeterOpacity" type="Int"><default>25</default></entry>
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
     <entry name="FloodColor" type="Color"><default>#4aa3ff</default></entry>
     <entry name="FloodAlertColors" type="Bool"><default>true</default></entry>
