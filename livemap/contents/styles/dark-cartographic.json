@@ -1,0 +1,9 @@
+{
+ "name": "Dark cartographic",
+ "order": 3,
+ "description": "Flat land and ocean in two dark colours, default colours for everything else.",
+ "version": 1,
+ "values": {
+  "MapStyle": 3
+ }
+}

@@ -1,0 +1,9 @@
+{
+ "name": "Satellite today",
+ "order": 1,
+ "description": "Yesterday's VIIRS picture of the world, default colours.",
+ "version": 1,
+ "values": {
+  "MapStyle": 1
+ }
+}

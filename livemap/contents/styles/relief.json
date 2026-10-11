@@ -1,0 +1,9 @@
+{
+ "name": "Relief",
+ "order": 2,
+ "description": "Shaded relief and bathymetry, default colours.",
+ "version": 1,
+ "values": {
+  "MapStyle": 2
+ }
+}

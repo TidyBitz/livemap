@@ -1,0 +1,9 @@
+{
+ "name": "Seasonal",
+ "order": 0,
+ "description": "NASA Blue Marble monthly imagery with the default colours.",
+ "version": 1,
+ "values": {
+  "MapStyle": 0
+ }
+}

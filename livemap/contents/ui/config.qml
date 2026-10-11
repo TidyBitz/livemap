@@ -136,6 +136,11 @@ Kirigami.FormLayout {
     property alias cfg_FireLabelSpacing: fireStyle.letterSpacing
     property alias cfg_FireLabelOpacity: fireStyle.textOpacity
     property alias cfg_FireLabelHalo: fireStyle.halo
+    property alias cfg_FloodLabelBold: floodStyle.bold
+    property alias cfg_FloodLabelCaps: floodStyle.caps
+    property alias cfg_FloodLabelSpacing: floodStyle.letterSpacing
+    property alias cfg_FloodLabelOpacity: floodStyle.textOpacity
+    property alias cfg_FloodLabelHalo: floodStyle.halo
     property alias cfg_SatLabelBold: satStyle.bold
     property alias cfg_SatLabelCaps: satStyle.caps
     property alias cfg_SatLabelSpacing: satStyle.letterSpacing
@@ -257,6 +262,21 @@ Kirigami.FormLayout {
     property alias cfg_FireTextFollows: fireFollows.checked
     property alias cfg_FireTextColor: fireTextColor.color
     property alias cfg_FirePulseMode: firePulseMode.currentIndex
+    // floods
+    property alias cfg_ShowFloods: floods.checked
+    property alias cfg_FloodColor: floodColor.color
+    property alias cfg_FloodAlertColors: floodAlertColors.checked
+    property alias cfg_FloodMinLevel: floodMinLevel.currentIndex
+    property alias cfg_FloodArea: floodArea.checked
+    property alias cfg_FloodAreaOpacity: floodAreaOpacity.value
+    property alias cfg_FloodNws: floodNws.checked
+    property alias cfg_FloodNwsEach: floodNwsEach.checked
+    property alias cfg_FloodLabels: floodLabels.currentIndex
+    property alias cfg_FloodLabelSize: floodLabelSize.value
+    property alias cfg_FloodLabelPlate: floodPlate.checked
+    property alias cfg_FloodTextFollows: floodFollows.checked
+    property alias cfg_FloodTextColor: floodTextColor.color
+    property alias cfg_FloodPulseMode: floodPulseMode.currentIndex
     // space
     property alias cfg_ShowSats: sats.checked
     property alias cfg_SatIss: satIss.checked
@@ -284,6 +304,7 @@ Kirigami.FormLayout {
     property int cfg_VolcanoLayerOpacity
     property int cfg_StormLayerOpacity
     property int cfg_FireLayerOpacity
+    property int cfg_FloodLayerOpacity
     property int cfg_SatLayerOpacity
     property int cfg_LaunchLayerOpacity
     property int cfg_NetLayerOpacity
@@ -537,6 +558,155 @@ Kirigami.FormLayout {
         valueFromText: function (t) { return parseInt(t) || 10 }
     }
 
+
+    // #################################################################### Style
+    // A style is a snapshot of some of this page's settings, kept as JSON by the helper (`styles`): the built-in ones
+    // ship with the package and carry each base map's recommended colours; the user's own live in the data folder.
+    // Picking one writes its values into the controls below, after "Previous" has been saved; editing anything a
+    // style covers marks it modified, and Save / Save as / Reset work on that. Every setting is in one bucket (base,
+    // look, layers, machine) and the Includes boxes say which buckets an apply touches and a save captures.
+    Group { text: "Style" }
+    property string cfg_StyleName
+    property int cfg_StyleIncludes
+    property var styleList: []
+    property var styleKeys: ({ base: [], look: [], layers: [], machine: [] })
+    property var styleValues: ({})          // the current style as its file has it
+    property string styleFileName: ""
+    property string styleDir: ""
+    property bool styleIsBuiltin: true
+    property bool styleLoaded: false
+    property string styleNote: ""
+    readonly property var historyList: styleList.filter(function (s) { return s.id.indexOf("history:") === 0; })   // newest first
+    readonly property bool hasOriginal: styleList.some(function (s) { return s.id === "user:original"; })
+    readonly property bool styleIsSnapshot: cfg_StyleName.indexOf("history:") === 0 || cfg_StyleName === "user:original"
+    readonly property var includedBuckets: [ "base", "look", "layers" ].filter(function (b, i) { return (form.cfg_StyleIncludes & (1 << i)) !== 0; })
+    function bucketOf(key) {
+        for (var b in styleKeys) if (styleKeys[b].indexOf(key) >= 0) return b;
+        return "machine";
+    }
+    function normValue(v) {
+        if (v === undefined || v === null) return null;
+        if (typeof v === "object" || (typeof v === "string" && v.charAt(0) === "#")) return String(v).toLowerCase();
+        return v;
+    }
+    function collectValues(buckets) {      // this page's current values for the given buckets
+        var out = {};
+        for (var i = 0; i < buckets.length; i++) {
+            var keys = styleKeys[buckets[i]] || [];
+            for (var j = 0; j < keys.length; j++) {
+                var v = form["cfg_" + keys[j]];
+                if (v !== undefined) out[keys[j]] = normValue(v);
+            }
+        }
+        return out;
+    }
+    function styleKeysIncluded(values) {
+        var keys = [];
+        for (var k in values) if (includedBuckets.indexOf(bucketOf(k)) >= 0 && form["cfg_" + k] !== undefined) keys.push(k);
+        return keys.sort();
+    }
+    // the page's values for everything the current style sets, as text: differs from the file's -> modified
+    readonly property string styleSig: {
+        var keys = styleKeysIncluded(styleValues), out = [];
+        for (var i = 0; i < keys.length; i++) out.push(keys[i] + "=" + JSON.stringify(normValue(form["cfg_" + keys[i]])));
+        return out.join("\n");
+    }
+    readonly property string styleFileSig: {
+        var keys = styleKeysIncluded(styleValues), out = [];
+        for (var i = 0; i < keys.length; i++) out.push(keys[i] + "=" + JSON.stringify(normValue(styleValues[keys[i]])));
+        return out.join("\n");
+    }
+    readonly property bool styleModified: styleLoaded && styleSig !== styleFileSig
+    function styleCmd(words) { return "python3 '" + widgetHelper + "' styles " + words + " # " + Date.now(); }
+    function quoted(t) { return "'" + String(t).replace(/'/g, "'\\''") + "'"; }
+    function snapshot(id, name) {           // everything a style can hold, as the page has it now
+        styleExec.connectSource(styleCmd("save --id " + id + " --name " + quoted(name) + " --includes 7 --values " + Qt.btoa(JSON.stringify(collectValues(["base", "look", "layers"])))));
+    }
+    function styleName(id) { var s = styleList.find(function (x) { return x.id === id; }); return s ? s.name : id; }
+    function applyValues(values) {          // write a style's values into the controls, only the included buckets
+        var keys = styleKeysIncluded(values);
+        for (var i = 0; i < keys.length; i++) form["cfg_" + keys[i]] = values[keys[i]];
+    }
+    function applyStyle(id) {
+        if (id.indexOf("history:") !== 0) snapshot("user:previous", "Before " + styleName(id));   // dated, the last 20 kept
+        styleExec.connectSource(styleCmd("read --id " + id + " --name apply"));
+    }
+    function loadStyle(id) { styleExec.connectSource(styleCmd("read --id " + id)); }
+    function saveStyle(id, name) {
+        styleExec.connectSource(styleCmd("save --id " + id + " --name " + quoted(name) + " --includes " + cfg_StyleIncludes
+                                         + " --values " + Qt.btoa(JSON.stringify(collectValues(includedBuckets)))));
+    }
+    P5Support.DataSource {
+        id: styleExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => {
+            disconnectSource(source);
+            var r;
+            try { r = JSON.parse(data.stdout); } catch (e) { form.styleNote = "The helper did not answer: " + String(data.stderr).trim().split("\n").pop(); return; }
+            if (r && r.error) { form.styleNote = r.error; return; }
+            form.styleNote = "";
+            if (source.indexOf("' styles keys") >= 0) {
+                form.styleDir = r.dir || ""; delete r.dir; form.styleKeys = r;
+                // the settings as they are the first time this page opens with styles: kept for good, never overwritten
+                if (!form.hasOriginal) form.snapshot("user:original", "Original settings, before styles");
+                return;
+            }
+            if (source.indexOf("' styles list") >= 0) { form.styleList = r; return; }
+            if (source.indexOf("' styles read") >= 0) {
+                form.styleValues = r.values; form.styleFileName = r.name; form.styleIsBuiltin = !!r.builtin;
+                if (source.indexOf("--name apply") >= 0) { form.applyValues(r.values); form.cfg_StyleName = r.id; }
+                form.styleLoaded = true;
+                return;
+            }
+            // save, delete, import: refresh the list, and the current style when it is the one just written
+            styleExec.connectSource(form.styleCmd("list"));
+            if (r.id && source.indexOf("' styles save") >= 0 && !r.kept && r.id.indexOf("history:") !== 0 && r.id !== "user:original") { form.cfg_StyleName = r.id; form.loadStyle(r.id); }
+            if (r.id && source.indexOf("' styles import") >= 0) form.applyStyle(r.id);
+            if (r.deleted && r.deleted === form.cfg_StyleName) { form.cfg_StyleName = "builtin:seasonal"; form.loadStyle(form.cfg_StyleName); }
+        }
+    }
+    Timer { interval: 900; running: true; onTriggered: { styleExec.connectSource(form.styleCmd("keys")); styleExec.connectSource(form.styleCmd("list")); form.loadStyle(form.cfg_StyleName || "builtin:seasonal"); } }
+    RowLayout {
+        Kirigami.FormData.label: "Style:"
+        Layout.fillWidth: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+        QQC2.ComboBox {
+            id: styleCombo
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 12
+            model: form.styleList.map(function (s) { return s.name + (s.builtin || s.history ? "" : "  (yours)"); })
+            currentIndex: { var i = form.styleList.findIndex(function (s) { return s.id === form.cfg_StyleName; }); return i; }
+            displayText: currentIndex < 0 ? (form.styleFileName || "(none)") : currentText
+            onActivated: function (i) { var s = form.styleList[i]; if (s) form.applyStyle(s.id); }
+        }
+        QQC2.Label { visible: form.styleModified; text: "● modified"; color: Kirigami.Theme.neutralTextColor }
+        QQC2.Button { text: "Save"; icon.name: "document-save"; enabled: form.styleModified && !form.styleIsBuiltin && !form.styleIsSnapshot; onClicked: form.saveStyle(form.cfg_StyleName, form.styleFileName) }
+        QQC2.Button { text: "Save as…"; icon.name: "document-save-as"; enabled: form.styleLoaded; onClicked: { saveAsName.text = form.styleIsBuiltin ? "My " + form.styleFileName.toLowerCase() : form.styleIsSnapshot ? "" : form.styleFileName; saveAsDialog.open(); } }
+        QQC2.Button { text: "Reset"; icon.name: "edit-undo"; enabled: form.styleModified; onClicked: form.applyStyle(form.cfg_StyleName); QQC2.ToolTip.text: "Back to " + form.styleFileName + " as saved"; QQC2.ToolTip.visible: hovered }
+        QQC2.Button {
+            icon.name: "application-menu"; text: "More"
+            onClicked: styleMenu.open()
+            QQC2.Menu {
+                id: styleMenu
+                y: parent.height
+                QQC2.MenuItem { text: form.historyList.length > 0 ? "Back to \"" + form.historyList[0].name + "\"" : "Back to before the last apply"; enabled: form.historyList.length > 0; onTriggered: form.applyStyle(form.historyList[0].id) }
+                QQC2.MenuItem { text: "Back to the original settings (before styles)"; enabled: form.hasOriginal; onTriggered: form.applyStyle("user:original") }
+                QQC2.MenuItem { text: "Export this style…"; enabled: form.styleLoaded; onTriggered: exportDialog.open() }
+                QQC2.MenuItem { text: "Import a style…"; onTriggered: importDialog.open() }
+                QQC2.MenuItem { text: "Delete " + form.styleFileName; enabled: !form.styleIsBuiltin && form.cfg_StyleName !== "user:original"; onTriggered: styleExec.connectSource(form.styleCmd("delete --id " + form.cfg_StyleName)) }
+                QQC2.MenuItem { text: "Open the styles folder"; enabled: form.styleDir !== ""; onTriggered: Qt.openUrlExternally("file://" + form.styleDir) }
+            }
+        }
+    }
+    RowLayout {
+        Kirigami.FormData.label: "A style covers:"
+        QQC2.CheckBox { text: "Map base"; checked: (form.cfg_StyleIncludes & 1) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 1) : (form.cfg_StyleIncludes & ~1) }
+        QQC2.CheckBox { text: "Colours, lines and labels"; checked: (form.cfg_StyleIncludes & 2) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 2) : (form.cfg_StyleIncludes & ~2) }
+        QQC2.CheckBox { text: "Layers"; checked: (form.cfg_StyleIncludes & 4) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 4) : (form.cfg_StyleIncludes & ~4) }
+    }
+    Note { text: (form.styleNote !== "" ? form.styleNote + "\n" : "")
+                 + "The built-in styles are each base map with its recommended colours: picking one sets the base and every colour, and leaves your sizes, line widths, opacities and label styles alone. Before every apply the settings are saved as a dated snapshot (the last 20 are listed at the bottom; More has the way back), and the settings as they were the first time this page opened with styles are kept as \"Original\" for good. Change anything a style set and it says modified; Save as keeps your version (" + (form.styleDir || "~/.local/share/livemap/styles") + ") with everything the ticked boxes cover, sizes and widths included. Layers are left out unless you tick them; which computer, home place, units, frame and profile are never part of a style." }
+
     // #################################################################### Profile and layers
     Group { text: "Profile and layers" }
 
@@ -545,7 +715,7 @@ Kirigami.FormLayout {
     property var widgetMode: ({})
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -611,7 +781,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Layers:"
         spacing: 0
         RowLayout { Mirror { twin: quakes; text: "Earthquakes" } Mirror { twin: volcanoes; text: "Volcanoes" } Mirror { twin: storms; text: "Storms" } }
-        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
+        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
         RowLayout { Mirror { twin: network; text: "Network" } Mirror { twin: timeZones; text: "Time zones" } Mirror { twin: countryNames; text: "Country names" } }
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
         RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
@@ -633,7 +803,7 @@ Kirigami.FormLayout {
     QQC2.ComboBox {
         visible: sec1.open
         id: mapStyle
-        Kirigami.FormData.label: "Map style:"
+        Kirigami.FormData.label: "Base map:"
         model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)"]
     }
     Note {
@@ -642,8 +812,8 @@ Kirigami.FormLayout {
                "The actual picture from the last day's orbits (Suomi NPP VIIRS corrected reflectance): clouds, snow, smoke and sea ice as they were yesterday, with the seams and night gaps a polar orbit leaves. Fetched for the frame on screen once a day (python3-pillow needed), a few MB.",
                "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
                "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
-               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data. Set the border and label colours to light greys to complete it; the lightest on the GPU.",
-               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything. Set the line and label colours to greens to complete it."][mapStyle.currentIndex]
+               "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data; the lightest on the GPU.",
+               "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything."][mapStyle.currentIndex]
     }
     RowLayout {
         visible: sec1.open && mapStyle.currentIndex === 3
@@ -653,28 +823,7 @@ Kirigami.FormLayout {
         KQuickControls.ColorButton { id: oceanColor; showAlphaChannel: false; dialogTitle: "Ocean colour" }
         QQC2.Label { text: "ocean" }
     }
-    RowLayout {
-        visible: sec1.open && mapStyle.currentIndex >= 4
-        Kirigami.FormData.label: "Map style colours:"
-        QQC2.Button {
-            text: mapStyle.currentIndex === 5 ? "Set every line and label to Matrix greens" : "Set every line and label to Dark Matter greys"
-            icon.name: "color-management"
-            onClicked: form.applyLook(mapStyle.currentIndex)
-        }
-    }
-    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The style sets the land and ocean; the lines, names and event colours stay yours. This button recolours them to match in one go (country, state, river and time zone lines, country and place names, quake rings, storms, volcanoes, fires, satellites, launches, arcs); change any of them afterwards as you like." }
-    function applyLook(style) {
-        var m = style === 5;
-        var line = m ? "#1f9e5a" : "#5a5a5a", name = m ? "#7dffb0" : "#c8c8c8", place = m ? "#b8ffd0" : "#e0e0e0";
-        borderColor.color = line; riverColor.color = m ? "#157a48" : "#3f4a52"; zoneColor.color = m ? "#2ec27e" : "#6e6e6e"; plateLineColor.color = m ? "#39ff8a" : "#8a6a3a";
-        nameFollows.checked = false; nameTextColor.color = name;
-        stateNameFollows.checked = false; stateNameTextColor.color = m ? "#4fd48a" : "#9a9a9a";
-        capitalColor.color = place; stateCapitalColor.color = place; cityColor.color = place;
-        quakeColor.color = m ? "#39ff8a" : "#ffa640"; quakeFollows.checked = true;
-        stormColor.color = m ? "#b6ff3c" : "#8fd3ff"; volcanoColor.color = m ? "#ff9d3c" : "#ff7a59"; fireColor.color = m ? "#ffb03c" : "#ff6b3c";
-        satColor.color = m ? "#9dffc4" : "#e8ecf0"; launchColor.color = m ? "#7dffb0" : "#ffd166"; arcColor.color = m ? "#2ec27e" : "#8fd3ff";
-        zoneTextFollows.checked = true;
-    }
+    Note { visible: sec1.open && mapStyle.currentIndex >= 4; text: "The base sets the land and ocean only. To take the style's recommended line, name and event colours as well, pick it under Style at the top of the page; everything it sets can be changed afterwards." }
     QQC2.ComboBox {
         visible: sec1.open
         id: mapTone
@@ -1412,6 +1561,65 @@ Kirigami.FormLayout {
     }
     Note { visible: sec9.open; text: "Label: place, burned area, how long GDACS has listed it. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A fire ages out once GDACS drops it." }
 
+    // ============================================================== Floods
+    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9f.open; names: ["Floods (GDACS)", "US flood alerts (NWS)"] }
+
+    QQC2.CheckBox { visible: sec9f.open; id: floods; Kirigami.FormData.label: "Show:"; text: "Floods" }
+    Amount {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood layer opacity:"
+        enabled: floods.checked
+        from: 10; to: 100
+        value: form.cfg_FloodLayerOpacity
+        onValueChanged: form.cfg_FloodLayerOpacity = value
+    }
+    QQC2.ComboBox {
+        visible: sec9f.open
+        id: floodMinLevel
+        Kirigami.FormData.label: "Flood filter:"
+        enabled: floods.checked
+        model: ["All levels (GDACS green, NWS watches and advisories too)", "Orange and red (GDACS) · warnings (NWS)", "Red only (GDACS) · flash flood warnings (NWS)"]
+    }
+    QQC2.CheckBox { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
+    QQC2.CheckBox { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && floodNws.checked; text: "Every alert on its own (unticked: one mark per forecast office and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
+    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). A wet week has an office issue a flood warning per river gauge, so by default an office's warnings of one type are one mark, one label and one area; 'Red only' under labels keeps the text to flash floods. US only; untick outside the US to save the request." }
+    Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Affected area:"
+        enabled: floods.checked
+        QQC2.CheckBox { id: floodArea; text: "Shade the affected area" }
+        Pct { id: floodAreaOpacity; enabled: floodArea.checked; from: 5; to: 80; label: "Fill opacity" }
+    }
+    Note { visible: sec9f.open; text: "The area GDACS reports as affected (the flooded districts), as a faint fill in the flood's colour under the mark. Fetched with the event's figures for the orange and red floods, a few KB each; with 'All levels' for the green ones too." }
+    KQuickControls.ColorButton { visible: sec9f.open; id: floodColor; Kirigami.FormData.label: "Flood colour:"; enabled: floods.checked; showAlphaChannel: false; dialogTitle: "Flood colour" }
+    QQC2.CheckBox { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "Orange and red floods in GDACS's alert colours (green ones keep the flood colour)" }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood labels:"
+        enabled: floods.checked
+        QQC2.ComboBox { id: floodLabels; model: ["None", "Orange and red only", "All", "Red only (flash flood warnings)"] }
+        Px { id: floodLabelSize; from: 4; to: 24 }
+    }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Flood label text:"
+        enabled: floods.checked && floodLabels.currentIndex > 0
+        QQC2.CheckBox { id: floodPlate; text: "Plate" }
+        QQC2.CheckBox { id: floodFollows; text: "Text follows the flood colour" }
+        KQuickControls.ColorButton { id: floodTextColor; enabled: !floodFollows.checked; showAlphaChannel: false; dialogTitle: "Flood label colour" }
+    }
+    LabelStyle { visible: sec9f.open; id: floodStyle; label: "Flood label style:"; enabled: floods.checked && floodLabels.currentIndex > 0; plated: floodPlate.checked }
+    QQC2.ComboBox {
+        visible: sec9f.open
+        id: floodPulseMode
+        Kirigami.FormData.label: "Flood pulse:"
+        enabled: floods.checked
+        model: form.pulseChoices
+    }
+    Note { visible: sec9f.open; text: "Label: place, what happened to people (dead, evacuated, displaced - GDACS's Sendai figures, where it has them), how long the flood has run. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A flood ages out once GDACS drops it." }
+
     // #################################################################### Space
     Group { text: "Space" }
 
@@ -1794,6 +2002,32 @@ Kirigami.FormLayout {
         color: Kirigami.Theme.negativeTextColor
     }
 
+    QQC2.Dialog {
+        id: saveAsDialog
+        title: "Save the style as"
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: QQC2.Dialog.Save | QQC2.Dialog.Cancel
+        onAccepted: if (saveAsName.text.trim() !== "") form.saveStyle("", saveAsName.text.trim())
+        ColumnLayout {
+            QQC2.Label { text: "A name for this style. It saves " + form.includedBuckets.map(function (b) { return ({ base: "the map base", look: "the colours, lines and labels", layers: "the layers" })[b]; }).join(", ") + " as they are now." ; wrapMode: Text.Wrap; Layout.preferredWidth: Kirigami.Units.gridUnit * 20 }
+            QQC2.TextField { id: saveAsName; Layout.fillWidth: true; placeholderText: "My night map"; onAccepted: saveAsDialog.accept() }
+        }
+    }
+    FileDialog {
+        id: exportDialog
+        title: "Export the style"
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "json"
+        nameFilters: ["Live World Map styles (*.json)"]
+        onAccepted: styleExec.connectSource(form.styleCmd("export --id " + form.cfg_StyleName + " --path " + form.quoted(String(selectedFile).replace(/^file:\/\//, ""))))
+    }
+    FileDialog {
+        id: importDialog
+        title: "Import a style"
+        nameFilters: ["Live World Map styles (*.json)"]
+        onAccepted: styleExec.connectSource(form.styleCmd("import --path " + form.quoted(String(selectedFile).replace(/^file:\/\//, ""))))
+    }
     FileDialog {
         id: picker
         title: "Choose an equirectangular (2:1) world map"

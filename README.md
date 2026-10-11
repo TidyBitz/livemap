@@ -6,7 +6,7 @@ A live situational-awareness wallpaper for KDE Plasma 6, with a companion panel 
 
 One equirectangular world map, and on it - each layer its own tick box - the day/night line and city
 lights, live clouds, earthquakes, volcanoes with their alert history, tropical storms with their track
-coloured by intensity, wildfires, the ISS, Hubble and Tiangong gliding along their orbits, the next rocket
+coloured by intensity, wildfires, floods, the ISS, Hubble and Tiangong gliding along their orbits, the next rocket
 launches counting down on their pads, time zones, borders, and (optionally, never leaving your machine)
 where your own computer is connected to right now. Underneath the events: tectonic plate boundaries
 (Earthquakes > Tectonic plates), major rivers (Rivers), state and province names, country capitals, state
@@ -29,6 +29,8 @@ wallpaper for frames.
 ### A closer look
 
 ![Three eastern Pacific storms with intensity-coloured tracks and forecast cones](docs/screenshots/storm-tracks.webp)
+
+![The United States on the hi-res seasonal map: NWS flood warnings and watches as shaded counties, a tropical storm's track, and the widget listing the alerts by forecast office](docs/screenshots/us-floods.webp)
 
 *Tropical storms: each piece of the track takes the colour of the wind the storm had at that fix, from depression
 blue through tropical-storm green to category 5 magenta. Forecast cone and points, a dot at every fix, and a ring
@@ -53,6 +55,7 @@ where the storm was first fixed.*
 | **Volcanoes** | Hollow triangles coloured by alert level (yellow / orange / red), pulse on first report or level change, label with how long above normal | Smithsonian GVP eruption database and weekly report, USGS HANS, hourly |
 | **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing. Storm labels: name / name and wind / name, type and wind, with the facilities it threatens on a line of their own (Storm label facilities); Storm layer opacity for the icon, track and cone as a whole | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and Pacific, every 30 min |
 | **Wildfires** | GDACS events as flames sized by burned area, plus MODIS hotspots clustered into half-degree cells and sized by fire power; Wildfire focus: near people (orange / red events and hotspots within 50 km of a city of 100 000 - the default, so the seasonal burning of the savannas does not cover the map), orange and red only, or everything; level and size filters | GDACS, NASA FIRMS, hourly |
+| **Floods** | GDACS flood events as a wave mark coloured by alert level, the affected districts as a faint fill, labelled with what happened to people (dead, evacuated, displaced) and how long the flood has run; orange and red only by default, since GDACS always lists a dozen green basins at seasonal high water. US flood alerts from the National Weather Service join the same layer minutes after issue: flash flood warnings (red), flood warnings (orange), watches (green), with the counties, the end time and the warning polygon or forecast zones as the area | GDACS, hourly; NWS, every 10 min |
 | **Spacecraft** | ISS, Hubble and Tiangong as pictures or symbols moving once a second along a fading ground track (30 min, one or two orbits ahead), altitude in km, mi or nmi | CelesTrak elements, propagated locally (Kepler + J2) |
 | **Rocket launches** | Rocket on its pad with a live countdown; last ten minutes in mm:ss with a growing amber label, "LIFT-OFF" then a lift-off picture; the mission on a line of its own (Launch label mission); Launch layer opacity | The Space Devs Launch Library 2, hourly |
 | **Network activity** *(off by default)* | Arcs from your home city to every host this machine is connected to, animated packets, kernel round-trip times, first-time places highlighted, closed connections fading out; nothing leaves the machine | Local sockets via `ss`, DB-IP Lite offline geolocation, every 10 s |
@@ -75,15 +78,48 @@ Download `livemap.zip` from the latest release, then:
     bash livemap.sh install ~/Downloads/livemap.zip
     bash livemap.sh activate                        # make it the wallpaper on every desktop
 
-Then right-click the desktop > *Configure Desktop and Wallpaper* > **Status** > *Download maps and border
-data* (about 350 MB from NASA and Natural Earth, once). Until then the map shows the single image you pick
-in the settings. The widget is under *Add Widgets* as **Live World Map Events**.
+The install restarts plasmashell so the new settings page is there at once. The widget is under *Add
+Widgets* as **Live World Map Events**.
+
+### First run: the downloads
+
+Nothing is bundled but the code, so the map starts as a dark Earth with the live layers on it and a note in
+the corner saying what is missing. Right-click the desktop > *Configure Desktop and Wallpaper*; every
+section that needs a download has a **Download** button on its source line (and a green dot once it is
+there). In the order you will want them:
+
+| Download | Where | Size | What it gives you |
+|---|---|---|---|
+| Seasonal maps and city lights | Map | 35 MB | NASA's 12 monthly Blue Marble images and the Black Marble night picture - the base map and the city lights |
+| Border data | Countries | 12 MB | Coastlines, borders, rivers, country and state names, capitals and cities, time zones, plate boundaries - everything vector |
+| Hi-res seasonal maps | Map | 330 MB | The 21 600 px monthly set; only worth it for a region (Map > Show) or a 5K screen |
+| Oil and gas infrastructure | Oil and gas infrastructure | a few MB | Offshore platforms and refineries; off by default |
+| GeoIP database | Network activity | 20 MB | Offline geolocation for the Network layer; off by default |
+
+The other map styles (today's satellite view, relief, dark cartographic, Dark Matter, Matrix) build their
+own imagery for whatever is on screen when you choose them - a few seconds, a few MB, with a note in the
+corner while they do.
 
 Everything is per user and nothing runs in the background: the wallpaper is QML inside plasmashell, and the
 helper is a Python script (standard library only) that runs for a few seconds per fetch.
 
-Optional extras, each for a feature that is off by default: `python3-maxminddb` for the Network layer,
-QtWebEngine for the embedded ISS and launch streams in the widget, Pillow for faster cloud stitching.
+Optional packages, each named by `doctor`: `python3-pillow` (the map styles other than seasonal, the
+region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (city lights extraction),
+`python3-maxminddb` (the Network layer), QtWebEngine (embedded ISS and launch streams in the widget), and
+`pw-play` / `paplay` for the widget's notification sound (one of them is on any PipeWire or PulseAudio desktop).
+
+### Where things live
+
+| What | Where |
+|---|---|
+| The wallpaper package | `~/.local/share/plasma/wallpapers/io.github.tidybitz.livemap.wallpaper/` |
+| The widget package | `~/.local/share/plasma/plasmoids/io.github.tidybitz.livemap.events/` |
+| The helper | `.../livemap.wallpaper/contents/helper/livemap-helper.py` - also what `livemap-helper` runs from a terminal |
+| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`), the event memory (`events.json`, `history.json`, `hotspot-days.json`), the widget's overrides (`mode.json`, `layers.json`), and your saved styles (`styles/*.json`, `styles/original.json` from before styles were first used, `styles/history/` the snapshots taken before every apply) |
+| Your settings | Plasma's own: `~/.config/plasma-org.kde.plasma.desktop-appletsrc` for the wallpaper (per screen and per Activity, so each monitor can have its own layers), the widget's in the same file under its applet |
+| Logs | `journalctl --user -f \| grep -i livemap` - the wallpaper logs what it loads, draws and fails to fetch |
+
+`livemap.sh remove` uninstalls the packages and leaves the data folder; `purge` deletes that and the settings too.
 
 ## The script
 
@@ -110,6 +146,8 @@ QtWebEngine for the embedded ISS and launch streams in the widget, Pillow for fa
 | Volcanoes | Smithsonian Global Volcanism Program (eruption database, weekly report), USGS alert levels (HANS) | hourly |
 | Storms | GDACS worldwide; NOAA NHC for current intensity, best track and forecast in the Atlantic and Pacific | every 30 min |
 | Wildfires | GDACS events, NASA FIRMS hotspots (MODIS) | hourly |
+| Floods | GDACS events, their Sendai figures and affected-area polygons | hourly |
+| US flood alerts | NWS api.weather.gov active alerts; forecast-zone polygons cached in `nws-zones/` | every 10 min |
 | ISS, Hubble, Tiangong | CelesTrak orbital elements, propagated locally (Kepler + J2) | position every second |
 | Launches | The Space Devs, Launch Library 2 | hourly |
 | Network (off by default) | this machine's sockets, DB-IP Lite geolocation, all local | every 10 s |
@@ -130,20 +168,36 @@ wallpaper's helper and caches; nothing is fetched twice.
 
 ## Repository layout
 
-    livemap/            the wallpaper package (Plasma/Wallpaper)
-      contents/ui/        QML: main.qml and one file per layer; geo.js for the maths
-      contents/helper/    livemap-helper.py: every fetch, cache and calculation the QML cannot do
-      contents/config/    main.xml, one <entry> per setting
-      contents/images/    spacecraft, launch-pad and storm icons (CC BY 4.0)
-    livemap-widget/     the companion widget package (Plasma/Applet)
-    livemap.sh          install / doctor / activate / remove / purge / status
-    scripts/check.py    static checks (settings ↔ config page, brackets, ids, versions); CI runs it
-    scripts/package.sh  builds livemap.zip
-    CHANGELOG.md        every release, newest first
+    livemap/                     the wallpaper package (Plasma/Wallpaper)
+      metadata.json                id, name, version
+      contents/ui/
+        main.qml                   the map: framing, the still layer (imagery, clouds, night, lights) and one Loader per live layer
+        *Layer.qml                 one file per layer (Quake, Storm, Volcano, Fire, Sat, Launch, Net, Border, Plate, Infra)
+        LabelPass.qml, MapLabel.qml, HaloText.qml   one label layout pass above every layer, and the label itself
+        FrameWatch.qml, PowerWatch.qml, CloudWatch.qml   small watchers that run the helper: imagery per view, power and load, clouds
+        config.qml, StatusPanel.qml   the settings page and its Status section
+        Look.qml                   the appearance singleton (the Matrix style's font and glow)
+        geo.js                     the maths: sun position, label placement, projections, ageing
+      contents/helper/livemap-helper.py   every fetch, cache and calculation the QML cannot do; `livemap-helper --help`
+      contents/config/main.xml   one <entry> per setting; scripts/check.py keeps it in step with config.qml
+      contents/images/           spacecraft, launch-pad and storm icons (CC BY 4.0)
+      contents/styles/*.json     the built-in styles: each base map's recommended colours as the keys that differ from main.xml
+    livemap-widget/              the companion widget package (Plasma/Applet)
+      contents/ui/main.qml         the Events, Live, Map controls and Status tabs
+      contents/ui/configGeneral.qml   its settings page
+      contents/icons/, contents/sounds/   the flame and satellite icons; the three notification sounds
+    livemap.sh                   install / doctor / activate / remove / purge / status
+    scripts/check.py             static checks (settings <-> config page, brackets, ids, versions); CI runs it
+    scripts/package.sh           builds livemap.zip
+    .github/                     CI (checks on every push; a release on every v* tag), Dependabot, the bug template
+    docs/screenshots/            the pictures in this README
+    CHANGELOG.md                 every release, newest first
 
 Adding a layer: a new `FooLayer.qml`, an `<entry name="ShowFoo">` in main.xml, a `cfg_ShowFoo` alias and a
-tick box in config.qml, and a `Loader` in main.qml. Layers exist only while ticked. `livemap/README.md`
-has the developer notes (how the day/night shade avoids a shader, the `layer` id trap, and so on).
+section in config.qml, and a `Loader` in main.qml. Layers exist only while ticked. The wallpaper and the
+helper talk through JSON on stdout: a layer runs `livemap-helper foo` through a `P5Support.DataSource` and
+parses the answer; the helper never writes to the map. `livemap/README.md` has the developer notes (how
+the day/night shade avoids a shader, the `layer` id trap, and so on).
 
 ## If something does not show up
 

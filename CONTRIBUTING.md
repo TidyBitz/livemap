@@ -44,6 +44,7 @@ so on).
 
 ## Releasing (maintainer)
 
-Bump the versions (`metadata.json` ×2, the helper's `VERSION`, the two log lines in `main.qml`), date the
-changelog entry, merge, then tag: `git tag -a v0.47 -m "Live World Map 0.47" && git push origin v0.47`. CI
+Bump the versions (`livemap/metadata.json`, `livemap-widget/metadata.json` if the widget changed, the
+helper's `VERSION`, `VERSION_SCRIPT` in `livemap.sh` if the script changed, the two log lines in
+`main.qml`), date the changelog entry (`scripts/check.py` checks that the versions agree), merge, then tag: `git tag -a v0.47 -m "Live World Map 0.47" && git push origin v0.47`. CI
 builds `livemap.zip` and publishes the release with the changelog entry as its notes.

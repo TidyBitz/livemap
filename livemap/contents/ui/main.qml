@@ -47,12 +47,14 @@ WallpaperItem {
             item.layers = Qt.binding(function () { return root.shownLayers });
             item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
             item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
+            item.floodLevel = Qt.binding(function () { return cfg.FloodMinLevel });
+            item.nwsEach = Qt.binding(function () { return cfg.FloodNwsEach });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
     // the event layers switched on, for the companion widget (it can list only what the map shows)
     readonly property string shownLayers: [cfg.ShowQuakes ? "quakes" : "", cfg.ShowVolcanoes ? "volcanoes" : "", cfg.ShowStorms ? "storms" : "",
-                                           cfg.ShowFires ? "fires" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
+                                           cfg.ShowFires ? "fires" : "", cfg.ShowFloods ? "floods" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
                                            cfg.ShowNetwork ? "network" : ""].filter(function (l) { return l !== ""; }).join(",")
     readonly property int guardLevel: powerLoader.item ? powerLoader.item.guardLevel : 0
     readonly property var mode: powerLoader.item ? powerLoader.item.mode : ({})
@@ -564,6 +566,20 @@ WallpaperItem {
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: launch layer failed to load")
         }
         Loader {
+            id: floodLoader
+            opacity: cfg.FloodLayerOpacity / 100               // the marks and areas; labels have their own opacity
+            anchors.fill: parent
+            active: cfg.ShowFloods && root.saving < 2 && !root.hidden("floods")
+            source: "FloodLayer.qml"
+            onLoaded: {
+                item.cfg = root.cfg;
+                item.fps = Qt.binding(function () { return root.fps });
+                item.slow = Qt.binding(function () { return root.saving === 1 });
+                item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+            }
+            onStatusChanged: if (status === Loader.Error) console.warn("livemap: flood layer failed to load")
+        }
+        Loader {
             id: fireLoader
             opacity: cfg.FireLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
@@ -610,6 +626,7 @@ WallpaperItem {
             netSpecs: netLoader.item ? netLoader.item.labelSpecs : []
             stormSpecs: stormLoader.item ? stormLoader.item.labelSpecs : []
             fireSpecs: fireLoader.item ? fireLoader.item.labelSpecs : []
+            floodSpecs: floodLoader.item ? floodLoader.item.labelSpecs : []
             satSpecs: satLoader.item ? satLoader.item.labelSpecs : []
             shifts: satLoader.item ? satLoader.item.labelShifts : ({})
             launchSpecs: launchLoader.item ? launchLoader.item.labelSpecs : []
@@ -635,6 +652,7 @@ WallpaperItem {
             infraLoader.item && infraLoader.item.hint !== "" ? infraLoader.item.hint : "",
             stormLoader.item && stormLoader.item.hint !== "" ? stormLoader.item.hint : "",
             fireLoader.item && fireLoader.item.hint !== "" ? fireLoader.item.hint : "",
+            floodLoader.item && floodLoader.item.hint !== "" ? floodLoader.item.hint : "",
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",
             launchLoader.item && launchLoader.item.hint !== "" ? launchLoader.item.hint : "",
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",

@@ -6,11 +6,41 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Floods, from the same GDACS list as the storms and wildfires: one event per river basin or region, rated
+  green / orange / red on the people exposed, drawn as a wave mark in the alert colour with the affected
+  districts as a faint fill underneath and a label saying what happened to people (GDACS's Sendai figures:
+  dead, evacuated, displaced, rescued) and how long the flood has run. Orange and red only by default -
+  GDACS always lists a dozen green basins at seasonal high water - with "All levels" and "Red only" as the
+  other choices; the Events widget follows the same filter and keeps a Floods header when there are none. Green
+  floods keep the flood colour; orange and red take GDACS's. The usual colour, label, pulse and layer
+  opacity controls; `floods --table` from a terminal.
+- US flood alerts from the National Weather Service (api.weather.gov, no key) in the same Floods layer,
+  minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green),
+  labelled with the counties and when the alert ends, the warning's own polygon or its forecast zones as the
+  area (zones fetched once and kept in `nws-zones/`). Looked at every 10 minutes; the flood filter applies
+  (warnings only by default). A wet week has an office issue a flood warning per river gauge, so by default
+  one office's warnings of a type are one mark, one label and one area ("Flood Warning · 9 counties ·
+  Greenville-Spartanburg"), with "Every alert on its own" as the option; flood labels gain "Red only" so the
+  text can stay on flash floods. The Events widget lists them with a link. `nws-floods --table [--each]`.
+- Styles. A style is a snapshot of the wallpaper's settings. The six built-in ones are each base map with
+  its recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix):
+  picking one sets the base and every colour and leaves your sizes, line widths, opacities and label styles
+  alone. Yours are saved from the page as it is ("Save as", sizes and widths included) and kept as JSON in
+  `~/.local/share/livemap/styles/`, where they can be exported, imported and shared. Nothing is lost by
+  trying styles: before every apply the settings are saved as a dated snapshot (the last 20, listed at the
+  bottom of the Style list, "More" has the way back), and the settings as they were the first time the
+  page opened with styles are kept as "Original" for good. Changing anything a style set marks it
+  "modified", with Save and Reset beside it. Every setting sits in one of four buckets - map base,
+  colours/lines/labels, layers, machine - and the "A style covers" boxes say which an apply touches and a
+  save captures: layers are left out unless ticked, and the machine bucket (home place, units, frame,
+  profile, data folder) is never part of one. Replaces the one-way "Set every line and label to..."
+  button; the Map section's combo is now the base map of the current style. Helper: `styles
+  keys|list|read|save|delete|export|import`.
 - Two more map styles, both drawn like the dark cartographic one (no imagery, the border download, the
   lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
   look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every
   label in a monospace face with a green glow, and scanlines over the whole screen. Set the line and label
-  colours to greys or greens to complete either with the "Map style colours" button, or keep your own. On
+  colours to greys or greens to complete either (the built-in style of the same name does it), or keep your own. On
   the flat styles the night shade is not drawn over the land (it made the land two tones): the city lights
   alone say where it is night.
 - Wildfire focus (under Wildfires, on by default as "Near people"): most of what the satellites see burning is

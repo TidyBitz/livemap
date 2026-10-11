@@ -22,7 +22,14 @@
   livemap-helper fetch-geoip         download the free DB-IP City Lite database (~20 MB, monthly)
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
-      --hires                        21600x10800 monthlies for 5K+ screens (~300 MB)
+      --hires                        the 21600x10800 monthly set beside the small one, for regions (~330 MB)
+  livemap-helper frame | fetch-frame --style S --north N --south S --west W --east E --width PX
+                                     is the imagery for that view and style there / build it (the wallpaper calls both;
+                                     styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
+  livemap-helper zone-tint           draw zones-tint.png, the time zone polygons in a colour cycle (needs pillow)
+  livemap-helper fires | floods | nws-floods | hotspots | launches | sats | clouds   the other layers' data (the wallpaper calls these; --table to read)
+  livemap-helper mode --pause on|off --plain on|off --hide a,b --clouds on|off|auto --full on|off   the widget's overrides
+  livemap-helper where-city NAME     offline city search in Natural Earth's places (the home setting)
 
 Everything is stored in $XDG_DATA_HOME/livemap (usually ~/.local/share/livemap).
 `net` never touches the network: it reads `ss` and an offline database.
@@ -1766,6 +1773,325 @@ def chk_fires():
         len(fires), len(hot), ": " + ", ".join("%s (%s)" % (fr["name"], fr["alert"]) for fr in hot[:6]) if hot else "")
 
 
+# ---------------------------------------------------------------- floods ----
+# Floods from the same GDACS list (eventtype FL): one event per river basin or region, rated green / orange / red on
+# the people exposed, with the dates. For the orange and red ones (what the map shows by default) two more small
+# requests: the event data, whose "sendai" entries say what happened to people (deaths, displaced, evacuated,
+# rescued), and the geometry, whose polygons are the affected area, drawn as a faint fill under the mark.
+SENDAI_ORDER = ("death", "dead", "killed", "missing", "injured", "evacuated", "displaced", "homeless", "affected", "rescued")
+FLOOD_POLY_POINTS = 160                          # per ring, after thinning; the fill is a hint, not a survey
+
+
+def _sendai_summary(details):
+    """'3 dead, 1 200 evacuated' from the event data's sendai entries: the latest figure per kind, worst first."""
+    best = {}
+    for e in (details.get("properties") or {}).get("sendai") or []:
+        name = str(e.get("sendainame") or "").lower().strip()
+        try:
+            v = int(float(str(e.get("sendaivalue") or "0").replace(",", "")))
+        except ValueError:
+            continue
+        if not name or v <= 0:
+            continue
+        if e.get("latest") or name not in best or v > best[name]:
+            best[name] = max(v, best.get(name, 0)) if not e.get("latest") else v
+    rank = {k: i for i, k in enumerate(SENDAI_ORDER)}
+    parts = sorted(best.items(), key=lambda kv: (rank.get(kv[0], 99), -kv[1]))
+    return [[k, v] for k, v in parts[:3]]
+
+
+def _thin(ring, keep):
+    if len(ring) <= keep:
+        return ring
+    step = len(ring) / float(keep)
+    return [ring[int(i * step)] for i in range(keep)] + [ring[-1]]
+
+
+def flood_area(geo):
+    """The affected-area polygons of a GDACS flood geometry, thinned, as flat [lon, lat, ...] rings."""
+    rings = []
+    for f in geo.get("features", []):
+        g, pr = f.get("geometry") or {}, f.get("properties") or {}
+        kind, c = g.get("type"), g.get("coordinates") or []
+        if kind == "Polygon":
+            polys = [c]
+        elif kind == "MultiPolygon":
+            polys = c
+        else:
+            continue
+        for poly in polys:
+            if not poly:
+                continue
+            ring = [(x[0], x[1]) for x in poly[0]]
+            if len(ring) < 4:
+                continue
+            for part in _split(_thin(ring, FLOOD_POLY_POINTS)):
+                rings.append(part)
+    rings.sort(key=lambda r: -len(r))
+    return rings[:12]
+
+
+def fetch_floods(detail_levels=("orange", "red")):
+    import time
+    from datetime import datetime
+    body = json.dumps(gdacs_list()).encode()
+    now, floods, seen = time.time(), [], set()
+    for f in json.loads(body).get("features", []):
+        pr = f.get("properties") or {}
+        if pr.get("eventtype") != "FL" or str(pr.get("iscurrent", "true")).lower() != "true":
+            continue
+        fid = pr.get("eventid")
+        if fid in seen:
+            continue
+        seen.add(fid)
+        lon, lat = (f.get("geometry") or {}).get("coordinates", [0, 0])[:2]
+        hours, since, days = None, "", None
+        try:
+            hours = round((now - datetime.strptime(str(pr.get("datemodified") or pr.get("todate"))[:19], "%Y-%m-%dT%H:%M:%S").timestamp()) / 3600, 1)
+        except (ValueError, TypeError):
+            pass
+        try:
+            start = datetime.strptime(str(pr.get("fromdate"))[:19], "%Y-%m-%dT%H:%M:%S")
+            since = start.strftime("%Y %b %d")
+            days = max(0, round((now - start.timestamp()) / 86400, 1))
+        except (ValueError, TypeError):
+            pass
+        name = re.sub(r"^floods? in ", "", str(pr.get("name") or pr.get("description") or ""), flags=re.I).strip() or pr.get("country") or "Flood"
+        countries = [c.get("countryname") for c in pr.get("affectedcountries") or [] if c.get("countryname")]
+        fl = {"id": fid, "episode": pr.get("episodeid"), "name": name, "country": pr.get("country", ""), "countries": countries[:4],
+              "lat": lat, "lon": lon, "alert": str(pr.get("alertlevel") or "green").lower(), "score": pr.get("alertscore"),
+              "since": since, "days": days, "hours": hours, "people": [], "area": []}
+        if fl["alert"] in detail_levels:
+            urls = pr.get("url") or {}
+            try:
+                fl["people"] = _sendai_summary(json.loads(_http(urls.get("details"), timeout=12)[2]))
+            except Exception as e:
+                fl["problem"] = "details: %s" % e
+            try:
+                fl["area"] = flood_area(json.loads(_http(urls.get("geometry"), timeout=15, limit=MAX_BODY)[2]))
+            except Exception as e:
+                fl["problem"] = "geometry: %s" % e
+        floods.append(fl)
+    return floods
+
+
+def people_text(people):
+    return ", ".join("%s %s" % (format(v, ",").replace(",", " "), k) for k, v in people)
+
+
+def cmd_floods(args):
+    note, floods = "", []
+    levels = ("green", "orange", "red") if args.all else ("orange", "red")
+    data, stale_h, err = last_good("floods", lambda: fetch_floods(levels))
+    if err:
+        note = stale_note("Floods", stale_h, err, args.stale)
+    try:
+        floods = remember_events("flood", data or [], lambda fl: fl["id"], args.keep, sig_of=lambda fl: fl["alert"])
+    except Exception as e:
+        note = note or "Floods: %s" % e
+    if args.table:
+        print(note or "%d current flood events (GDACS)" % len(floods))
+        for fl in sorted(floods, key=lambda fl: ("green", "orange", "red").index(fl["alert"]) if fl["alert"] in ("green", "orange", "red") else -1, reverse=True):
+            print("  %-30s %-7s at %6.1f, %6.1f  since %s (%s d)  %s  %d rings  first seen %s%s%s" % (
+                fl["name"][:30], fl["alert"], fl["lat"], fl["lon"], fl["since"] or "?", fl["days"], people_text(fl["people"]) or "-", len(fl["area"]),
+                "%.0f h ago" % fl["first_hours"] if fl.get("first_hours") is not None else "unknown",
+                "  CHANGED from %s %.0f h ago" % (fl["changed_from"], fl["changed_hours"]) if fl.get("changed_from") else "",
+                "  GONE (%.0f h ago)" % fl["hours"] if fl.get("gone") else ""))
+    else:
+        emit({"floods": floods, "note": note})
+
+
+def chk_floods():
+    floods = fetch_floods(())
+    hot = [fl for fl in floods if fl["alert"] in ("orange", "red")]
+    return "ok", "%d current flood events, %d orange or red%s" % (
+        len(floods), len(hot), ": " + ", ".join("%s (%s)" % (fl["name"], fl["alert"]) for fl in hot[:6]) if hot else "")
+
+
+# US flood alerts from the National Weather Service (api.weather.gov, no key, a user agent with a contact is asked
+# for): flash flood warnings, flood warnings, watches and advisories, each with the counties it covers, when it
+# ends, and a polygon - the warning's own for a storm-based flash flood warning, otherwise the forecast zones
+# or counties it names, fetched once each and kept (zones do not change). Minutes after issue, unlike GDACS.
+NWS_ALERTS = "https://api.weather.gov/alerts/active?status=actual&event=" + urllib.request.quote(
+    "Flash Flood Warning,Flood Warning,Flood Watch,Flash Flood Watch,Flood Advisory,Coastal Flood Warning")
+NWS_ZONES = DATA / "nws-zones"
+NWS_UA = dict(UA, Accept="application/geo+json")
+NWS_UA["User-Agent"] = "livemap-wallpaper/" + VERSION + " (github.com/TidyBitz/livemap)"
+NWS_LEVEL = {"Flash Flood Warning": "red", "Flood Warning": "orange", "Coastal Flood Warning": "orange",
+             "Flood Watch": "green", "Flash Flood Watch": "green", "Flood Advisory": "green"}
+NWS_ZONES_PER_RUN = 40                           # new zone polygons fetched per refresh; the rest come next time (cached for good)
+
+
+def _nws_get(url, timeout=12):
+    import time
+    with urllib.request.urlopen(urllib.request.Request(url, headers=NWS_UA), timeout=timeout) as r:
+        body = r.read(MAX_BODY + 1)
+        if len(body) > MAX_BODY:
+            raise ValueError("response too large")
+        return json.loads(body)
+
+
+def _nws_epoch(text):
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(str(text)).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def nws_zone_rings(zone_url, budget):
+    """The polygon of one forecast zone or county, from the cache or the API (counting against `budget`)."""
+    zid = zone_url.rstrip("/").split("/")[-1]
+    f = NWS_ZONES / (re.sub(r"[^A-Za-z0-9]", "", zid) + ".json")
+    try:
+        return json.loads(f.read_text(encoding="utf-8")), False
+    except (OSError, ValueError):
+        pass
+    if budget[0] <= 0:
+        return [], False
+    budget[0] -= 1
+    geo = _nws_get(zone_url)
+    rings = flood_area({"features": [geo]})
+    NWS_ZONES.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(rings), encoding="utf-8")
+    return rings, True
+
+
+def _ring_centre(rings):
+    n, sx, sy = 0, 0.0, 0.0
+    for r in rings:
+        for i in range(0, len(r) - 1, 2):
+            sx += r[i]; sy += r[i + 1]; n += 1
+    return (sy / n, sx / n) if n else (None, None)
+
+
+def fetch_nws_floods():
+    import time
+    now = time.time()
+    data = _nws_get(NWS_ALERTS, timeout=20)
+    out, budget, seen = [], [NWS_ZONES_PER_RUN], set()
+    for f in data.get("features", []):
+        pr = f.get("properties") or {}
+        event = pr.get("event") or ""
+        level = NWS_LEVEL.get(event)
+        if not level or pr.get("status") not in (None, "Actual"):
+            continue
+        ends = _nws_epoch(pr.get("ends") or pr.get("expires"))
+        if ends is not None and ends < now:
+            continue
+        aid = pr.get("id") or f.get("id")
+        if aid in seen:
+            continue
+        seen.add(aid)
+        rings, fetched = [], 0
+        g = f.get("geometry")
+        if g and g.get("type") in ("Polygon", "MultiPolygon"):
+            rings = flood_area({"features": [f]})
+        else:
+            for z in (pr.get("affectedZones") or [])[:24]:
+                try:
+                    r, was_fetched = nws_zone_rings(z, budget)
+                    rings += r
+                    fetched += was_fetched
+                except Exception:
+                    pass
+            rings = rings[:12]
+        lat, lon = _ring_centre(rings)
+        if lat is None:
+            continue                               # nothing to place it by yet (zones still to fetch): next time
+        counties = [c.strip() for c in str(pr.get("areaDesc") or "").split(";") if c.strip()]
+        onset = _nws_epoch(pr.get("onset") or pr.get("effective") or pr.get("sent"))
+        out.append({"id": "nws:" + str(aid).split("/")[-1], "source": "nws", "event": event, "name": "; ".join(counties[:3]) + (", +%d" % (len(counties) - 3) if len(counties) > 3 else ""),
+                    "counties": len(counties), "office": str(pr.get("senderName") or "").replace("NWS ", ""), "lat": round(lat, 3), "lon": round(lon, 3),
+                    "alert": level, "severity": pr.get("severity"), "since": "", "days": None, "hours": 0,
+                    "onset": onset, "until": ends, "headline": pr.get("headline") or "", "url": "https://alerts.weather.gov/search?id=" + str(aid).split("/")[-1],
+                    "people": [], "area": rings})
+    return out
+
+
+def group_nws(alerts):
+    """One item per office and alert type: a wet week brings an office to issue a flood warning per river gauge,
+    and 28 marks and labels in one state say less than 'Flood Warning · 9 counties · Greenville-Spartanburg'."""
+    groups = {}
+    for a in alerts:
+        k = (a["office"], a["event"])
+        g = groups.get(k)
+        if g is None:
+            g = groups[k] = dict(a, members=[], area=[], counties_list=[], lats=[], lons=[], counties=0)
+            g["id"] = "nws:" + re.sub(r"[^A-Za-z0-9]+", "-", a["office"] + "-" + a["event"]).strip("-").lower()
+        g["members"].append(a["id"])
+        g["counties"] += a.get("counties") or 0
+        g["area"] = (g["area"] + a["area"])[:24]
+        g["counties_list"] += [c.strip() for c in a["name"].replace(", +", ";+").split(";") if c.strip() and not c.strip().startswith("+")]
+        g["lats"].append(a["lat"]); g["lons"].append(a["lon"])
+        if a.get("until") and (not g.get("until") or a["until"] > g["until"]):
+            g["until"] = a["until"]
+        if a.get("onset") and (not g.get("onset") or a["onset"] < g["onset"]):
+            g["onset"] = a["onset"]
+        if a.get("first_hours") is not None and (g.get("first_hours") is None or a["first_hours"] < g["first_hours"]):
+            g["first_hours"] = a["first_hours"]
+    out = []
+    for g in groups.values():
+        n = len(g["members"])
+        seen, counties = set(), []
+        for c in g["counties_list"]:
+            if c not in seen:
+                seen.add(c); counties.append(c)
+        g["lat"] = round(sum(g["lats"]) / len(g["lats"]), 3); g["lon"] = round(sum(g["lons"]) / len(g["lons"]), 3)
+        g["count"] = n
+        g["counties"] = max(len(counties), g["counties"])   # the sum of the alerts' counts, or the named ones
+        g["name"] = ("%d counties" % g["counties"] if g["counties"] > 2 else "; ".join(counties)) + (" \u00b7 " + g["office"] if g["office"] else "")
+        g["url"] = "https://alerts.weather.gov/search?area=" + urllib.request.quote(g["office"]) if n > 1 else g["url"]
+        for k in ("members", "counties_list", "lats", "lons"):
+            g.pop(k, None)
+        out.append(g)
+    return out
+
+
+def nws_floods_cached(max_age_min=10):
+    """The NWS alerts, refreshed when the cache is older than max_age_min; (data, stale_hours, error)."""
+    import time
+    f = DATA / "last-nws-floods.json"
+    try:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        if time.time() - c.get("at", 0) < max_age_min * 60:
+            return c["data"], 0.0, ""
+    except (OSError, ValueError, KeyError):
+        pass
+    return last_good("nws-floods", fetch_nws_floods)
+
+
+def cmd_nws_floods(args):
+    note, alerts = "", []
+    data, stale_h, err = nws_floods_cached(args.max_age)
+    if err:
+        note = stale_note("US flood alerts", stale_h, err, args.stale)
+    try:
+        alerts = remember_events("nwsflood", data or [], lambda a: a["id"], 0.5, sig_of=lambda a: a["alert"])
+        alerts = [a for a in alerts if not a.get("gone")]       # an alert that ended is simply gone: no ageing out
+        if not args.each:
+            alerts = group_nws(alerts)
+    except Exception as e:
+        note = note or "US flood alerts: %s" % e
+    if args.table:
+        import time
+        print(note or "%d active NWS flood alerts" % len(alerts))
+        for a in sorted(alerts, key=lambda a: ("green", "orange", "red").index(a["alert"]), reverse=True):
+            print("  %-22s %-7s %-44s %s  until %s  %d rings  first seen %s" % (
+                a["event"][:22], a["alert"], a["name"][:44], "" if not args.each else a["office"][:18],
+                time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?", len(a["area"]),
+                "%.1f h ago" % a["first_hours"] if a.get("first_hours") is not None else "unknown"))
+    else:
+        emit({"alerts": alerts, "note": note})
+
+
+def chk_nws_floods():
+    alerts = fetch_nws_floods()
+    warn = [a for a in alerts if a["alert"] in ("orange", "red")]
+    return "ok", "%d active flood alerts, %d warnings%s" % (
+        len(alerts), len(warn), ": " + ", ".join("%s (%s)" % (a["name"].split(";")[0], a["event"].replace(" Warning", "")) for a in warn[:5]) if warn else "")
+
+
 # ---------------------------------------------------------------- space -----
 # Satellites: two-line elements from CelesTrak (no key), propagated here with a Kepler + J2 model - the
 # secular part of SGP4 (nodal and apsidal precession, mean-motion correction) without drag and short-period
@@ -2724,7 +3050,7 @@ def gpu_busy():
 
 
 LAYERS = DATA / "layers.json"
-LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "launches", "sats", "network")
+LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "launches", "sats", "network")
 
 
 def read_layers():
@@ -2757,7 +3083,24 @@ def read_fire_focus():
         return 1
 
 
-def write_layers(shown, units=None, fire_focus=None):
+def read_flood_level():
+    """The wallpaper's flood filter (0 all levels, 1 orange and red, 2 red only), for the feed."""
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return int(d.get("flood_level", 1)) if isinstance(d, dict) else 1
+    except (OSError, ValueError, TypeError):
+        return 1
+
+
+def read_layers_flag(name, default=False):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return bool(d.get(name, default)) if isinstance(d, dict) else default
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -2766,13 +3109,18 @@ def write_layers(shown, units=None, fire_focus=None):
             units = None
     if fire_focus is not None:
         fire_focus = max(0, min(2, int(fire_focus)))
-    if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus):
+    if flood_level is not None:
+        flood_level = max(0, min(2, int(flood_level)))
+    if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
+            and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
         tmp = LAYERS.with_suffix(".tmp%d" % os.getpid())
         tmp.write_text(json.dumps({"shown": shown, "units": units if units is not None else read_units(),
-                                   "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(), "at": int(time.time())}), encoding="utf-8")
+                                   "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(),
+                                   "flood_level": flood_level if flood_level is not None else read_flood_level(),
+                                   "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass
@@ -2807,7 +3155,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
@@ -2887,6 +3235,7 @@ def cmd_feed(args):
         mem = {}
     units = read_units()                            # the wallpaper's Units and Storm wind choices
     fire_focus = read_fire_focus()                  # and its Wildfire focus
+    flood_level = read_flood_level()                # and its flood filter
     for kind, url_of, title_of in (
             ("storm", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=TC" % it.get("id", ""),
              lambda it: "%s \u00b7 %s%s \u00b7 %s%s%s" % (it.get("name", "?"), it.get("kind", ""), " cat %d" % it["cat"] if it.get("cat") else "", wind_text(float(it.get("wind") or 0), units[1]),
@@ -2895,7 +3244,9 @@ def cmd_feed(args):
             ("volcano", lambda it: "https://volcano.si.edu/search_volcano.cfm?keyword=%s" % urllib.request.quote(it.get("name", "")),
              lambda it: "%s \u00b7 %s" % (it.get("name", "?"), (it.get("level") + " (" + it.get("alert", "") + ")") if it.get("alert") else "new eruption" if it.get("status") == "new" else "active")),
             ("fire", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=WF" % it.get("id", ""),
-             lambda it: "%s \u00b7 %s \u00b7 %s" % (it.get("name", "?"), it.get("alert", ""), area_text(float(it.get("area_ha") or 0), units[0])))):
+             lambda it: "%s \u00b7 %s \u00b7 %s" % (it.get("name", "?"), it.get("alert", ""), area_text(float(it.get("area_ha") or 0), units[0]))),
+            ("flood", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=FL" % it.get("id", ""),
+             lambda it: "%s \u00b7 %s flood%s" % (it.get("name", "?"), it.get("alert", ""), " \u00b7 " + people_text(it["people"]) if it.get("people") else ""))):
         for key, e in (mem.get(kind) or {}).items():
             it = e.get("item") or {}
             if not it:
@@ -2909,9 +3260,24 @@ def cmd_feed(args):
                   "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1}
             if kind == "fire" and fire_focus >= 1 and it.get("alert") not in ("orange", "red"):
                 continue                                   # Wildfire focus: only the events GDACS rates on the people exposed
+            if kind == "flood" and ["green", "orange", "red"].index(it.get("alert") or "green") < flood_level:
+                continue                                   # the wallpaper's flood filter (green floods are a basin's seasonal high water)
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
             items.append(ev)
+    # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
+    try:
+        nws, _h, _e = nws_floods_cached(10)
+        if not read_layers_flag("nws_each"):
+            nws = group_nws(nws or [])
+        for a in nws or []:
+            if ["green", "orange", "red"].index(a["alert"]) < flood_level:
+                continue
+            items.append({"kind": "flood", "when": a.get("onset") or now, "title": "%s \u00b7 %s" % (a["event"], a["name"]),
+                          "detail": "NWS%s \u00b7 until %s" % ("" if a.get("count") else " " + a["office"], time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?"),
+                          "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
+    except Exception as e:
+        problems.append("nws floods: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
@@ -3187,7 +3553,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("Floods (GDACS)", chk_floods), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -3535,6 +3901,227 @@ def cmd_fetch_maps(args):
     print("If the wallpaper is already running, un-tick and re-tick 'Follow the seasons' to reload.")
 
 
+# ----------------------------------------------------------------------------------------------------------------
+# Styles: a style is a JSON snapshot of some of the wallpaper's settings. Every setting sits in one of four buckets:
+# base (what the map is), look (how every object is drawn), layers (what is on), machine (this computer - never in
+# a style). Built-in styles ship with the package as the keys that differ from main.xml's defaults; the helper fills
+# in the rest so applying one resets the whole base and look. User styles are full snapshots of the buckets they
+# include, in ~/.local/share/livemap/styles/. "previous" is written before every apply so nothing is lost.
+STYLES = DATA / "styles"
+PKG = Path(__file__).resolve().parent.parent
+BUILTIN_STYLES = PKG / "styles"
+MAIN_XML = PKG / "config" / "main.xml"
+BASE_KEYS = {"MapStyle", "MapTone", "Seasonal", "SeasonalBlend", "SeasonalHires", "FillMode", "LandColor", "OceanColor", "MapDim",
+             "ShowDayNight", "ShowCityLights", "NightDarkness", "Twilight", "LightsBrightness"}
+LAYER_KEYS = {"SatIss", "SatHubble", "SatTiangong", "SatTrack", "InfraPlatforms", "InfraRefineries", "InfraMode", "CityMinPop",
+              "FireMinLevel", "FireMinArea", "FireFocus", "HotspotTier", "LaunchWindow", "VolcanoDetail", "QuakeFeed",
+              "NetLabels", "NetShowProcess", "FlagFastRtt", "ShowLatency", "NewWindow", "ShowStormCone"}
+MACHINE_KEYS = {"BaseImage", "DataDir", "FrameNorth", "FrameSouth", "FrameWest", "FrameEast", "HomeCity", "HomeLat", "HomeLon",
+                "DistanceUnits", "StormUnits", "StaleHours", "HintCorner", "AnimationFps", "GuardEnabled", "GuardPause", "GuardPlain",
+                "Profile", "CacheStill", "OnBattery", "LightsGpu", "CloudSource", "FireSource", "NetInterval", "NetLinger", "NetMaxPlaces",
+                "ShowProxyNote", "HotspotMinCount", "BorderDetail", "SatTrackLength", "ArcAnimation", "QuakePulseMode", "VolcanoPulseMode",
+                "StormPulseMode", "FirePulseMode", "PacketSpeed"}
+BUCKET_BIT = {"base": 1, "look": 2, "layers": 4}
+
+
+def bucket_of(key):
+    if key in MACHINE_KEYS:
+        return "machine"
+    if key in BASE_KEYS:
+        return "base"
+    if key in LAYER_KEYS or key.startswith("Show"):
+        return "layers"
+    return "look"
+
+
+def config_defaults():
+    """{key: typed default} from main.xml, in the file's order."""
+    out = {}
+    text = MAIN_XML.read_text(encoding="utf-8")
+    for m in re.finditer(r'<entry name="(\w+)" type="(\w+)">\s*<default>([^<]*)</default>', text):
+        key, typ, val = m.group(1), m.group(2), m.group(3).strip()
+        if typ == "Int":
+            val = int(val)
+        elif typ == "Bool":
+            val = val.lower() == "true"
+        elif typ == "Double":
+            val = float(val)
+        out[key] = val
+    return out
+
+
+def _slug(name):
+    s = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return s or "style"
+
+
+SNAPS = STYLES / "history"
+SNAPS_KEEP = 20
+
+
+def _style_path(sid):
+    kind, _, slug = sid.partition(":")
+    if kind == "builtin":
+        return BUILTIN_STYLES / (slug + ".json")
+    if kind == "history":
+        return SNAPS / (slug + ".json")
+    return STYLES / (slug + ".json")
+
+
+def _is_colour_key(key):
+    return key.endswith("Color") or key.endswith("TextFollows") or key in ("StormIntensityColors", "StormTrackColors", "VolcanoAlertColors", "FireAlertColors")
+
+
+def _load_style(path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def list_styles():
+    """Built-ins in their declared order, then the user's styles by name, then Previous when it exists."""
+    out = []
+    for p in sorted(BUILTIN_STYLES.glob("*.json")):
+        s = _load_style(p)
+        if s:
+            out.append({"id": "builtin:" + p.stem, "name": s.get("name", p.stem), "builtin": True, "order": s.get("order", 99),
+                        "includes": 3, "base": s.get("values", {}).get("MapStyle", 0)})
+    out.sort(key=lambda s: s["order"])
+    users = []
+    for p in sorted(STYLES.glob("*.json")):
+        s = _load_style(p)
+        if not s:
+            continue
+        row = {"id": "user:" + p.stem, "name": s.get("name", p.stem), "builtin": False, "includes": int(s.get("includes", 3)),
+               "base": s.get("values", {}).get("MapStyle", -1), "saved": s.get("at", 0)}
+        if p.stem in ("previous", "original"):
+            continue
+        users.append(row)
+    users.sort(key=lambda s: s["name"].lower())
+    out += users
+    # the snapshots taken before every apply, newest first, after "original" (the settings before styles were first used)
+    orig = STYLES / "original.json"
+    if orig.exists():
+        o = _load_style(orig) or {}
+        out.append({"id": "user:original", "name": o.get("name", "Original"), "builtin": False, "includes": 7, "base": -1, "saved": o.get("at", 0), "history": True})
+    snaps = []
+    for p in SNAPS.glob("*.json"):
+        s = _load_style(p)
+        if s:
+            snaps.append({"id": "history:" + p.stem, "name": s.get("name", p.stem), "builtin": False, "includes": 7, "base": -1, "saved": s.get("at", 0), "history": True})
+    snaps.sort(key=lambda s: -s["saved"])
+    return out + snaps
+
+
+def read_style(sid):
+    """The style with every value it sets. A built-in is completed with main.xml's defaults for the base and look."""
+    path = _style_path(sid)
+    s = _load_style(path)
+    if not s:
+        return None
+    values = dict(s.get("values", {}))
+    if sid.startswith("builtin:"):
+        # a built-in recommends colours: it is completed with the colour defaults so applying one resets every colour,
+        # and never touches sizes, widths, opacities or label styles - those are the user's (and their screen's)
+        for key, val in config_defaults().items():
+            if bucket_of(key) == "base" or (bucket_of(key) == "look" and _is_colour_key(key)):
+                values.setdefault(key, val)
+        includes = 3
+    else:
+        includes = int(s.get("includes", 3))
+    return {"id": sid, "name": s.get("name", path.stem), "builtin": sid.startswith("builtin:"), "includes": includes,
+            "at": s.get("at", 0), "values": values}
+
+
+def cmd_styles(args):
+    """`styles keys` - which setting is in which bucket; `styles list`; `styles read --id user:x`;
+    `styles save --name N --includes 3 --values <base64 JSON>` (a snapshot the settings page took; `--id user:previous`
+    for the dated one taken before every apply, kept as history/<epoch>.json, the last SNAPS_KEEP; `--id user:original`
+    for the one taken the first time the page opens, never overwritten); `styles delete --id`; `styles export --id --path`;
+    `styles import --path`."""
+    act = args.action
+    if act == "keys":
+        buckets = {"base": [], "look": [], "layers": [], "machine": []}
+        for key in config_defaults():
+            buckets[bucket_of(key)].append(key)
+        buckets["dir"] = str(STYLES)
+        emit(buckets)
+    elif act == "list":
+        emit(list_styles())
+    elif act == "read":
+        s = read_style(args.id or "")
+        if s is None:
+            emit({"error": "no such style: " + (args.id or "")})
+        else:
+            emit(s)
+    elif act == "save":
+        import base64
+        values = json.loads(base64.b64decode(args.values or "e30=").decode("utf-8"))
+        includes = int(args.includes or 3)
+        keep = {b for b, bit in BUCKET_BIT.items() if includes & bit}
+        values = {k: v for k, v in values.items() if bucket_of(k) in keep}
+        sid = args.id or ("user:" + _slug(args.name or "style"))
+        if sid.startswith("builtin:"):
+            emit({"error": "built-in styles cannot be overwritten; save as a new one"})
+            return
+        if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last SNAPS_KEEP
+            os.makedirs(SNAPS, exist_ok=True)           # two saves can race here (the original and a previous): both tolerate it
+            now = int(time.time())
+            sid = "history:" + str(now)
+            stamp = time.strftime("%a %H:%M", time.localtime(now))
+            args.name = (args.name or "Before an apply") + " \u00b7 " + stamp
+            old = sorted(SNAPS.glob("*.json"))
+            for p in old[:max(0, len(old) - SNAPS_KEEP + 1)]:
+                p.unlink()
+        if sid == "user:original" and (STYLES / "original.json").exists():
+            emit({"id": sid, "kept": True})               # taken once, the first time the page opens with styles: never overwritten
+            return
+        os.makedirs(STYLES, exist_ok=True)
+        path = _style_path(sid)
+        name = args.name or path.stem.replace("-", " ").title()
+        path.write_text(json.dumps({"name": name, "includes": includes, "at": int(time.time()), "version": 1,
+                                    "values": values}, indent=1), encoding="utf-8")
+        emit({"id": sid, "name": name, "includes": includes, "count": len(values)})
+    elif act == "delete":
+        sid = args.id or ""
+        if not (sid.startswith("user:") or sid.startswith("history:")):
+            emit({"error": "only your own styles can be deleted"})
+            return
+        try:
+            _style_path(sid).unlink()
+            emit({"deleted": sid})
+        except OSError as e:
+            emit({"error": str(e)})
+    elif act == "export":
+        s = read_style(args.id or "")
+        if s is None:
+            emit({"error": "no such style"})
+            return
+        try:
+            Path(args.path).write_text(json.dumps({"name": s["name"], "includes": s["includes"], "version": 1, "at": s["at"],
+                                                   "values": s["values"]}, indent=1), encoding="utf-8")
+            emit({"exported": args.path})
+        except OSError as e:
+            emit({"error": str(e)})
+    elif act == "import":
+        s = _load_style(Path(args.path))
+        if not s or not isinstance(s.get("values"), dict):
+            emit({"error": "not a Live World Map style file"})
+            return
+        os.makedirs(STYLES, exist_ok=True)
+        name = s.get("name") or Path(args.path).stem
+        slug = _slug(name)
+        if slug == "previous":
+            slug = "previous-imported"
+        path = STYLES / (slug + ".json")
+        s["name"] = name
+        s.setdefault("includes", 3)
+        s["at"] = int(time.time())
+        path.write_text(json.dumps(s, indent=1), encoding="utf-8")
+        emit({"id": "user:" + slug, "name": name})
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -3554,6 +4141,7 @@ def main():
     sub.add_parser("infrastructure").set_defaults(fn=cmd_infrastructure)
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
+    pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -3573,6 +4161,12 @@ def main():
     fi = sub.add_parser("fires"); fi.add_argument("--table", action="store_true"); fi.add_argument("--keep", type=float, default=48)
     fi.add_argument("--stale", type=float, default=6)
     fi.set_defaults(fn=cmd_fires)
+    fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
+    fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
+    fd.set_defaults(fn=cmd_floods)
+    nw = sub.add_parser("nws-floods"); nw.add_argument("--table", action="store_true"); nw.add_argument("--stale", type=float, default=1)
+    nw.add_argument("--max-age", dest="max_age", type=float, default=10)   # minutes the cache is trusted
+    nw.add_argument("--each", action="store_true"); nw.set_defaults(fn=cmd_nws_floods)   # every alert on its own, not one per office and type
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
@@ -3598,6 +4192,9 @@ def main():
         fr.add_argument("--lowres", action="store_true"); fr.set_defaults(fn=fn)   # the 5 400 px maps even when the hi-res set is there
     m = sub.add_parser("fetch-maps"); m.add_argument("--ocean-from"); m.add_argument("--hires", action="store_true")
     m.set_defaults(fn=cmd_fetch_maps)
+    sy = sub.add_parser("styles"); sy.add_argument("action", choices=["keys", "list", "read", "save", "delete", "export", "import"])
+    sy.add_argument("--id"); sy.add_argument("--name"); sy.add_argument("--includes", type=int); sy.add_argument("--values"); sy.add_argument("--path")
+    sy.set_defaults(fn=cmd_styles)
     args = ap.parse_args()
     args.fn(args)
 
