@@ -39,7 +39,9 @@ Item {
     readonly property bool showPerimeter: cfg ? cfg.FirePerimeter : true
     readonly property real perimeterOpacity: (cfg ? cfg.FirePerimeterOpacity : 25) / 100
     property var incidents: []
-    function incidentActive(it) { return it.stage === "out of control" || it.stage === "being held" || (it.contained !== null && it.contained !== undefined && it.contained < 100 && it.source === "nifc") || (it.source === "effis" && it.days !== null && it.days < 7) }
+    // still burning: out of control or being held (Canada), under 90 % contained (US: a fire at 95 % with a skeleton crew
+    // is winding down), or mapped in the last week (Europe, where there is no containment figure)
+    function incidentActive(it) { return it.stage === "out of control" || it.stage === "being held" || (it.source === "nifc" && (it.contained === null || it.contained === undefined || it.contained < 90)) || (it.source === "effis" && it.days !== null && it.days < 7) }
     readonly property var shownIncidents: incidentSources === "" ? [] : incidents.filter(function (it) { return it.area_ha >= incidentMinHa && (!incidentActiveOnly || incidentActive(it)); })
         .sort(function (a, b) { return b.area_ha - a.area_ha; })
     function incidentSignificant(it) { return it.area_ha >= 1000 && incidentActive(it) }
@@ -122,7 +124,7 @@ Item {
         return { x: px(c.lon), y: py(c.lat), gap: mark * 0.5, side: "right",
                  text: (c.why ? c.why + " \u00b7 " : "") + powerText(c.frp) + " \u00b7 " + c.n + " det. \u00b7 " + Geo.spanText(c.hours), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: hotSignificant(c), alpha: 1 };
-    })).concat(shownIncidents.filter(function (it) { return labelMode === 2 || incidentSignificant(it) || it.area_ha >= 1000; }).map(function (it) {
+    })).concat(shownIncidents.filter(function (it) { return labelMode === 2 || incidentSignificant(it); }).map(function (it) {
         return { x: px(it.lon), y: py(it.lat), gap: mark * 0.6, side: "right", text: describeIncident(it), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: incidentSignificant(it), alpha: 1 };
     }))

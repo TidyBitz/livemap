@@ -1525,7 +1525,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Incident filter:"
         enabled: fires.checked && (form.cfg_FireSources & 28) !== 0
         QQC2.ComboBox { id: fireIncidentMin; model: ["Any size", "100 ha (250 ac) and up", "1 000 ha and up", "10 000 ha and up"] }
-        QQC2.CheckBox { id: fireIncidentActive; text: "Only fires not yet contained" }
+        QQC2.CheckBox { id: fireIncidentActive; text: "Only fires still burning (out of control, being held, under 90 % contained, or mapped this week)" }
     }
     RowLayout {
         visible: sec9.open
@@ -1590,7 +1590,7 @@ Kirigami.FormLayout {
         enabled: fires.checked
         model: form.pulseChoices
     }
-    Note { visible: sec9.open; text: "Labels: an incident reads name, size, containment or stage, personnel and age ('Bouquet · 1.0k ac · 35 % contained · 600 personnel · 3 d'); a GDACS event reads place, burned area and how long it has been listed. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = a GDACS orange or red, or an uncontained incident of 1 000 ha. A fire ages out once its source drops it." }
+    Note { visible: sec9.open; text: "Labels: an incident reads name, size, containment or stage, personnel and age ('Bouquet · 1.0k ac · 35 % contained · 600 personnel · 3 d'); a GDACS event reads place, burned area and how long it has been listed. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = a GDACS orange or red, or an incident of 1 000 ha still burning; with 'Orange and red only' those are the only incidents labelled. A fire ages out once its source drops it." }
 
     // ============================================================== Floods
     SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
