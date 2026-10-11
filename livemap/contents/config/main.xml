@@ -179,7 +179,7 @@
     <entry name="FireTextFollows" type="Bool"><default>true</default></entry>
     <entry name="FireTextColor" type="Color"><default>#ff9a60</default></entry>
     <entry name="FirePulseMode" type="Int"><default>3</default></entry>
-    <entry name="FloodLabels" type="Int"><default>1</default></entry>
+    <entry name="FloodLabels" type="Int"><default>2</default></entry>      <!-- the level filter already keeps the count down: label every flood shown -->
     <entry name="FloodLabelSize" type="Int"><default>10</default></entry>
     <entry name="FloodLabelPlate" type="Bool"><default>true</default></entry>
     <entry name="FloodTextFollows" type="Bool"><default>true</default></entry>
