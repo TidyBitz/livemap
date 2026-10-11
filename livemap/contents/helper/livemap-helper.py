@@ -3567,8 +3567,12 @@ def cmd_feed(args):
     items.sort(key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
     # The cap is for the long tails (a day of quakes, dozens of fire clusters): a storm first seen three days
     # ago is still on the map and must not fall off the end of the list because of them.
-    keep = [it for it in items if it["kind"] in ("storm", "volcano", "launch", "sat")]
-    rest = [it for it in items if it["kind"] not in ("storm", "volcano", "launch", "sat")][:max(0, args.limit - len(keep))]
+    # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
+    # sorts behind every quake of the day); they are already filtered to the ones that matter.
+    def kept(it):
+        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+    keep = [it for it in items if kept(it)]
+    rest = [it for it in items if not kept(it)][:max(0, args.limit - len(keep))]
     items = sorted(keep + rest, key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers()})
 
