@@ -3596,8 +3596,8 @@ def _slug(name):
     return s or "style"
 
 
-HISTORY = STYLES / "history"
-HISTORY_KEEP = 20
+SNAPS = STYLES / "history"
+SNAPS_KEEP = 20
 
 
 def _style_path(sid):
@@ -3605,7 +3605,7 @@ def _style_path(sid):
     if kind == "builtin":
         return BUILTIN_STYLES / (slug + ".json")
     if kind == "history":
-        return HISTORY / (slug + ".json")
+        return SNAPS / (slug + ".json")
     return STYLES / (slug + ".json")
 
 
@@ -3647,7 +3647,7 @@ def list_styles():
         o = _load_style(orig) or {}
         out.append({"id": "user:original", "name": o.get("name", "Original"), "builtin": False, "includes": 7, "base": -1, "saved": o.get("at", 0), "history": True})
     snaps = []
-    for p in HISTORY.glob("*.json"):
+    for p in SNAPS.glob("*.json"):
         s = _load_style(p)
         if s:
             snaps.append({"id": "history:" + p.stem, "name": s.get("name", p.stem), "builtin": False, "includes": 7, "base": -1, "saved": s.get("at", 0), "history": True})
@@ -3678,7 +3678,7 @@ def read_style(sid):
 def cmd_styles(args):
     """`styles keys` - which setting is in which bucket; `styles list`; `styles read --id user:x`;
     `styles save --name N --includes 3 --values <base64 JSON>` (a snapshot the settings page took; `--id user:previous`
-    for the dated one taken before every apply, kept as history/<epoch>.json, the last HISTORY_KEEP; `--id user:original`
+    for the dated one taken before every apply, kept as history/<epoch>.json, the last SNAPS_KEEP; `--id user:original`
     for the one taken the first time the page opens, never overwritten); `styles delete --id`; `styles export --id --path`;
     `styles import --path`."""
     act = args.action
@@ -3706,14 +3706,14 @@ def cmd_styles(args):
         if sid.startswith("builtin:"):
             emit({"error": "built-in styles cannot be overwritten; save as a new one"})
             return
-        if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last HISTORY_KEEP
-            os.makedirs(HISTORY, exist_ok=True)           # two saves can race here (the original and a previous): both tolerate it
+        if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last SNAPS_KEEP
+            os.makedirs(SNAPS, exist_ok=True)           # two saves can race here (the original and a previous): both tolerate it
             now = int(time.time())
             sid = "history:" + str(now)
             stamp = time.strftime("%a %H:%M", time.localtime(now))
             args.name = (args.name or "Before an apply") + " \u00b7 " + stamp
-            old = sorted(HISTORY.glob("*.json"))
-            for p in old[:max(0, len(old) - HISTORY_KEEP + 1)]:
+            old = sorted(SNAPS.glob("*.json"))
+            for p in old[:max(0, len(old) - SNAPS_KEEP + 1)]:
                 p.unlink()
         if sid == "user:original" and (STYLES / "original.json").exists():
             emit({"id": sid, "kept": True})               # taken once, the first time the page opens with styles: never overwritten
