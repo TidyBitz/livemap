@@ -38,7 +38,8 @@ Item {
     readonly property bool incidentActiveOnly: cfg ? cfg.FireIncidentActive : false
     readonly property int incidentMark: cfg ? cfg.FireIncidentMark : 0        // 0 flame and perimeter, 1 perimeter only (flame where none is mapped), 2 flame only
     readonly property bool showPerimeter: (cfg ? cfg.FirePerimeter : true) && incidentMark !== 2
-    function flameShown(it) { return incidentMark !== 1 || !(it.area && it.area.length) }
+    function flameShown(it) { return incidentMark !== 1 }                     // perimeter only: a dot where no perimeter is mapped
+    function dotShown(it) { return incidentMark === 1 && !(it.area && it.area.length) }
     readonly property real perimeterOpacity: (cfg ? cfg.FirePerimeterOpacity : 25) / 100
     property var incidents: []
     // still burning: out of control or being held (Canada), under 90 % contained (US: a fire at 95 % with a skeleton crew
@@ -127,7 +128,7 @@ Item {
                  text: (c.why ? c.why + " \u00b7 " : "") + powerText(c.frp) + " \u00b7 " + c.n + " det. \u00b7 " + Geo.spanText(c.hours), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: hotSignificant(c), alpha: 1 };
     })).concat(shownIncidents.filter(function (it) { return labelMode === 2 || incidentSignificant(it); }).map(function (it) {
-        return { x: px(it.lon), y: py(it.lat), gap: flameShown(it) ? mark * 0.6 : mark * 0.2, side: "right", text: describeIncident(it), px: labelPx,
+        return { x: px(it.lon), y: py(it.lat), gap: flameShown(it) ? mark * 0.6 : mark * 0.3, side: "right", text: describeIncident(it), px: labelPx,
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: incidentSignificant(it), alpha: 1 };
     }))
 
@@ -249,6 +250,13 @@ Item {
                 color: "transparent"
                 border.color: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, (1 - Math.max(0, s)) * 0.85)
                 border.width: 1.5 * overlay.unit
+            }
+            Rectangle {                                   // perimeter-only mode, no perimeter mapped: a dot sized by area
+                visible: overlay.dotShown(inc.modelData)
+                anchors.centerIn: parent
+                width: overlay.mark * 0.45 * inc.grow; height: width; radius: width / 2
+                color: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, overlay.incidentActive(inc.modelData) ? 0.9 : 0.55)
+                border.color: Qt.rgba(1, 0.93, 0.6, 0.6); border.width: Math.max(1, 0.6 * overlay.unit)
             }
             FireGlyph {
                 visible: overlay.flameShown(inc.modelData)
