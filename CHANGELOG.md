@@ -6,17 +6,20 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
-- Styles. A style is a snapshot of the wallpaper's settings: the six built-in ones are each base map with its
-  recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix), yours are
-  saved from the page as it is ("Save as") and kept as JSON in `~/.local/share/livemap/styles/`, where they
-  can be exported, imported and shared. Picking a style sets everything it covers and saves what was there
-  as "Previous" first; changing anything it set marks it "modified", with Save and Reset beside it. Every
-  setting sits in one of four buckets - map base, colours/lines/labels, layers, machine - and the "A style
-  covers" boxes say which an apply touches and a save captures: layers are left out unless ticked, so a
-  layer choice survives trying every style, and the machine bucket (home place, units, frame, profile,
-  data folder) is never part of one. Replaces the one-way "Set every line and label to..." button; the
-  Map section's combo is now the base map of the current style. Helper: `styles keys|list|read|save|
-  delete|export|import`.
+- Styles. A style is a snapshot of the wallpaper's settings. The six built-in ones are each base map with
+  its recommended colours (Seasonal, Satellite today, Relief, Dark cartographic, Dark Matter, Matrix):
+  picking one sets the base and every colour and leaves your sizes, line widths, opacities and label styles
+  alone. Yours are saved from the page as it is ("Save as", sizes and widths included) and kept as JSON in
+  `~/.local/share/livemap/styles/`, where they can be exported, imported and shared. Nothing is lost by
+  trying styles: before every apply the settings are saved as a dated snapshot (the last 20, listed at the
+  bottom of the Style list, "More" has the way back), and the settings as they were the first time the
+  page opened with styles are kept as "Original" for good. Changing anything a style set marks it
+  "modified", with Save and Reset beside it. Every setting sits in one of four buckets - map base,
+  colours/lines/labels, layers, machine - and the "A style covers" boxes say which an apply touches and a
+  save captures: layers are left out unless ticked, and the machine bucket (home place, units, frame,
+  profile, data folder) is never part of one. Replaces the one-way "Set every line and label to..."
+  button; the Map section's combo is now the base map of the current style. Helper: `styles
+  keys|list|read|save|delete|export|import`.
 - Two more map styles, both drawn like the dark cartographic one (no imagery, the border download, the
   lightest on the GPU): "Dark Matter" - land in dark grey over a near-black ocean, the flat dark basemap
   look - and "Matrix" - black ocean, land in the darkest green, a faint graticule every 10 degrees, every

@@ -3596,11 +3596,21 @@ def _slug(name):
     return s or "style"
 
 
+HISTORY = STYLES / "history"
+HISTORY_KEEP = 20
+
+
 def _style_path(sid):
     kind, _, slug = sid.partition(":")
     if kind == "builtin":
         return BUILTIN_STYLES / (slug + ".json")
+    if kind == "history":
+        return HISTORY / (slug + ".json")
     return STYLES / (slug + ".json")
+
+
+def _is_colour_key(key):
+    return key.endswith("Color") or key.endswith("TextFollows") or key in ("StormIntensityColors", "StormTrackColors", "VolcanoAlertColors", "FireAlertColors")
 
 
 def _load_style(path):
@@ -3620,22 +3630,29 @@ def list_styles():
                         "includes": 3, "base": s.get("values", {}).get("MapStyle", 0)})
     out.sort(key=lambda s: s["order"])
     users = []
-    prev = None
     for p in sorted(STYLES.glob("*.json")):
         s = _load_style(p)
         if not s:
             continue
         row = {"id": "user:" + p.stem, "name": s.get("name", p.stem), "builtin": False, "includes": int(s.get("includes", 3)),
                "base": s.get("values", {}).get("MapStyle", -1), "saved": s.get("at", 0)}
-        if p.stem == "previous":
-            prev = row
-        else:
-            users.append(row)
+        if p.stem in ("previous", "original"):
+            continue
+        users.append(row)
     users.sort(key=lambda s: s["name"].lower())
     out += users
-    if prev:
-        out.append(prev)
-    return out
+    # the snapshots taken before every apply, newest first, after "original" (the settings before styles were first used)
+    orig = STYLES / "original.json"
+    if orig.exists():
+        o = _load_style(orig) or {}
+        out.append({"id": "user:original", "name": o.get("name", "Original"), "builtin": False, "includes": 7, "base": -1, "saved": o.get("at", 0), "history": True})
+    snaps = []
+    for p in HISTORY.glob("*.json"):
+        s = _load_style(p)
+        if s:
+            snaps.append({"id": "history:" + p.stem, "name": s.get("name", p.stem), "builtin": False, "includes": 7, "base": -1, "saved": s.get("at", 0), "history": True})
+    snaps.sort(key=lambda s: -s["saved"])
+    return out + snaps
 
 
 def read_style(sid):
@@ -3646,8 +3663,10 @@ def read_style(sid):
         return None
     values = dict(s.get("values", {}))
     if sid.startswith("builtin:"):
+        # a built-in recommends colours: it is completed with the colour defaults so applying one resets every colour,
+        # and never touches sizes, widths, opacities or label styles - those are the user's (and their screen's)
         for key, val in config_defaults().items():
-            if bucket_of(key) in ("base", "look"):
+            if bucket_of(key) == "base" or (bucket_of(key) == "look" and _is_colour_key(key)):
                 values.setdefault(key, val)
         includes = 3
     else:
@@ -3659,7 +3678,9 @@ def read_style(sid):
 def cmd_styles(args):
     """`styles keys` - which setting is in which bucket; `styles list`; `styles read --id user:x`;
     `styles save --name N --includes 3 --values <base64 JSON>` (a snapshot the settings page took; `--id user:previous`
-    for the automatic one); `styles delete --id`; `styles export --id --path`; `styles import --path`."""
+    for the dated one taken before every apply, kept as history/<epoch>.json, the last HISTORY_KEEP; `--id user:original`
+    for the one taken the first time the page opens, never overwritten); `styles delete --id`; `styles export --id --path`;
+    `styles import --path`."""
     act = args.action
     if act == "keys":
         buckets = {"base": [], "look": [], "layers": [], "machine": []}
@@ -3685,15 +3706,27 @@ def cmd_styles(args):
         if sid.startswith("builtin:"):
             emit({"error": "built-in styles cannot be overwritten; save as a new one"})
             return
+        if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last HISTORY_KEEP
+            HISTORY.mkdir(parents=True, exist_ok=True)
+            now = int(time.time())
+            sid = "history:" + str(now)
+            stamp = time.strftime("%a %H:%M", time.localtime(now))
+            args.name = (args.name or "Before an apply") + " \u00b7 " + stamp
+            old = sorted(HISTORY.glob("*.json"))
+            for p in old[:max(0, len(old) - HISTORY_KEEP + 1)]:
+                p.unlink()
+        if sid == "user:original" and (STYLES / "original.json").exists():
+            emit({"id": sid, "kept": True})               # taken once, the first time the page opens with styles: never overwritten
+            return
         STYLES.mkdir(parents=True, exist_ok=True)
         path = _style_path(sid)
-        name = args.name or (path.stem.replace("-", " ").title() if path.stem != "previous" else "Previous")
+        name = args.name or path.stem.replace("-", " ").title()
         path.write_text(json.dumps({"name": name, "includes": includes, "at": int(time.time()), "version": 1,
                                     "values": values}, indent=1), encoding="utf-8")
         emit({"id": sid, "name": name, "includes": includes, "count": len(values)})
     elif act == "delete":
         sid = args.id or ""
-        if not sid.startswith("user:"):
+        if not (sid.startswith("user:") or sid.startswith("history:")):
             emit({"error": "only your own styles can be deleted"})
             return
         try:

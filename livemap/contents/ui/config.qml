@@ -555,7 +555,9 @@ Kirigami.FormLayout {
     property bool styleIsBuiltin: true
     property bool styleLoaded: false
     property string styleNote: ""
-    readonly property bool hasPrevious: styleList.some(function (s) { return s.id === "user:previous"; })
+    readonly property var historyList: styleList.filter(function (s) { return s.id.indexOf("history:") === 0; })   // newest first
+    readonly property bool hasOriginal: styleList.some(function (s) { return s.id === "user:original"; })
+    readonly property bool styleIsSnapshot: cfg_StyleName.indexOf("history:") === 0 || cfg_StyleName === "user:original"
     readonly property var includedBuckets: [ "base", "look", "layers" ].filter(function (b, i) { return (form.cfg_StyleIncludes & (1 << i)) !== 0; })
     function bucketOf(key) {
         for (var b in styleKeys) if (styleKeys[b].indexOf(key) >= 0) return b;
@@ -596,15 +598,16 @@ Kirigami.FormLayout {
     readonly property bool styleModified: styleLoaded && styleSig !== styleFileSig
     function styleCmd(words) { return "python3 '" + widgetHelper + "' styles " + words + " # " + Date.now(); }
     function quoted(t) { return "'" + String(t).replace(/'/g, "'\\''") + "'"; }
-    function savePrevious() {
-        styleExec.connectSource(styleCmd("save --id user:previous --name Previous --includes 7 --values " + Qt.btoa(JSON.stringify(collectValues(["base", "look", "layers"])))));
+    function snapshot(id, name) {           // everything a style can hold, as the page has it now
+        styleExec.connectSource(styleCmd("save --id " + id + " --name " + quoted(name) + " --includes 7 --values " + Qt.btoa(JSON.stringify(collectValues(["base", "look", "layers"])))));
     }
+    function styleName(id) { var s = styleList.find(function (x) { return x.id === id; }); return s ? s.name : id; }
     function applyValues(values) {          // write a style's values into the controls, only the included buckets
         var keys = styleKeysIncluded(values);
         for (var i = 0; i < keys.length; i++) form["cfg_" + keys[i]] = values[keys[i]];
     }
     function applyStyle(id) {
-        if (id !== "user:previous") savePrevious();
+        if (id.indexOf("history:") !== 0) snapshot("user:previous", "Before " + styleName(id));   // dated, the last 20 kept
         styleExec.connectSource(styleCmd("read --id " + id + " --name apply"));
     }
     function loadStyle(id) { styleExec.connectSource(styleCmd("read --id " + id)); }
@@ -622,7 +625,12 @@ Kirigami.FormLayout {
             try { r = JSON.parse(data.stdout); } catch (e) { form.styleNote = "The helper did not answer: " + String(data.stderr).trim().split("\n").pop(); return; }
             if (r && r.error) { form.styleNote = r.error; return; }
             form.styleNote = "";
-            if (source.indexOf("' styles keys") >= 0) { form.styleDir = r.dir || ""; delete r.dir; form.styleKeys = r; return; }
+            if (source.indexOf("' styles keys") >= 0) {
+                form.styleDir = r.dir || ""; delete r.dir; form.styleKeys = r;
+                // the settings as they are the first time this page opens with styles: kept for good, never overwritten
+                if (!form.hasOriginal) form.snapshot("user:original", "Original settings, before styles");
+                return;
+            }
             if (source.indexOf("' styles list") >= 0) { form.styleList = r; return; }
             if (source.indexOf("' styles read") >= 0) {
                 form.styleValues = r.values; form.styleFileName = r.name; form.styleIsBuiltin = !!r.builtin;
@@ -632,7 +640,7 @@ Kirigami.FormLayout {
             }
             // save, delete, import: refresh the list, and the current style when it is the one just written
             styleExec.connectSource(form.styleCmd("list"));
-            if (r.id && source.indexOf("' styles save") >= 0 && r.id !== "user:previous") { form.cfg_StyleName = r.id; form.loadStyle(r.id); }
+            if (r.id && source.indexOf("' styles save") >= 0 && !r.kept && r.id.indexOf("history:") !== 0 && r.id !== "user:original") { form.cfg_StyleName = r.id; form.loadStyle(r.id); }
             if (r.id && source.indexOf("' styles import") >= 0) form.applyStyle(r.id);
             if (r.deleted && r.deleted === form.cfg_StyleName) { form.cfg_StyleName = "builtin:seasonal"; form.loadStyle(form.cfg_StyleName); }
         }
@@ -645,14 +653,14 @@ Kirigami.FormLayout {
         QQC2.ComboBox {
             id: styleCombo
             Layout.preferredWidth: Kirigami.Units.gridUnit * 12
-            model: form.styleList.map(function (s) { return s.name + (s.builtin ? "" : s.id === "user:previous" ? "  (before the last apply)" : "  (yours)"); })
+            model: form.styleList.map(function (s) { return s.name + (s.builtin || s.history ? "" : "  (yours)"); })
             currentIndex: { var i = form.styleList.findIndex(function (s) { return s.id === form.cfg_StyleName; }); return i; }
             displayText: currentIndex < 0 ? (form.styleFileName || "(none)") : currentText
             onActivated: function (i) { var s = form.styleList[i]; if (s) form.applyStyle(s.id); }
         }
         QQC2.Label { visible: form.styleModified; text: "● modified"; color: Kirigami.Theme.neutralTextColor }
-        QQC2.Button { text: "Save"; icon.name: "document-save"; enabled: form.styleModified && !form.styleIsBuiltin && form.cfg_StyleName !== "user:previous"; onClicked: form.saveStyle(form.cfg_StyleName, form.styleFileName) }
-        QQC2.Button { text: "Save as…"; icon.name: "document-save-as"; enabled: form.styleLoaded; onClicked: { saveAsName.text = form.styleIsBuiltin ? "My " + form.styleFileName.toLowerCase() : form.styleFileName; saveAsDialog.open(); } }
+        QQC2.Button { text: "Save"; icon.name: "document-save"; enabled: form.styleModified && !form.styleIsBuiltin && !form.styleIsSnapshot; onClicked: form.saveStyle(form.cfg_StyleName, form.styleFileName) }
+        QQC2.Button { text: "Save as…"; icon.name: "document-save-as"; enabled: form.styleLoaded; onClicked: { saveAsName.text = form.styleIsBuiltin ? "My " + form.styleFileName.toLowerCase() : form.styleIsSnapshot ? "" : form.styleFileName; saveAsDialog.open(); } }
         QQC2.Button { text: "Reset"; icon.name: "edit-undo"; enabled: form.styleModified; onClicked: form.applyStyle(form.cfg_StyleName); QQC2.ToolTip.text: "Back to " + form.styleFileName + " as saved"; QQC2.ToolTip.visible: hovered }
         QQC2.Button {
             icon.name: "application-menu"; text: "More"
@@ -660,10 +668,11 @@ Kirigami.FormLayout {
             QQC2.Menu {
                 id: styleMenu
                 y: parent.height
-                QQC2.MenuItem { text: "Restore Previous (before the last apply)"; enabled: form.hasPrevious; onTriggered: form.applyStyle("user:previous") }
+                QQC2.MenuItem { text: form.historyList.length > 0 ? "Back to \"" + form.historyList[0].name + "\"" : "Back to before the last apply"; enabled: form.historyList.length > 0; onTriggered: form.applyStyle(form.historyList[0].id) }
+                QQC2.MenuItem { text: "Back to the original settings (before styles)"; enabled: form.hasOriginal; onTriggered: form.applyStyle("user:original") }
                 QQC2.MenuItem { text: "Export this style…"; enabled: form.styleLoaded; onTriggered: exportDialog.open() }
                 QQC2.MenuItem { text: "Import a style…"; onTriggered: importDialog.open() }
-                QQC2.MenuItem { text: "Delete " + form.styleFileName; enabled: !form.styleIsBuiltin && form.cfg_StyleName !== "user:previous"; onTriggered: styleExec.connectSource(form.styleCmd("delete --id " + form.cfg_StyleName)) }
+                QQC2.MenuItem { text: "Delete " + form.styleFileName; enabled: !form.styleIsBuiltin && form.cfg_StyleName !== "user:original"; onTriggered: styleExec.connectSource(form.styleCmd("delete --id " + form.cfg_StyleName)) }
                 QQC2.MenuItem { text: "Open the styles folder"; enabled: form.styleDir !== ""; onTriggered: Qt.openUrlExternally("file://" + form.styleDir) }
             }
         }
@@ -675,7 +684,7 @@ Kirigami.FormLayout {
         QQC2.CheckBox { text: "Layers"; checked: (form.cfg_StyleIncludes & 4) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 4) : (form.cfg_StyleIncludes & ~4) }
     }
     Note { text: (form.styleNote !== "" ? form.styleNote + "\n" : "")
-                 + "The built-in styles are each base map with its recommended colours; picking one sets everything it covers, saves what was there as Previous, and marks itself modified as soon as you change any of it. Save as keeps your version (" + (form.cfg_DataDir || "~/.local/share/livemap") + "/styles); the boxes say what an apply touches and a save captures - layers are left out unless you tick them, so your layer choice survives trying every style. Which computer, home place, units, frame and profile are never part of a style." }
+                 + "The built-in styles are each base map with its recommended colours: picking one sets the base and every colour, and leaves your sizes, line widths, opacities and label styles alone. Before every apply the settings are saved as a dated snapshot (the last 20 are listed at the bottom; More has the way back), and the settings as they were the first time this page opened with styles are kept as \"Original\" for good. Change anything a style set and it says modified; Save as keeps your version (" + (form.styleDir || "~/.local/share/livemap/styles") + ") with everything the ticked boxes cover, sizes and widths included. Layers are left out unless you tick them; which computer, home place, units, frame and profile are never part of a style." }
 
     // #################################################################### Profile and layers
     Group { text: "Profile and layers" }
