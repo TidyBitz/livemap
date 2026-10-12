@@ -20,6 +20,15 @@ Item {
     readonly property real unit: Math.max(1, Screen.width / 1920)
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
     readonly property color ink: cfg ? cfg.AirAlertColor : "#ff3b3b"
+    readonly property color newInk: cfg ? cfg.AirAlertNewColor : "#ffb347"
+    readonly property real newMinutes: cfg ? cfg.AirAlertNewMinutes : 15
+    readonly property color clearInk: cfg ? cfg.AirAlertClearColor : "#8fb6d6"
+    readonly property bool showClear: cfg ? cfg.AirAlertShowClear : true
+    readonly property real clearMinutes: 30
+    // 0 established .. 1 brand new: known starts only (an alert already on at the first look is never "new")
+    function newness(r) { return r.status === "C" || !r.since || newMinutes <= 0 ? 0 : Math.max(0, 1 - (nowSec - r.since) / (newMinutes * 60)) }
+    function clearFade(r) { return r.status !== "C" || !r.ended ? 0 : Math.max(0, 1 - (nowSec - r.ended) / (clearMinutes * 60)) }
+    function toneOf(r) { return r.status === "C" ? clearInk : Geo.mix(ink, newInk, newness(r)) }
     readonly property real fillOpacity: (cfg ? cfg.AirAlertOpacity : 35) / 100
     readonly property real partialOpacity: (cfg ? cfg.AirAlertPartialOpacity : 18) / 100
     readonly property bool outline: cfg ? cfg.AirAlertOutline : true
@@ -41,7 +50,7 @@ Item {
     property string feedSource: ""
     property string note: ""
     readonly property string hint: note
-    readonly property var active: regions.filter(function (r) { return r.status !== "N"; })
+    readonly property var active: regions.filter(function (r) { return r.status === "A" || r.status === "P"; })
     property int fps: 30
     property real clock: 0
     Timer {                                       // a slow breath on the filled oblasts, four seconds a cycle
@@ -64,9 +73,11 @@ Item {
         return out;
     }
     property real nowSec: Date.now() / 1000
-    Timer { interval: 30000; running: overlay.active.length > 0; repeat: true; onTriggered: overlay.nowSec = Date.now() / 1000 }
+    Timer { interval: 30000; running: overlay.regions.some(function (r) { return r.status !== "N"; }); repeat: true; onTriggered: overlay.nowSec = Date.now() / 1000 }
     function describe(r) {
-        // "Kharkiv · air raid · 23 min"; a partial alert names the places: "Kharkiv · part: Kupiansk · air raid · 12 min"
+        // "Kharkiv · air raid · 23 min"; a partial alert names the places: "Kharkiv · part: Kupiansk · air raid · 12 min";
+        // an ended one "Kyiv · all clear · 12 min"
+        if (r.status === "C") return r.name + " · all clear" + (r.ended ? " · " + Geo.spanText(Math.max(0, nowSec - r.ended) / 3600) : "");
         var parts = [r.name];
         if (r.status === "P") parts.push("part" + (r.places && r.places.length ? ": " + r.places.join(", ") : ""));
         if (r.types && r.types.length) parts.push(r.types.join(", "));
@@ -74,10 +85,11 @@ Item {
         else if (r.first_seen && nowSec - r.first_seen > longHours * 3600 && longHours > 0) parts.push("over " + Geo.spanText(nowSec - r.first_seen > 0 ? (nowSec - r.first_seen) / 3600 : 0));
         return parts.join(" · ");
     }
-    readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 || r.status !== "N"; }).map(function (r) {
+    readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 || (r.status !== "N" && (r.status !== "C" || showClear)); }).map(function (r) {
+        var c = r.status === "N" ? Qt.rgba(labelColor.r, labelColor.g, labelColor.b, 0.6) : r.status === "C" ? clearInk : cfg && !cfg.AirAlertTextFollows ? labelColor : toneOf(r);
         return { x: px(r.lon), y: py(r.lat), gap: mark * 0.3, side: "below",
-                 text: r.status === "N" ? r.name : describe(r), px: labelPx, color: r.status === "N" ? Qt.rgba(labelColor.r, labelColor.g, labelColor.b, 0.6) : labelColor,
-                 plate: labelPlate && r.status !== "N", bold: r.status === "A" && !longRunning(r), alpha: r.status === "N" ? 0.7 : longRunning(r) ? 0.75 : 1 };
+                 text: r.status === "N" ? r.name : describe(r), px: labelPx, color: c,
+                 plate: labelPlate && r.status !== "N", bold: r.status === "A" && !longRunning(r), alpha: r.status === "N" ? 0.7 : r.status === "C" ? 0.5 + 0.5 * clearFade(r) : longRunning(r) ? 0.75 : 1 };
     })
 
     P5Support.DataSource {
@@ -112,14 +124,20 @@ Item {
             required property var modelData
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
-            visible: modelData.status !== "N" || overlay.outline
+            visible: (modelData.status !== "N" && (modelData.status !== "C" || overlay.showClear)) || overlay.outline
             readonly property bool long: overlay.longRunning(modelData)
+            readonly property bool cleared: modelData.status === "C"
+            readonly property real fresh: overlay.newness(modelData)
+            readonly property color tone: overlay.toneOf(modelData)
             readonly property real base: modelData.status === "A" ? overlay.fillOpacity : modelData.status === "P" ? overlay.partialOpacity : 0
-            readonly property real fill: long ? (overlay.longStyle === 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath) : base * overlay.breath
+            // new: a stronger breath (the breath swings twice as far); long-running: lighter or none; cleared: a faint fill that fades
+            readonly property real fill: cleared ? overlay.fillOpacity * 0.25 * overlay.clearFade(modelData)
+                                       : long ? (overlay.longStyle === 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath)
+                                       : base * (overlay.breath + fresh * (overlay.breath - 1))
             ShapePath {
-                fillColor: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, region.fill)
-                strokeColor: Qt.rgba(overlay.ink.r, overlay.ink.g, overlay.ink.b, region.modelData.status !== "N" ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)
-                strokeWidth: Math.max(1, (region.modelData.status !== "N" ? 1.2 : 0.7) * overlay.unit)
+                fillColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.fill)
+                strokeColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.cleared ? 0.3 + 0.6 * overlay.clearFade(region.modelData) : region.modelData.status !== "N" ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)
+                strokeWidth: Math.max(1, (region.cleared ? 1.4 : region.modelData.status !== "N" ? 1.2 : 0.7) * overlay.unit)
                 PathMultiline { paths: overlay.project(region.modelData.rings || [], overlay.width, overlay.height) }
             }
         }

@@ -2308,6 +2308,7 @@ def chk_effis():
 ALERTS_API = "https://api.alerts.in.ua/v1/alerts/active.json"
 ALERTS_MIRROR = "https://ubilling.net.ua/aerialalerts/?json=true"
 ALERTS_MEMORY = DATA / "air-alerts.json"
+AIR_CLEAR_MINUTES = 30                            # an ended alert stays listed as "all clear" this long
 UA_REGIONS = Path(__file__).resolve().parent.parent / "data" / "ukraine-regions.json"
 # the oblast names the sources use (Ukrainian), by ISO 3166-2 code; matched on the stem so "м. Київ", "Київ" and
 # "Київська область" all land
@@ -2403,9 +2404,18 @@ def fetch_air_alerts(token=""):
             mem[code] = {"since": now, "known": watching, "first_seen": now}
             e["since"] = now if watching else None
         e["first_seen"] = mem[code].get("first_seen", now)
+    # alerts that ended: kept for AIR_CLEAR_MINUTES as "all clear", so the map can show where one just finished
+    cleared = mem.setdefault("_cleared", {})
     for code in list(mem):
-        if code != "_at" and code not in out:
-            del mem[code]
+        if code.startswith("_") or code in out:
+            continue
+        cleared[code] = {"ended": now, "since": mem[code].get("since") if mem[code].get("known") else None}
+        del mem[code]
+    for code in list(cleared):
+        if code in out or now - cleared[code]["ended"] > AIR_CLEAR_MINUTES * 60:
+            del cleared[code]
+    for code, c in cleared.items():
+        out[code] = {"status": "C", "types": [], "since": c.get("since"), "places": [], "ended": c["ended"], "first_seen": None}
     mem["_at"] = now
     try:
         ALERTS_MEMORY.parent.mkdir(parents=True, exist_ok=True)
@@ -2430,7 +2440,7 @@ def cmd_air_alerts(args):
         e = alerts.get(r["code"])
         row = {"code": r["code"], "name": r["name"], "lat": r["lat"], "lon": r["lon"],
                "status": e["status"] if e else "N", "types": e["types"] if e else [], "since": e["since"] if e else None, "places": e["places"] if e else [],
-               "first_seen": e.get("first_seen") if e else None}
+               "first_seen": e.get("first_seen") if e else None, "ended": e.get("ended") if e else None}
         if args.regions:
             row["rings"] = r["rings"]
         rows.append(row)
@@ -2439,7 +2449,7 @@ def cmd_air_alerts(args):
         for row in rows:
             if row["status"] == "N":
                 continue
-            print("  %-6s %-28s %s  %s  %s%s" % (row["code"], row["name"], row["status"], ", ".join(row["types"]),
+            print("  %-6s %-28s %s  %s  %s%s" % (row["code"], row["name"], row["status"], ", ".join(row["types"]) or ("all clear %.0f min ago" % ((time.time() - row["ended"]) / 60) if row.get("ended") else ""),
                                                  "%.0f min" % ((time.time() - row["since"]) / 60) if row["since"] else "",
                                                  "  (" + ", ".join(row["places"]) + ")" if row["places"] else ""))
     else:
@@ -2449,7 +2459,7 @@ def cmd_air_alerts(args):
 def chk_air_alerts():
     token = os.environ.get("LIVEMAP_ALERTS_TOKEN", "")
     d = fetch_air_alerts(token)
-    on = [c for c, a in d["alerts"].items() if a["status"] != "N"]
+    on = [c for c, a in d["alerts"].items() if a["status"] in ("A", "P")]
     names = {r["code"]: r["name"] for r in ua_regions()}
     return "ok", "%d of 27 oblasts under alert (%s%s)%s" % (len(on), d["source"], "" if token else ": no token, oblast level only",
                                                              ": " + ", ".join(names.get(c, c) for c in on[:8]) if on else "")
@@ -3679,6 +3689,10 @@ def cmd_feed(args):
         for code, a in ((aa or {}).get("alerts") or {}).items():
             r = names.get(code)
             if not r or a.get("status") == "N":
+                continue
+            if a.get("status") == "C":
+                items.append({"kind": "alert", "when": a.get("ended") or now, "title": "All clear \u00b7 %s" % r["name"], "detail": "the alert ended" + (" after " + _age((a.get("ended") or now) - a["since"]) if a.get("since") else ""),
+                              "url": "https://alerts.in.ua/en", "lat": r["lat"], "lon": r["lon"], "level": 1, "nonew": True, "key": "clear:%s:%d" % (code, int(a.get("ended") or now))})
                 continue
             kinds = a.get("types") or ["air raid"]
             severe = any(k != "air raid" for k in kinds)

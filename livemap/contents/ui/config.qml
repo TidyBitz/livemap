@@ -290,6 +290,10 @@ Kirigami.FormLayout {
     // air raid alerts
     property alias cfg_ShowAirAlerts: airAlerts.checked
     property alias cfg_AirAlertColor: alertColor.color
+    property alias cfg_AirAlertNewColor: alertNewColor.color
+    property alias cfg_AirAlertNewMinutes: alertNewMinutes.value
+    property alias cfg_AirAlertClearColor: alertClearColor.color
+    property alias cfg_AirAlertShowClear: alertShowClear.checked
     property alias cfg_AirAlertOpacity: alertOpacity.value
     property alias cfg_AirAlertPartialOpacity: alertPartialOpacity.value
     property alias cfg_AirAlertOutline: alertOutline.checked
@@ -1710,6 +1714,22 @@ Kirigami.FormLayout {
         Pct { id: alertPartialOpacity; from: 0; to: 60; label: "Part of the oblast under alert (with a token)" }
         QQC2.CheckBox { id: alertPulse; text: "Breathe" }
     }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "New alerts:"
+        enabled: airAlerts.checked
+        KQuickControls.ColorButton { id: alertNewColor; showAlphaChannel: false; dialogTitle: "New alert colour" }
+        QQC2.SpinBox { id: alertNewMinutes; from: 0; to: 120; stepSize: 5; textFromValue: function (v) { return v + " min" }; valueFromText: function (t) { return parseInt(t) || 0 } }
+        QQC2.Label { text: "in this colour, breathing harder (0: off)"; opacity: 0.7 }
+    }
+    RowLayout {
+        visible: sec9a.open
+        Kirigami.FormData.label: "All clear:"
+        enabled: airAlerts.checked
+        QQC2.CheckBox { id: alertShowClear; text: "Keep an ended alert as a fading outline for 30 minutes" }
+        KQuickControls.ColorButton { id: alertClearColor; enabled: alertShowClear.checked; showAlphaChannel: false; dialogTitle: "All-clear colour" }
+    }
+    Note { visible: sec9a.open; text: "Time-graded: an alert's first minutes in the new-alert colour, then the alert colour, then (below) lighter once it has run for hours; the all-clear leaves a cool outline that fades, labelled 'Kyiv · all clear · 12 min'. Only alerts this wallpaper saw begin count as new (or any alert, with a token)." }
     RowLayout {
         visible: sec9a.open
         Kirigami.FormData.label: "Long-running alerts:"
