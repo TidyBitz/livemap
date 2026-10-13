@@ -3601,9 +3601,15 @@ def cmd_feed(args):
     try:
         qf = DATA / "quakes.json"
         if not qf.exists() or now - qf.stat().st_mtime > 300:
-            body = _http("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s.geojson" % args.feed)[2]
-            qf.parent.mkdir(parents=True, exist_ok=True)
-            qf.write_bytes(body)
+            try:
+                body = _http("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s.geojson" % args.feed, timeout=12)[2]
+                json.loads(body)
+                qf.parent.mkdir(parents=True, exist_ok=True)
+                qf.write_bytes(body)
+            except Exception as e:                 # USGS not answering this process: the last file still lists the quakes
+                if not qf.exists():
+                    raise
+                problems.append("quakes: USGS not answering (%s); showing the list from %s ago" % (e, _age(now - qf.stat().st_mtime)))
         for f in json.loads(qf.read_text(encoding="utf-8")).get("features", []):
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
