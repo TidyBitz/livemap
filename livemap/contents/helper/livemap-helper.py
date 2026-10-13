@@ -3600,10 +3600,16 @@ def cmd_feed(args):
     # earthquakes
     try:
         qf = DATA / "quakes.json"
-        if not qf.exists() or now - qf.stat().st_mtime > 300:
+        cached_empty = False
+        try:                                       # an empty collection (USGS mid-outage) is not worth keeping for five minutes
+            cached_empty = qf.exists() and not json.loads(qf.read_text(encoding="utf-8")).get("features")
+        except (OSError, ValueError):
+            cached_empty = True
+        if not qf.exists() or cached_empty or now - qf.stat().st_mtime > 300:
             try:
                 body = _http("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s.geojson" % args.feed, timeout=12)[2]
-                json.loads(body)
+                if not json.loads(body).get("features") and not cached_empty and qf.exists():
+                    raise ValueError("USGS returned an empty feed")
                 qf.parent.mkdir(parents=True, exist_ok=True)
                 qf.write_bytes(body)
             except Exception as e:                 # USGS not answering this process: the last file still lists the quakes
