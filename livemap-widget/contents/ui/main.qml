@@ -159,13 +159,19 @@ PlasmoidItem {
         }
         return Object.keys(out).map(function (k) { return { kind: k, count: out[k] }; });
     })()
+    readonly property var problemWords: ({ quake: "quakes", storm: "storms", volcano: "volcano", fire: "fire", flood: "flood", alert: "air alerts", launch: "launch", sat: "sat" })
+    function emptyFact(k) {
+        var w = problemWords[k] || k, p = problems.find(function (t) { return String(t).toLowerCase().indexOf(w) === 0; });
+        return p ? "source not answering" : k === "flood" ? "none at the map's level" : "none right now";
+    }
     function kindFact(k, list) {
+        if (list.length === 0) return emptyFact(k);
         if (k === "launch") { var next = list.filter(function (it) { return it.future && it.when > nowSec; }).sort(function (a, b) { return a.when - b.when; })[0]; return next ? "next " + ago(next.when) : ""; }
         if (k === "quake") { var top = 0; for (var i = 0; i < list.length; i++) { var m = parseFloat(String(list[i].title).replace(/^M/, "")); if (m > top) top = m; } return top > 0 ? "strongest M" + top.toFixed(1) : ""; }
         if (k === "storm") { var live = list.filter(function (it) { return !/no longer tracked/.test(it.title); }).length; return live + " active"; }
         if (k === "fire") { var big = list.filter(function (it) { return (it.level || 0) >= 3; }).length, hot = list.filter(function (it) { return /^Fire hotspots/.test(it.title); }).length; return [big ? big + " over 10k ha" : "", hot ? hot + " hotspot clusters" : ""].filter(function (t) { return t !== ""; }).join(" · "); }
         if (k === "alert") { var sev = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return list.length + " oblast" + (list.length === 1 ? "" : "s") + (sev ? " · " + sev + " beyond air raid" : ""); }
-        if (k === "flood") { if (list.length === 0) return "none at the map's level"; var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
+        if (k === "flood") { var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
         if (k === "sat") return "live on the map";
         return "";
     }
@@ -177,7 +183,8 @@ PlasmoidItem {
         for (var h = 0; h < hiddenKinds.length; h++) hidden[hiddenKinds[h].kind] = hiddenKinds[h].count;
         for (var k = 0; k < kindList.length; k++) {
             var kind = kindList[k], list = byKind[kind] || [];
-            if (list.length === 0 && !hidden[kind] && !(kind === "flood" && wanted("flood") && layers !== null)) continue;   // floods: the header stays, saying none
+            // a kind the map shows keeps its header even with nothing to list, saying none (or that its source is down)
+            if (list.length === 0 && !hidden[kind] && !(wanted(kind) && layers !== null && layerOf[kind] && layers.indexOf(layerOf[kind]) >= 0)) continue;
             var open = list.length > 0 && !closed[kind];
             out.push({ head: true, kind: kind, count: hidden[kind] || list.length, hidden: !!hidden[kind] && list.length === 0, fact: kindFact(kind, list), open: open });
             if (open) out = out.concat(list);
@@ -377,7 +384,8 @@ PlasmoidItem {
                     onActivated: function (i) { root.range = i }
                     PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
                 }
-                PC3.ToolButton { icon.name: root.grouped ? "view-list-tree" : "view-list-details"; checkable: true; checked: root.grouped
+                PC3.ToolButton { icon.name: root.grouped ? "view-list-tree" : "view-list-details"; text: root.grouped ? "Groups" : "List"; display: PC3.AbstractButton.TextBesideIcon
+                                 checkable: true; checked: root.grouped
                                  onToggled: Plasmoid.configuration.Grouped = checked
                                  PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
                 PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
