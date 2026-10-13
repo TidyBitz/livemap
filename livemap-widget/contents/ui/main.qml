@@ -377,6 +377,9 @@ PlasmoidItem {
                     onActivated: function (i) { root.range = i }
                     PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
                 }
+                PC3.ToolButton { icon.name: root.grouped ? "view-list-tree" : "view-list-details"; checkable: true; checked: root.grouped
+                                 onToggled: Plasmoid.configuration.Grouped = checked
+                                 PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
                 PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
                                  PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
                 PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }

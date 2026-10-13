@@ -3768,8 +3768,9 @@ def cmd_feed(args):
     # sorts behind every quake of the day); they are already filtered to the ones that matter.
     def kept(it):
         return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+    # the kept kinds are exempt from the cap, not counted against it: 60 fire incidents must not push out every quake
     keep = [it for it in items if kept(it)]
-    rest = [it for it in items if not kept(it)][:max(0, args.limit - len(keep))]
+    rest = [it for it in items if not kept(it)][:max(0, args.limit)]
     items = sorted(keep + rest, key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers()})
 
