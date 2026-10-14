@@ -52,12 +52,8 @@ Item {
     property int fps: 30
     property bool slow: false            // on battery: look at the connections once a minute at most
     property real clock: 0
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && (overlay.packets || overlay.pulsing) && peers.count > 0
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: (packets || pulsing) && peers.count > 0
     // shown by main.qml in one place that is always on screen (this item can extend past it in Crop mode)
     readonly property string hint: !haveHome ? "set your home latitude / longitude in the settings to draw network arcs" : note
 

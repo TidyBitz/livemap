@@ -38,12 +38,8 @@ Item {
     // the clock ticks every 30 s normally, every second in the last ten minutes before a lift-off
     readonly property bool finalApproach: shown.some(function (L) { return L.net - now < 600 && L.net - now > -120; })
     Timer { interval: overlay.finalApproach ? 1000 : 30000; running: overlay.shown.length > 0; repeat: true; onTriggered: overlay.now = Date.now() / 1000 }
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && overlay.pulseSoon && overlay.shown.some(overlay.soon)
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulseSoon && shown.some(soon)
     function soon(L) { return L.net - now < 3600 && L.net - now > -1800 }
     // one marker per pad: the earliest launch there; keep a launch for half an hour after lift-off
     // Pads are grouped by site (the Cape's and Vandenberg's several pads are a few km apart and would print over

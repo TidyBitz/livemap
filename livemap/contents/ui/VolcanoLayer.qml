@@ -46,12 +46,8 @@ Item {
     property var volcanoes: []
     property int fps: 30                      // animation clock, as in the earthquake layer; 0 = frozen
     property real clock: 0
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && overlay.pulse && overlay.placed.some(overlay.pulses)
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulse && placed.some(pulses)
     readonly property real pulseNewHours: cfg ? cfg.PulseNewHours : 3
     readonly property bool ageFade: cfg ? cfg.AgeFade : true
     readonly property real ageStart: cfg ? cfg.AgeFadeStart : 12

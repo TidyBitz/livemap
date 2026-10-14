@@ -5,6 +5,12 @@ release notes written at the time; their dates are the day the version was hande
 
 ## 0.47 - unreleased
 
+### Fixed
+- CPU: the eight event layers each ran their own pulse timer at the profile's rate, unsynchronised, and
+  every tick of every timer redrew the whole screen; with storms, floods and fire incidents all pulsing that
+  was up to five times the frames the profile asks for (77 % of a core on a 5120 px screen). One clock in
+  main.qml now drives every layer's pulses, so the screen is drawn at most the profile's rate.
+
 ### Added
 - Air raid alerts: Ukraine's civil alerts by oblast, under a new "Civil alerts" group. The oblast fills in the
   alert colour while an alert is on and breathes slowly; with a personal alerts.in.ua token (free, requested

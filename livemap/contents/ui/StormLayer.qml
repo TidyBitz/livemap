@@ -64,12 +64,8 @@ Item {
     readonly property int periodMs: (cfg ? cfg.PulsePeriod : 5) * 1000
     property int fps: 30
     property real clock: 0
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && overlay.pulse && overlay.storms.some(overlay.pulses)
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulse && storms.some(pulses)
     readonly property int labelPx: Math.round((cfg ? cfg.StormLabelSize : 10) * unit)
     readonly property bool labelPlate: cfg ? cfg.StormLabelPlate : true
     readonly property bool ageFade: cfg ? cfg.AgeFade : true

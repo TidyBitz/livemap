@@ -53,13 +53,10 @@ Item {
     readonly property var active: regions.filter(function (r) { return r.status === "A" || r.status === "P"; })
     property int fps: 30
     property real clock: 0
-    Timer {                                       // a slow breath on the filled oblasts, four seconds a cycle
-        interval: Math.round(1000 / Math.max(1, Math.min(overlay.fps, 15)))
-        running: overlay.fps > 0 && overlay.pulse && overlay.active.length > 0
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
-    readonly property real breath: pulse ? 0.8 + 0.2 * Math.sin(clock / 4000 * 2 * Math.PI) : 1
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulse && active.length > 0
+    // the breath changes 27 Shape fills at once: ten steps a second is smooth enough for a four-second cycle
+    readonly property real breath: pulse ? 0.8 + 0.2 * Math.sin(Math.floor(clock / 100) * 100 / 4000 * 2 * Math.PI) : 1
 
     function px(lon) { return (lon + 180) / 360 * width }
     function py(lat) { return (90 - lat) / 180 * height }

@@ -99,12 +99,8 @@ Item {
     readonly property string hint: note
     property int fps: 30
     property real clock: 0
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && overlay.pulse && (overlay.shown.some(overlay.pulses) || ((overlay.pulseMode & 2) && (overlay.shownHot.some(overlay.hotSignificant) || overlay.shownIncidents.some(overlay.incidentSignificant))))
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulse && (shown.some(pulses) || ((pulseMode & 2) && (shownHot.some(hotSignificant) || shownIncidents.some(incidentSignificant))))
 
     function px(lon) { return (lon + 180) / 360 * width }
     function py(lat) { return (90 - lat) / 180 * height }

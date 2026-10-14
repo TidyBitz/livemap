@@ -62,12 +62,8 @@ Item {
     // with fps 0 (on battery) or nothing to pulse, the timer stops and nothing is redrawn at all.
     property int fps: 30
     property real clock: 0
-    Timer {
-        interval: Math.round(1000 / Math.max(1, overlay.fps))
-        running: overlay.fps > 0 && overlay.pulse && overlay.pulsingCount > 0
-        repeat: true
-        onTriggered: overlay.clock += interval
-    }
+    // the pulse clock is shared: main.qml advances one clock for every layer, so all pulses move in the same frame
+    readonly property bool pulseWanted: pulse && pulsingCount > 0
     property int reports: 0          // only the first few refreshes are written to the journal
 
     function refresh() {

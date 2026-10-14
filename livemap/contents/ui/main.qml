@@ -70,6 +70,17 @@ WallpaperItem {
         : "on battery"
     function hidden(name) { return !!(mode.hide && mode.hide.indexOf(name) >= 0) }
     readonly property int fps: saving > 0 ? 0 : ([60, 30, 20, 10][cfg.AnimationFps] || 30)
+    // One pulse clock for every layer. Each layer used to run its own timer at the profile's rate, unsynchronised,
+    // and every tick of every timer redraws the whole screen: five layers pulsing meant five times the frames.
+    property real clock: 0
+    readonly property var pulseLayers: [quakeLoader, stormLoader, volcanoLoader, fireLoader, floodLoader, alertLoader, launchLoader, netLoader]
+    readonly property bool anyPulse: pulseLayers.some(function (l) { return l.item && l.item.pulseWanted; })
+    Timer {
+        interval: Math.round(1000 / Math.max(1, root.fps))
+        running: root.fps > 0 && root.anyPulse
+        repeat: true
+        onTriggered: root.clock += interval
+    }
     onSavingChanged: console.warn("livemap: saving level", saving, savingWhy || "(normal)")
 
     // Missing files are looked for again on every tick, so pressing a Download button in the
@@ -518,7 +529,7 @@ WallpaperItem {
             source: "VolcanoLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: volcano layer failed to load")
@@ -531,7 +542,7 @@ WallpaperItem {
             source: "StormLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -546,7 +557,7 @@ WallpaperItem {
             source: "SatLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -560,7 +571,7 @@ WallpaperItem {
             source: "LaunchLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -574,7 +585,7 @@ WallpaperItem {
             source: "AlertLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -588,7 +599,7 @@ WallpaperItem {
             source: "FloodLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -602,7 +613,7 @@ WallpaperItem {
             source: "FireLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
@@ -614,7 +625,7 @@ WallpaperItem {
             anchors.fill: parent
             active: cfg.ShowQuakes && root.saving < 2 && !root.hidden("quakes")
             source: "QuakeLayer.qml"
-            onLoaded: { item.cfg = root.cfg; item.fps = Qt.binding(function () { return root.fps }); }
+            onLoaded: { item.cfg = root.cfg; item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock }); }
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: earthquake layer failed to load")
         }
         Loader {
@@ -625,7 +636,7 @@ WallpaperItem {
             source: "NetLayer.qml"
             onLoaded: {
                 item.cfg = root.cfg;
-                item.fps = Qt.binding(function () { return root.fps });
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
                 item.slow = Qt.binding(function () { return root.saving === 1 });
                 item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
             }
