@@ -776,7 +776,7 @@ Kirigami.FormLayout {
     readonly property var profiles: [
         // fps, arcs, quakePulse, volcanoPulse, stormPulse, firePulse, hotspots, borderDetail, satTrack, guardPause, guardPlain
         { name: "High performance", fps: 0, arcs: 2, qp: 3, vp: 1, sp: 3, fp: 3, hot: 1, detail: 1, track: 2, gpause: 85, gplain: 97 },
-        { name: "Balanced",         fps: 2, arcs: 0, qp: 3, vp: 1, sp: 3, fp: 3, hot: 2, detail: 0, track: 1, gpause: 70, gplain: 90 },
+        { name: "Balanced",         fps: 2, arcs: 0, qp: 1, vp: 1, sp: 1, fp: 1, hot: 2, detail: 0, track: 1, gpause: 70, gplain: 90 },
         { name: "Power saving",     fps: 3, arcs: 3, qp: 1, vp: 1, sp: 1, fp: 1, hot: 3, detail: 0, track: 0, gpause: 50, gplain: 80 },
         { name: "Custom" } ]
     readonly property string leverSig: [animationFps.currentIndex, arcAnimation.currentIndex, quakePulseMode.currentIndex, volcanoPulseMode.currentIndex,
@@ -808,7 +808,7 @@ Kirigami.FormLayout {
         onActivated: function (i) { form.applyProfile(i) }
     }
     Note { text: ["Smooth: 60 updates a second, packets and glowing lines, every pulse, more hotspot cells, two orbits of satellite track. Load guard only for heavy load.",
-                  "20 updates a second, packets on the lines, pulses on news and strong events, 25+ detection hotspot cells, one orbit of track. Load guard at 70 / 90 %.",
+                  "20 updates a second while something is newly reported, then still: pulses on news only (a hurricane or a red flood that pulsed for its whole life kept the screen redrawing 20 times a second for days), packets on the lines, 25+ detection hotspot cells, one orbit of track. Load guard at 70 / 90 %.",
                   "10 updates a second, steady lines, pulses only on news, 50+ detection hotspot cells, short track, standard borders. Load guard at 50 / 80 %.",
                   "Your own mix of the settings below."][profile.currentIndex] }
     ColumnLayout {
