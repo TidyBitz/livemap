@@ -599,7 +599,8 @@ PlasmoidItem {
                 var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
                 return m ? m[1] : "";
             })()
-            readonly property bool embed: Plasmoid.configuration.LiveEmbed && root.expanded && visible
+            property bool playHere: false              // "Play here" on the placeholder: embed for this popup session
+            readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.expanded && visible
             property int chosen: 0                     // 0 = the ISS stream from the settings; then the launches with a webcast
             readonly property var extra: String(Plasmoid.configuration.LiveExtra || "").split("\n").map(function (line) {
                 var i = line.indexOf("|");
@@ -629,7 +630,12 @@ PlasmoidItem {
                 text: liveWeb.status === Loader.Error ? "Embedded player unavailable" : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Not a YouTube stream" : Plasmoid.configuration.LiveEmbed ? "Player starts when the popup is open" : "Stream not embedded"
                 explanation: liveWeb.status === Loader.Error ? "QtWebEngine's QML module is not installed (qt6-qtwebengine). Use a player below."
                            : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Only YouTube streams can be embedded; use a player or the browser for this one."
-                           : Plasmoid.configuration.LiveEmbed ? "" : "Turn on embedding in the widget settings, or open the stream in a player or the browser."
+                           : Plasmoid.configuration.LiveEmbed ? "" : "Play it here (a browser engine runs inside the widget while the popup is open), in a player, or in the browser."
+                helpfulAction: Kirigami.Action {
+                    visible: !Plasmoid.configuration.LiveEmbed && liveWeb.status !== Loader.Error && liveTab.videoId !== ""
+                    text: "Play here"; icon.name: "media-playback-start"
+                    onTriggered: liveTab.playHere = true
+                }
             }
             RowLayout {
                 PC3.Button {

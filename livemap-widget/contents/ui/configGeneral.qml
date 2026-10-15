@@ -107,7 +107,7 @@ Kirigami.FormLayout {
         placeholderText: "one per line:  Title | URL"
         wrapMode: TextEdit.NoWrap
     }
-    QQC2.CheckBox { id: liveEmbed; Kirigami.FormData.label: "Live tab:"; text: "Embed the player in the widget (needs QtWebEngine; heavy)" }
+    QQC2.CheckBox { id: liveEmbed; Kirigami.FormData.label: "Live tab:"; text: "Always play the stream inside the widget (needs QtWebEngine; unticked, the Live tab offers Play here each time)" }
     QQC2.TextField { id: livePlayer; Kirigami.FormData.label: "External player:"; Layout.fillWidth: true; placeholderText: "command; the URL is appended" }
     QQC2.Label {
         Layout.fillWidth: true
