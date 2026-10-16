@@ -6,6 +6,10 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Fixed
+- `livemap.sh install` run from a source checkout now does `git pull` first, re-runs itself if the script
+  changed, and installs the livemap/ and livemap-widget/ folders as they are; it used to install whatever
+  livemap.zip lay in the folder, so pulls changed the source while the installed packages stayed put.
+  `--no-pull` skips the pull. The zip route is unchanged for releases.
 - CPU: the eight event layers each ran their own pulse timer at the profile's rate, unsynchronised, and
   every tick of every timer redrew the whole screen; with storms, floods and fire incidents all pulsing that
   was up to five times the frames the profile asks for (77 % of a core on a 5120 px screen). One clock in

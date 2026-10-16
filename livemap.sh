@@ -32,7 +32,7 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"
 WP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/wallpapers/$WALLPAPER_ID"
 WG_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/plasma/plasmoids/$WIDGET_ID"
 APPLETSRC="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
-FORCE=0; YES=0; NO_RESTART=0
+FORCE=0; YES=0; NO_RESTART=0; NO_PULL=0
 
 # ---- output ---------------------------------------------------------------------------------------
 if [ -t 1 ]; then B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; R=$'\033[31m'; D=$'\033[2m'; N=$'\033[0m'; else B=; G=; Y=; R=; D=; N=; fi
@@ -443,13 +443,47 @@ restart_shell() {
 }
 
 # ---- commands ---------------------------------------------------------------------------------
-cmd_install() {
-    local zips=() a z
-    for a in "$@"; do [ -f "$a" ] && zips+=("$a"); done
-    if [ ${#zips[@]} -eq 0 ]; then
-        z="$(find_zip livemap.zip || true)"; [ -n "$z" ] && zips+=("$z")
+# In a source checkout (this script beside livemap/ and livemap-widget/): fetch the latest, run the fetched
+# script if it changed, and install the folders as they are - no zip involved, so what you pulled is what runs.
+checkout_dir() {
+    local here; here="$(cd "$(dirname "$0")" && pwd)"
+    [ -f "$here/livemap/metadata.json" ] && [ -f "$here/livemap-widget/metadata.json" ] && printf '%s' "$here"
+}
+pull_checkout() {
+    local here="$1" before after
+    [ -d "$here/.git" ] || return 0
+    have git || { warn "git not found: installing the checkout as it is"; return 0; }
+    before="$(git -C "$here" rev-parse HEAD 2>/dev/null || true)"
+    if git -C "$here" pull --ff-only 2>&1 | sed 's/^/  /'; then
+        after="$(git -C "$here" rev-parse HEAD 2>/dev/null || true)"
+        if [ "$before" != "$after" ]; then
+            ok "updated the checkout: $(git -C "$here" log --oneline -1 2>/dev/null)"
+            if ! git -C "$here" diff --quiet "$before" "$after" -- livemap.sh 2>/dev/null; then
+                note "livemap.sh itself changed: running the new one"
+                exec "$here/livemap.sh" install --no-pull "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}"
+            fi
+        else
+            note "checkout already up to date"
+        fi
+    else
+        warn "git pull failed (local changes, or offline): installing the checkout as it is"
     fi
-    [ ${#zips[@]} -gt 0 ] || die "no livemap.zip found (give the path, or put it in . or ~/Downloads)"
+}
+
+cmd_install() {
+    local zips=() a z here
+    PASS_ARGS=()
+    for a in "$@"; do [ -f "$a" ] && zips+=("$a"); done
+    [ "$FORCE" = 1 ] && PASS_ARGS+=(--force); [ "$NO_RESTART" = 1 ] && PASS_ARGS+=(--no-restart); [ "$YES" = 1 ] && PASS_ARGS+=(--yes)
+    here="$(checkout_dir || true)"
+    if [ ${#zips[@]} -eq 0 ] && [ -n "$here" ]; then
+        say "Source checkout at $here"
+        [ "$NO_PULL" = 1 ] || pull_checkout "$here"
+        FROM_CHECKOUT="$here"
+    elif [ ${#zips[@]} -eq 0 ]; then
+        z="$(find_zip livemap.zip || true)"; [ -n "$z" ] && zips+=("$z")
+        [ ${#zips[@]} -gt 0 ] || die "no livemap.zip found (give the path, or put it in . or ~/Downloads)"
+    fi
     if ! cmd_doctor; then
         if [ "$FORCE" = 1 ]; then
             warn "continuing anyway because of --force"
@@ -460,7 +494,14 @@ cmd_install() {
     fi
     echo
     say "Installing"
-    for z in "${zips[@]}"; do install_zip "$z"; done
+    if [ -n "${FROM_CHECKOUT:-}" ]; then
+        install_folder Plasma/Wallpaper "$FROM_CHECKOUT/livemap" "$WALLPAPER_ID"
+        install_folder Plasma/Applet "$FROM_CHECKOUT/livemap-widget" "$WIDGET_ID"
+        # the installed wallpaper carries the script and the changelog, as the zip does
+        cp "$FROM_CHECKOUT/livemap.sh" "$FROM_CHECKOUT/CHANGELOG.md" "$FROM_CHECKOUT/LICENSE" "$WP_DIR/" 2>/dev/null || true
+    else
+        for z in "${zips[@]}"; do install_zip "$z"; done
+    fi
     note "wallpaper $(version_of "$WP_DIR" || echo '-') / widget $(version_of "$WG_DIR" || echo '-')"
     migrate_old_ids
     echo
@@ -546,7 +587,7 @@ cmd_help() {
         doctor)   echo "doctor [--report]: checks Plasma, the tools, python, every QML module the packages import, and the optional extras;"
                   echo "  prints the install command for your distribution when something is missing. --report adds versions, GPU,"
                   echo "  screens, the helper's status and the last log lines, for a bug report." ;;
-        install|update) echo "install [livemap.zip] [--force] [--no-restart]: runs doctor first and stops when a required dependency is missing;"
+        install|update) echo "install [livemap.zip] [--force] [--no-restart] [--no-pull]: in a source checkout, git pull first and install the folders; otherwise install livemap.zip. Runs doctor first and stops when a required dependency is missing;"
                   echo "  then installs or updates the wallpaper and the widget from the zip (looked for in ., then ~/Downloads)."
                   echo "  When the map is in use, plasmashell is restarted so the update is live (--no-restart skips that)." ;;
         activate) echo "activate: sets Live World Map as the wallpaper on every desktop, through plasmashell's scripting interface." ;;
@@ -566,6 +607,7 @@ for a in "$@"; do
         --force) FORCE=1 ;;
         --yes|-y) YES=1 ;;
         --no-restart) NO_RESTART=1 ;;
+        --no-pull) NO_PULL=1 ;;
         *) ARGS+=("$a") ;;
     esac
 done

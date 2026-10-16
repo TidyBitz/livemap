@@ -129,7 +129,8 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 ## The script
 
     livemap.sh doctor [--report]         check every dependency; --report adds versions, GPU, logs for a bug report
-    livemap.sh install [livemap.zip]     check, then install or update the wallpaper and the widget
+    livemap.sh install [livemap.zip]     check, then install or update the wallpaper and the widget; run from a
+                                         source checkout it does git pull first and installs the folders as pulled
     livemap.sh activate | deactivate     switch every desktop to the map / back to the stock image
     livemap.sh remove                    deactivate, remove the widget from panels, uninstall both packages
     livemap.sh purge [--yes]             remove, then delete the data folder and the saved settings
