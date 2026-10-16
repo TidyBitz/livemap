@@ -258,6 +258,22 @@ release notes written at the time; their dates are the day the version was hande
   Storms, Wildfires, Satellites, Launches, Network activity and Time zones, exactly the five choices country
   names had. The country-name controls are the same row now. Defaults keep every label as it was.
 
+## widget 0.47 - unreleased
+
+### Added
+- Floods and air raid alerts as kinds of their own (groups, filters, Hide layers), one row per NWS forecast
+  office and alert type, one per oblast under alert with how long it has been on; named fire incidents
+  with size, containment or stage of control and personnel.
+- A Groups / List toggle in the toolbar: the groups by kind, or one list in the sort order.
+- Every kind the map shows keeps its header, saying none or that its source is down.
+- The Live tab's placeholder has a "Play here" button; embedding is on by default for new installs.
+
+### Fixed
+- The feed's cap no longer counts the long-lived kinds (storms, floods, incidents, alerts), which had pushed
+  every earthquake off the list; an empty cached quake file is refetched at once.
+- Installed copies are checked against the source and plasmashell's compiled-QML cache is dropped on
+  install, so a new build is what runs.
+
 ## widget 0.44 - 2026-10-09
 
 ### Added

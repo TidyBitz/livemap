@@ -9,7 +9,7 @@
         "Id": "io.github.tidybitz.livemap.events",
         "License": "GPL-3.0-or-later",
         "Name": "Live World Map Events",
-        "Version": "0.44"
+        "Version": "0.47"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
 }

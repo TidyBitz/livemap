@@ -170,6 +170,7 @@ Kirigami.FormLayout {
     property alias cfg_RiverColor: riverColor.color
     property int cfg_RiverOpacity
     property int cfg_RiverWidth
+    property alias cfg_RiverDetail: riverDetail.currentIndex
     property alias cfg_ZoneLabels: zoneLabels.checked
     property alias cfg_ZoneClock: zoneClock.currentIndex
     property alias cfg_ZoneTextFollows: zoneTextFollows.checked
@@ -1157,9 +1158,11 @@ Kirigami.FormLayout {
     Note { visible: sec3.open; text: "A country capital is a ringed dot, a state capital a dot, a city a small dot (or one sized by population). Placed after the country names: capitals first, then cities by size, then state names, so the important ones win the space. Natural Earth populated places, part of the border download." }
 
     // ================================================================= Rivers
-    SectionHeader { id: sec4; title: "Rivers"; sourceNames: ["Borders (Natural Earth)"]; twin: rivers; summary: rivers.checked ? "Major rivers, " + form.cfg_RiverOpacity + " %, " + form.cfg_RiverWidth + " % thick" : "Off" }
+    SectionHeader { id: sec4; title: "Rivers"; sourceNames: ["Borders (Natural Earth)"]; twin: rivers; summary: rivers.checked ? (riverDetail.currentIndex === 0 ? "The 13 great rivers, " : "All rivers, ") + form.cfg_RiverOpacity + " %, " + form.cfg_RiverWidth + " % thick" : "Off" }
     Source { visible: sec4.open; names: ["Borders (Natural Earth)"] }
-    QQC2.CheckBox { visible: sec4.open; id: rivers; Kirigami.FormData.label: "Rivers:"; text: "Major rivers and lake centrelines (Natural Earth)" }
+    QQC2.CheckBox { visible: sec4.open; id: rivers; Kirigami.FormData.label: "Rivers:"; text: "Rivers and lake centrelines (Natural Earth)" }
+    QQC2.ComboBox { visible: sec4.open; id: riverDetail; Kirigami.FormData.label: "River detail:"; enabled: rivers.checked; model: ["The 13 great rivers (Amazon, Nile, Mississippi…)", "All 460 (every named river Natural Earth draws at 1:50M)"] }
+    Note { visible: sec4.open; text: "Independent of the Countries detail level: the detailed borders are 100 000 segments, the detailed rivers 462 lines, so the full set costs next to nothing on any profile." }
     KQuickControls.ColorButton { visible: sec4.open; id: riverColor; Kirigami.FormData.label: "River line colour:"; enabled: rivers.checked; showAlphaChannel: false; dialogTitle: "River colour" }
     Amount {
         visible: sec4.open

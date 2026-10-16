@@ -351,6 +351,14 @@ install_folder() {
     else
         kpackagetool6 -t "$type" -i "$folder" >/dev/null && ok "installed $id" || die "install of $id failed"
     fi
+    # prove the files landed: the installed main.qml must be the one in the folder (kpackagetool can keep an
+    # older copy without complaint), and drop plasmashell's compiled-QML cache so the new files are what runs
+    local dest="$HOME/.local/share/plasma/$([ "$type" = Plasma/Applet ] && echo plasmoids || echo wallpapers)/$id"
+    if [ -f "$dest/contents/ui/main.qml" ] && ! cmp -s "$folder/contents/ui/main.qml" "$dest/contents/ui/main.qml"; then
+        note "installed copy of $id differs from the source: copying the files over directly"
+        cp -r "$folder/contents" "$dest/" && cp "$folder/metadata.json" "$dest/" && ok "copied $id"
+    fi
+    rm -rf "$HOME/.cache/plasmashell/qmlcache" 2>/dev/null || true
 }
 
 install_zip() {

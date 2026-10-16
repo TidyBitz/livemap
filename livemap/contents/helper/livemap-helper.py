@@ -524,7 +524,7 @@ def cmd_borders(args):
     res = {"coast": _lines("ne_%s_coastline" % scale, step),
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
-           "rivers": _lines("ne_%s_rivers_lake_centerlines" % scale, step) if args.rivers else [],
+           "rivers": _lines("ne_%s_rivers_lake_centerlines" % (args.river_detail or scale), 0.02 if (args.river_detail or scale) == "50m" else 0.0) if args.rivers else [],
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
@@ -4630,7 +4630,8 @@ def main():
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
-    b.add_argument("--rivers", action="store_true"); b.add_argument("--land", action="store_true")
+    b.add_argument("--rivers", action="store_true"); b.add_argument("--river-detail", dest="river_detail", choices=["110m", "50m"])   # rivers' own level (default: the borders')
+    b.add_argument("--land", action="store_true")
     b.add_argument("--state-names", dest="state_names", action="store_true"); b.add_argument("--capitals", action="store_true")
     b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)
     b.set_defaults(fn=cmd_borders)

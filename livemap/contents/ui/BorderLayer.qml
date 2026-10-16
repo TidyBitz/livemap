@@ -31,6 +31,7 @@ Item {
     readonly property bool showNames: cfg ? cfg.ShowCountryNames : false
     readonly property int nameRank: [2, 4, 10][cfg ? cfg.NameDensity : 1] || 4
     readonly property string detail: cfg && cfg.BorderDetail === 1 ? "50m" : "110m"
+    readonly property string riverDetail: cfg && cfg.RiverDetail === 0 ? "110m" : "50m"   // rivers have their own level: 462 lines is cheap
     // time zones: the same kind of vector outlines, in their own colour, with a UTC offset label per zone
     readonly property bool showZones: cfg ? cfg.ShowTimeZones : false
     readonly property color zoneInk: cfg ? cfg.ZoneColor : "#8fd3ff"
@@ -202,7 +203,7 @@ Item {
         : "python3 '" + helper + "' borders --detail " + detail + (showStates ? " --states" : "") + (showNames ? " --names" : "")
           + (showZones ? " --zones" + (rowMode ? " --zone-row " + zoneRowLat : "") : "")
           + (showStateNames ? " --state-names" : "") + (showCapitals ? " --capitals" : "") + (showStateCapitals ? " --state-capitals" : "")
-          + (cityPop > 0 ? " --city-pop " + cityPop : "") + (showRivers ? " --rivers" : "")
+          + (cityPop > 0 ? " --city-pop " + cityPop : "") + (showRivers ? " --rivers --river-detail " + riverDetail : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
     P5Support.DataSource {

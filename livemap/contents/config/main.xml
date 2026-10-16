@@ -106,6 +106,7 @@
     <entry name="ShowRivers" type="Bool"><default>false</default></entry>
     <entry name="RiverColor" type="Color"><default>#6fb7ff</default></entry>
     <entry name="RiverOpacity" type="Int"><default>50</default></entry>
+    <entry name="RiverDetail" type="Int"><default>1</default></entry>        <!-- 0 the 13 great rivers (110m), 1 all 460 (50m): cheap either way -->
     <entry name="RiverWidth" type="Int"><default>80</default></entry>
     <entry name="ShowTimeZones" type="Bool"><default>false</default></entry>
     <entry name="ZoneClock" type="Int"><default>0</default></entry>          <!-- 0 UTC offset, 1 offset and time, 2 offset, time and date, 3 time, 4 time and date -->
