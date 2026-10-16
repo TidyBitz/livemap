@@ -5,6 +5,11 @@ release notes written at the time; their dates are the day the version was hande
 
 ## 0.47 - unreleased
 
+### Added
+- A fourth fit mode, "Fill, true proportions, trimming the edges": the screen full of world at true
+  proportions, like a printed map - a wide screen loses the poles, a 16:10 or 4:3 screen the middle of the
+  Pacific - instead of bars (Fit) or a zoomed-in slice (Crop). The chosen area only centres the view.
+
 ### Fixed
 - `livemap.sh install` run from a source checkout now does `git pull` first, re-runs itself if the script
   changed, and installs the livemap/ and livemap-widget/ folders as they are; it used to install whatever

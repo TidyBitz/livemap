@@ -119,6 +119,7 @@ WallpaperItem {
     //   Stretch: the frame fills the screen exactly (shapes get taller or wider as needed, nothing is cut off)
     //   Fit:     true proportions, the whole frame visible (more map, or bars, in the spare space)
     //   Crop:    true proportions, the frame fills the screen and is trimmed where it does not fit
+    //   Fill:    true proportions, the screen full of world, trimmed at the poles or the mid-Pacific (the frame's centre)
     // Any frame at least 10 degrees wide and 5 tall; the still layer's texture is clipped to the screen below,
     // so the zoom is no longer limited to 2x (a region such as Europe is about 8x).
     readonly property real frameN: Math.max(-85, Math.min(90, cfg.FrameNorth))
@@ -170,8 +171,15 @@ WallpaperItem {
     readonly property string frameNote: frameLoader.item ? frameLoader.item.note : ""
     readonly property real sxFill: root.width / (frameE - frameW)          // pixels per degree if stretched
     readonly property real syFill: root.height / (frameN - frameS)
-    readonly property real sx: cfg.FillMode === 0 ? sxFill : cfg.FillMode === 1 ? Math.min(sxFill, syFill) : Math.max(sxFill, syFill)
+    // Fill (mode 3): true proportions, the screen full, the world trimmed where it must be - the poles on a wide
+    // screen, the mid-Pacific on a tall one - like a printed world map. The scale is the smallest that covers the
+    // screen with the 360 x 180 world; the frame only says where the view is centred.
+    readonly property real sFill: Math.max(root.width / 360, root.height / 180)
+    readonly property real sx: cfg.FillMode === 0 ? sxFill : cfg.FillMode === 1 ? Math.min(sxFill, syFill) : cfg.FillMode === 3 ? sFill : Math.max(sxFill, syFill)
     readonly property real sy: cfg.FillMode === 0 ? syFill : sx
+    // the centre of the view: the frame's, kept inside the world so the trimmed mode never shows past the edges
+    readonly property real centreLon: cfg.FillMode === 3 ? Math.max(-180 + root.width / (2 * sx), Math.min(180 - root.width / (2 * sx), (frameW + frameE) / 2)) : (frameW + frameE) / 2
+    readonly property real centreLat: cfg.FillMode === 3 ? Math.max(-90 + root.height / (2 * sy), Math.min(90 - root.height / (2 * sy), (frameN + frameS) / 2)) : (frameN + frameS) / 2
     readonly property string framing: frameN + "/" + frameS + "/" + frameW + "/" + frameE + "/" + cfg.FillMode + "/" + width + "x" + height
     onFramingChanged: if (width > 0) console.warn("livemap: frame", frameN + "N", frameS + "S", frameW + "W", frameE + "E",
         "- shapes drawn", Math.round(sy / sx * 100) + "% as tall as true, on", Math.round(width) + "x" + Math.round(height))
@@ -183,8 +191,8 @@ WallpaperItem {
         // a child of this item and works in its coordinates, so they all follow without knowing about frames.
         width: 360 * root.sx
         height: 180 * root.sy
-        x: root.width / 2 - ((root.frameW + root.frameE) / 2 + 180) * root.sx
-        y: root.height / 2 - (90 - (root.frameN + root.frameS) / 2) * root.sy
+        x: root.width / 2 - (root.centreLon + 180) * root.sx
+        y: root.height / 2 - (90 - root.centreLat) * root.sy
 
         readonly property size tex: Qt.size(Math.ceil(width * Screen.devicePixelRatio),
                                             Math.ceil(height * Screen.devicePixelRatio))

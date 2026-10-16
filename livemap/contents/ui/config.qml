@@ -968,13 +968,14 @@ Kirigami.FormLayout {
         visible: sec1.open
         id: fillMode
         Kirigami.FormData.label: "Fit to screen:"
-        model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions"]
+        model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions", "Fill, true proportions, trimming the edges"]
     }
     Note {
         visible: sec1.open
         text: ["Stretch: all of the chosen area fills the screen; shapes get taller or wider as needed.",
                "Fit: all of the chosen area at true proportions; spare space shows more map, or bars.",
-               "Crop: true proportions filling the screen, trimmed where it does not fit."][fillMode.currentIndex]
+               "Crop: true proportions filling the screen, trimmed where it does not fit.",
+               "Fill: true proportions and the screen full of world, like a printed map - a wide screen loses the poles, a tall one (16:10, 4:3) the middle of the Pacific. The chosen area only says where the view is centred; it is widened or narrowed to fill the screen."][fillMode.currentIndex]
     }
     Amount {
         visible: sec1.open
