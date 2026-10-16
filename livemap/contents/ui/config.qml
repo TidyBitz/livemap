@@ -18,6 +18,7 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
 import org.kde.plasma.plasma5support as P5Support
@@ -977,6 +978,25 @@ Kirigami.FormLayout {
                "Crop: true proportions filling the screen, trimmed where it does not fit.",
                "Fill: Fit without bars. All of the chosen area at true proportions, with more map around it where the screen has room instead of bars; the view zooms in only as far as it must to stay inside the world, so the whole world on a 16:10 screen loses the middle of the Pacific (on a wide screen, the poles), like a printed map."][fillMode.currentIndex]
     }
+    // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
+    // here that every full-width frame comes out as the whole latitude range in Fill mode
+    readonly property string fitPreview: (function () {
+        var W = Screen.width, H = Screen.height, n = frameNorth.value, so = frameSouth.value, w = frameWest.value, e = frameEast.value;
+        if (!(W > 0 && H > 0) || e <= w || n <= so) return "";
+        var sxF = W / (e - w), syF = H / (n - so), m = fillMode.currentIndex, sx, sy;
+        if (m === 0) { sx = sxF; sy = syF; } else if (m === 1) { sx = sy = Math.min(sxF, syF); } else if (m === 2) { sx = sy = Math.max(sxF, syF); }
+        else { sx = sy = Math.max(Math.min(sxF, syF), W / 360, H / 180); }
+        var cl = (w + e) / 2, ct = (n + so) / 2;
+        if (m === 3) { cl = Math.max(-180 + W / (2 * sx), Math.min(180 - W / (2 * sx), cl)); ct = Math.max(-90 + H / (2 * sy), Math.min(90 - H / (2 * sy), ct)); }
+        var vw = cl - W / (2 * sx), ve = cl + W / (2 * sx), vn = ct + H / (2 * sy), vs = ct - H / (2 * sy);
+        function lon(x) { return Math.round(Math.abs(x)) + (x < 0 ? "°W" : "°E"); }
+        function lat(y) { return Math.round(Math.abs(y)) + (y < 0 ? "°S" : "°N"); }
+        var bars = vn > 90 || vs < -90 || vw < -180 || ve > 180;
+        return "This screen is " + (W / H).toFixed(2) + ":1 (" + W + " × " + H + "): it shows " + lon(Math.max(-180, vw)) + " to " + lon(Math.min(180, ve)) + ", " + lat(Math.min(90, vn)) + " to " + lat(Math.max(-90, vs))
+             + (m === 0 ? ", shapes drawn " + Math.round(sy / sx * 100) + " % as tall as true" : bars ? ", with bars where the world ends" : "")
+             + ". On a screen this shape every frame the full 360° wide comes out alike in Fill: the whole latitude range, the middle of the Pacific trimmed; only Crop or Stretch can honour a narrower latitude band.".replace(/\. On a screen.*$/, m === 3 && (e - w) >= 300 && W / H < 2 ? ". On a screen this shape every frame the full 360° wide comes out alike in Fill (the whole latitude range, the middle of the Pacific trimmed); only Crop or Stretch can honour a narrower latitude band." : ".");
+    })()
+    Note { visible: sec1.open && form.fitPreview !== ""; text: form.fitPreview }
     Amount {
         visible: sec1.open
         Kirigami.FormData.label: "Dim the imagery:"
