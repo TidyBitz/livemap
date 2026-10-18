@@ -3980,7 +3980,7 @@ def cmd_feed(args):
         emit({"items": past[:args.limit], "problems": problems, "version": VERSION, "history_days": HISTORY_DAYS,
               "history_from": min((it["when"] for it in read_history().values()), default=None)})
         return
-    items.sort(key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
+    items.sort(key=lambda it: (1 if it.get("pin") else 0, -it["when"]))
     # The cap is for the long tails (a day of quakes, dozens of fire clusters): a storm first seen three days
     # ago is still on the map and must not fall off the end of the list because of them.
     # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
@@ -3990,7 +3990,7 @@ def cmd_feed(args):
     # the kept kinds are exempt from the cap, not counted against it: 60 fire incidents must not push out every quake
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
-    items = sorted(keep + rest, key=lambda it: (0 if it.get("pin") else 1, -it["when"]))
+    items = sorted(keep + rest, key=lambda it: (1 if it.get("pin") else 0, -(it.get("updated") or it["when"])))
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers()})
 
 
@@ -4010,13 +4010,26 @@ def remember_history(items, now):
     for it in items:
         key = it.get("key")
         if not key or it.get("pin"):
+            if it.get("pin"):
+                it["seen"] = it["updated"] = 0                        # a satellite is never news: it sorts last
+            else:
+                it["seen"] = it["updated"] = it.get("when") or now
             continue
-        keep = {k: v for k, v in it.items() if k not in ("videos", "webcast_live", "pin", "links")}
+        keep = {k: v for k, v in it.items() if k not in ("videos", "webcast_live", "pin", "links", "seen", "updated")}
         old = hist.get(key)
-        if old != keep and (old is None or it.get("future") or old.get("when") != keep["when"] or old.get("title") != keep["title"]
-                            or old.get("facilities") != keep.get("facilities")):
+        was = {k: v for k, v in old.items() if k not in ("seen", "updated")} if old else None
+        # "seen": when this computer first saw the event; "updated": when it last changed (a launch slipping or
+        # entering its last hour, a storm's category, a volcano's level): the widget's "newest first" order
+        if was != keep and (old is None or it.get("future") or was.get("when") != keep["when"] or was.get("title") != keep["title"]
+                            or was.get("level") != keep.get("level") or was.get("facilities") != keep.get("facilities")):
+            keep["seen"] = (old.get("seen") or min(now, old.get("when") or now)) if old else now
+            keep["updated"] = now if (old is None or was.get("when") != keep["when"] or was.get("title") != keep["title"]
+                                      or was.get("level") != keep.get("level")) else old.get("updated", now)
             hist[key] = keep
             changed = True
+        elif old:
+            old.setdefault("seen", min(now, old.get("when") or now)); old.setdefault("updated", old["seen"])   # entries from before 0.48
+        it["seen"], it["updated"] = hist[key].get("seen", now), hist[key].get("updated", now)
     cutoff = now - HISTORY_DAYS * 86400
     stale = [k for k, v in hist.items() if (v.get("when") or 0) < cutoff]
     for k in stale:

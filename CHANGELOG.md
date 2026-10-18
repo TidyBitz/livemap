@@ -20,6 +20,12 @@ release notes written at the time; their dates are the day the version was hande
   the middle of the Pacific (on a wide screen, the poles), like a printed map.
 
 ### Fixed
+- Events widget, "Newest first": the order was the events' own clock, so a launch five days out headed the
+  list for being in the future and the satellites sat above everything. The feed now records when this
+  computer first saw each event and when it last changed (a launch slipping or entering its last hour, a
+  storm's category, a volcano's level), and "newest" is that: the latest news first, whatever the event's
+  date. The satellites, in orbit for years, go last in every order; a launch inside its last hour still goes
+  to the very top. The NEW badge follows the same clock, so a quake reported late is new when it arrives.
 - Rivers at the full (1:50m) level stopped short of the coast when the borders were at the plain (1:110m)
   level - the Amazon 300 km inland, the St. Lawrence at Montreal, the Yangtze, the Ob, the Thames, the Seine,
   69 mouths in all - because Natural Earth's detailed coastline runs up every estuary and its rivers end

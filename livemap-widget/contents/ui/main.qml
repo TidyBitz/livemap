@@ -120,20 +120,26 @@ PlasmoidItem {
         root.nowSec = Date.now() / 1000;
         if (root.mode.full && root.mode.full_until && root.nowSec >= root.mode.full_until) root.refreshMode();   // the helper drops a timed full-speed override when it is over
     } }
-    function isNew(it) { return !it.pin && !it.future && !it.nonew && root.nowSec - it.when < root.newSeconds }
+    // new: first seen by this computer within the window (a quake reported late is news when it arrives)
+    function isNew(it) { return !it.pin && !it.future && !it.nonew && root.nowSec - (it.seen || it.when) < root.newSeconds }
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
     readonly property var kindOrder: ({ alert: 0, launch: 1, storm: 2, flood: 3, volcano: 4, quake: 5, fire: 6, sat: 7 })
     readonly property var shown: (function () {
         var list = (range > 0 ? pastItems : items).filter(function (it) { return wanted(it.kind); });
         var mode = sortMode;
+        // "newest" is news, not the event's clock: when this computer first saw the event or its latest change
+        // (a launch slipping or entering its last hour, a storm's category) - the helper's `updated`, so a
+        // launch five days out does not head the list for being in the future
+        function news(it) { return it.updated || it.seen || it.when; }
         list.sort(function (a, b) {
-            // whatever the order, a launch inside its last hour goes to the very top, then the pinned satellites
-            var sa = isSoon(a) ? 0 : a.pin ? 1 : 2, sb = isSoon(b) ? 0 : b.pin ? 1 : 2;
+            // whatever the order, a launch inside its last hour goes to the very top; the pinned satellites,
+            // in orbit for years and never news, go last
+            var sa = isSoon(a) ? 0 : a.pin ? 2 : 1, sb = isSoon(b) ? 0 : b.pin ? 2 : 1;
             if (sa !== sb) return sa - sb;
-            if (mode === 1) { if ((b.level || 0) !== (a.level || 0)) return (b.level || 0) - (a.level || 0); return b.when - a.when; }
-            if (mode === 2) { var ka = kindOrder[a.kind] || 9, kb = kindOrder[b.kind] || 9; if (ka !== kb) return ka - kb; return b.when - a.when; }
-            if (mode === 3) { var fa = a.future ? 0 : 1, fb = b.future ? 0 : 1; if (fa !== fb) return fa - fb; return a.future ? a.when - b.when : b.when - a.when; }
-            return b.when - a.when;
+            if (mode === 1) { if ((b.level || 0) !== (a.level || 0)) return (b.level || 0) - (a.level || 0); return news(b) - news(a); }
+            if (mode === 2) { var ka = kindOrder[a.kind] || 9, kb = kindOrder[b.kind] || 9; if (ka !== kb) return ka - kb; return news(b) - news(a); }
+            if (mode === 3) { var fa = a.future ? 0 : 1, fb = b.future ? 0 : 1; if (fa !== fb) return fa - fb; return a.future ? a.when - b.when : news(b) - news(a); }
+            return news(b) - news(a) || b.when - a.when;
         });
         return list;
     })()
