@@ -322,6 +322,125 @@ def _lines(name, step):
     return out
 
 
+def _river_mouths(step):
+    """Rivers at 1:50m stop where the 1:50m coast begins, and that coast runs far up the estuaries: the Amazon
+    ends 2.7 degrees short of the 1:110m coastline (the St. Lawrence 4, the Yangtze 1.3, over a hundred mouths
+    in all), so with the coarse coast drawn the rivers stop in the middle of the land. This carries every such
+    mouth on to the 1:110m coast: along the 1:110m river where one of the same name reaches the coast (the
+    Amazon, St. Lawrence, Yangtze, Ob...), otherwise straight to the nearest point of the coarse coast when
+    that lies ahead of the river. Returns the extensions as flat lists like _lines()."""
+    f50, c50, c110, r110 = (BORDERS / (n + ".geojson") for n in ("ne_50m_rivers_lake_centerlines", "ne_50m_coastline", "ne_110m_coastline", "ne_110m_rivers_lake_centerlines"))
+    if not all(p.exists() for p in (f50, c50, c110)):
+        return []
+    import math
+    CELL = 0.5
+
+    def parts_of(path):
+        for feat in json.loads(path.read_text(encoding="utf-8"))["features"]:
+            g = feat.get("geometry") or {}
+            kind, c = g.get("type"), g.get("coordinates") or []
+            for part in ([c] if kind == "LineString" else c if kind == "MultiLineString" else []):
+                yield feat.get("properties") or {}, [(pt[0], pt[1]) for pt in part]
+
+    def grid(points):
+        g = {}
+        for x, y in points:
+            g.setdefault((int(x // CELL), int(y // CELL)), []).append((x, y))
+        return g
+
+    def segments(parts):                                      # the coast as segments, in every cell they cross
+        g = {}
+        for part in parts:
+            for (ax, ay), (bx, by) in zip(part, part[1:]):
+                n = int(max(abs(bx - ax), abs(by - ay)) // CELL) + 1
+                for k in range(n + 1):
+                    x, y = ax + (bx - ax) * k / n, ay + (by - ay) * k / n
+                    g.setdefault((int(x // CELL), int(y // CELL)), []).append((ax, ay, bx, by))
+        return g
+
+    def nearest(g, x, y, reach, heading=None):               # (distance, point) within `reach` degrees
+        """The closest point of the grid's points and segments; with a heading (hx, hy) the best point ahead
+        instead: distance divided by how well the direction agrees, so a river mouth 0.7 degrees ahead beats
+        a stretch of coast 0.6 degrees off to the side."""
+        best, at, cells = reach, None, int(reach // CELL) + 1
+        hl = math.hypot(*heading) if heading else 0
+
+        def score(px, py):
+            nonlocal best, at
+            d = math.hypot(px - x, py - y)
+            if hl and d:
+                cos = ((px - x) * heading[0] + (py - y) * heading[1]) / (d * hl)
+                if cos < -0.3:                                # behind the river: never
+                    return
+                d = d / (0.3 + max(0, cos))
+            if d < best:
+                best, at = d, (px, py)
+        for dx in range(-cells, cells + 1):
+            for dy in range(-cells, cells + 1):
+                for item in g.get((int(x // CELL) + dx, int(y // CELL) + dy), ()):
+                    if len(item) == 2:
+                        score(*item)
+                    else:                                     # a segment: its closest point (and its ends, when aiming)
+                        ax, ay, bx, by = item
+                        l2 = (bx - ax) ** 2 + (by - ay) ** 2
+                        t = 0 if l2 == 0 else max(0, min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / l2))
+                        score(ax + t * (bx - ax), ay + t * (by - ay))
+                        if hl:
+                            score(ax, ay); score(bx, by)
+        return best, at
+
+    coast50 = grid(pt for _, part in parts_of(c50) for pt in part)
+    coast110 = segments(part for _, part in parts_of(c110))
+    coarse = {}                                               # name -> 1:110m parts
+    if r110.exists():
+        for p, part in parts_of(r110):
+            coarse.setdefault(p.get("name"), []).append(part)
+    mouths = []
+    for p, part in parts_of(f50):
+        if p.get("featurecla") != "River" or len(part) < 2:
+            continue
+        for end, back in ((part[0], part[1:]), (part[-1], part[-2::-1])):
+            if nearest(coast50, end[0], end[1], 0.06)[1] is None:     # not a mouth: the line ends inland
+                continue
+            gap, at = nearest(coast110, end[0], end[1], 5.0)
+            if at is not None and gap >= 0.25:                        # stops short of the coarse coast
+                mouths.append((p.get("name"), end, back))
+    exts, straight = [], []
+    for name, end, back in mouths:                                    # first the coarse rivers' own tails
+        ext = None
+        for cpart in coarse.get(name, []) + coarse.get({"Yangtze": "Chang", "Mackenzie": "Peace"}.get(name), []):
+            for tail in (cpart, cpart[::-1]):
+                i = min(range(len(tail)), key=lambda k: math.hypot(tail[k][0] - end[0], tail[k][1] - end[1]))
+                if math.hypot(tail[i][0] - end[0], tail[i][1] - end[1]) < 0.4 and nearest(coast110, tail[-1][0], tail[-1][1], 0.35)[1] is not None and len(tail) - i >= 2:
+                    ext = [end] + tail[i + 1:]
+                    break
+            if ext:
+                break
+        (exts if ext else straight).append(ext or (end, back))
+    # then the rest, straight to whatever is nearest: the coarse coast or a tail just drawn (the Xingu joins the
+    # Amazon's tail rather than running beside it to the sea), if that lies ahead of the river
+    target = {k: list(v) for k, v in coast110.items()}
+    for ext in exts:
+        for pt in ext[1:]:
+            target.setdefault((int(pt[0] // CELL), int(pt[1] // CELL)), []).append(pt)
+    for end, back in straight:
+        far = next((q for q in back if math.hypot(q[0] - end[0], q[1] - end[1]) > 0.8), back[-1])
+        gap, at = nearest(target, end[0], end[1], 5.0, (end[0] - far[0], end[1] - far[1]))
+        if at is not None:
+            exts.append([end, at])
+    out = []
+    for ext in exts:
+        flat, last = [], None
+        for x, y in ext:
+            x, y = round(x, 2), round(y, 2)
+            if last is None or abs(x - last[0]) >= step or abs(y - last[1]) >= step or (x, y) == (round(ext[-1][0], 2), round(ext[-1][1], 2)):
+                flat += [x, y]
+                last = (x, y)
+        if len(flat) >= 4:
+            out.append(flat)
+    return out
+
+
 def _names():
     f = BORDERS / "ne_110m_admin_0_countries.geojson"
     if not f.exists():
@@ -521,10 +640,14 @@ def cmd_zone_tint(_args):
 def cmd_borders(args):
     scale, step = ("50m", 0.04) if args.detail == "50m" else ("110m", 0.0)
     zones, zone_labels = _zones(args.zone_row) if args.zones else ([], [])
+    river_scale = args.river_detail or scale
+    rivers = _lines("ne_%s_rivers_lake_centerlines" % river_scale, 0.02 if river_scale == "50m" else 0.0) if args.rivers else []
+    if rivers and river_scale == "50m" and scale == "110m":   # finer rivers than coast: carry the mouths on to the coast
+        rivers = rivers + _river_mouths(0.02)
     res = {"coast": _lines("ne_%s_coastline" % scale, step),
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
-           "rivers": _lines("ne_%s_rivers_lake_centerlines" % (args.river_detail or scale), 0.02 if (args.river_detail or scale) == "50m" else 0.0) if args.rivers else [],
+           "rivers": rivers,
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],

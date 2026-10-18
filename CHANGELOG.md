@@ -12,6 +12,13 @@ release notes written at the time; their dates are the day the version was hande
   the middle of the Pacific (on a wide screen, the poles), like a printed map.
 
 ### Fixed
+- Rivers at the full (1:50m) level stopped short of the coast when the borders were at the plain (1:110m)
+  level - the Amazon 300 km inland, the St. Lawrence at Montreal, the Yangtze, the Ob, the Thames, the Seine,
+  69 mouths in all - because Natural Earth's detailed coastline runs up every estuary and its rivers end
+  where that coast begins. The helper now carries each such mouth on to the coarse coast: along the 1:110m
+  river where one of the same name reaches the sea, otherwise straight ahead to the nearest coast (a
+  tributary joins the main river's new reach rather than running beside it). Rivers and borders at the same
+  level were never affected.
 - `livemap.sh install` run from a source checkout now does `git pull` first, re-runs itself if the script
   changed, and installs the livemap/ and livemap-widget/ folders as they are; it used to install whatever
   livemap.zip lay in the folder, so pulls changed the source while the installed packages stayed put.
