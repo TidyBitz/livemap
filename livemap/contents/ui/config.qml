@@ -172,6 +172,21 @@ Kirigami.FormLayout {
     property int cfg_RiverOpacity
     property int cfg_RiverWidth
     property alias cfg_RiverDetail: riverDetail.currentIndex
+    property alias cfg_ShowLakes: lakes.checked
+    property int cfg_LakeFill
+    property alias cfg_ShowLakeNames: lakeNames.checked
+    property alias cfg_LakeNameDensity: lakeNameDensity.currentIndex
+    property alias cfg_ShowSeaNames: seaNames.checked
+    property alias cfg_SeaNameDensity: seaNameDensity.currentIndex
+    property alias cfg_WaterNameSize: waterNameSize.value
+    property alias cfg_WaterNameTextFollows: waterNameFollows.checked
+    property alias cfg_WaterNameTextColor: waterNameTextColor.color
+    property alias cfg_WaterNameItalic: waterNameItalic.checked
+    property alias cfg_WaterNameLabelBold: waterNameStyle.bold
+    property alias cfg_WaterNameLabelCaps: waterNameStyle.caps
+    property alias cfg_WaterNameLabelSpacing: waterNameStyle.letterSpacing
+    property alias cfg_WaterNameLabelOpacity: waterNameStyle.textOpacity
+    property alias cfg_WaterNameLabelHalo: waterNameStyle.halo
     property alias cfg_ZoneLabels: zoneLabels.checked
     property alias cfg_ZoneClock: zoneClock.currentIndex
     property alias cfg_ZoneTextFollows: zoneTextFollows.checked
@@ -1179,7 +1194,9 @@ Kirigami.FormLayout {
     Note { visible: sec3.open; text: "A country capital is a ringed dot, a state capital a dot, a city a small dot (or one sized by population). Placed after the country names: capitals first, then cities by size, then state names, so the important ones win the space. Natural Earth populated places, part of the border download." }
 
     // ================================================================= Rivers
-    SectionHeader { id: sec4; title: "Rivers"; sourceNames: ["Borders (Natural Earth)"]; twin: rivers; summary: rivers.checked ? (riverDetail.currentIndex === 0 ? "The 13 great rivers, " : "All rivers, ") + form.cfg_RiverOpacity + " %, " + form.cfg_RiverWidth + " % thick" : "Off" }
+    SectionHeader { id: sec4; title: "Rivers, lakes and seas"; sourceNames: ["Borders (Natural Earth)"]; twin: rivers
+                    summary: (rivers.checked ? (riverDetail.currentIndex === 0 ? "The 13 great rivers, " : "All rivers, ") + form.cfg_RiverOpacity + " %, " + form.cfg_RiverWidth + " % thick" : "No rivers")
+                             + (lakes.checked ? " · lakes" : "") + (lakeNames.checked || seaNames.checked ? " · " + [lakeNames.checked ? "lake" : "", seaNames.checked ? "sea" : ""].filter(function (t) { return t !== ""; }).join(" and ") + " names " + waterNameSize.value + " px" : "") }
     Source { visible: sec4.open; names: ["Borders (Natural Earth)"] }
     QQC2.CheckBox { visible: sec4.open; id: rivers; Kirigami.FormData.label: "Rivers:"; text: "Rivers and lake centrelines (Natural Earth)" }
     QQC2.ComboBox { visible: sec4.open; id: riverDetail; Kirigami.FormData.label: "River detail:"; enabled: rivers.checked; model: ["The 13 great rivers (Amazon, Nile, Mississippi…)", "All 460 (every named river Natural Earth draws at 1:50M)"] }
@@ -1201,7 +1218,40 @@ Kirigami.FormLayout {
         value: form.cfg_RiverWidth
         onValueChanged: form.cfg_RiverWidth = value
     }
-    Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download." }
+    Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download. With the detailed rivers over the plain Countries level, each river mouth is carried on to the coast." }
+    QQC2.CheckBox { visible: sec4.open; id: lakes; Kirigami.FormData.label: "Lakes:"; text: "Lake outlines, in the river colour, at the river detail level" }
+    Amount {
+        visible: sec4.open
+        Kirigami.FormData.label: "Lake fill:"
+        enabled: lakes.checked
+        from: 0; to: 100
+        value: form.cfg_LakeFill
+        onValueChanged: form.cfg_LakeFill = value
+    }
+    Note { visible: sec4.open; text: "The 24 great lakes with the 13 great rivers, 412 lakes and reservoirs with all rivers. 0 % fill is an outline only; the river line's colour, opacity and thickness are the lake's." }
+    RowLayout {
+        visible: sec4.open
+        Kirigami.FormData.label: "Lake names:"
+        QQC2.CheckBox { id: lakeNames; text: "Show" }
+        QQC2.ComboBox { id: lakeNameDensity; enabled: lakeNames.checked; model: ["The great lakes", "Every named lake"] }
+    }
+    RowLayout {
+        visible: sec4.open
+        Kirigami.FormData.label: "Sea names:"
+        QQC2.CheckBox { id: seaNames; text: "Show" }
+        QQC2.ComboBox { id: seaNameDensity; enabled: seaNames.checked; model: ["The oceans", "Oceans and seas", "Oceans, seas, gulfs and bays", "Everything, straits and channels too"] }
+    }
+    RowLayout {
+        visible: sec4.open
+        Kirigami.FormData.label: "Water name text:"
+        enabled: lakeNames.checked || seaNames.checked
+        Px { id: waterNameSize; from: 5; to: 28 }
+        QQC2.CheckBox { id: waterNameItalic; text: "Italic" }
+        QQC2.CheckBox { id: waterNameFollows; text: "River colour" }
+        KQuickControls.ColorButton { id: waterNameTextColor; enabled: !waterNameFollows.checked; showAlphaChannel: false; dialogTitle: "Water name colour" }
+    }
+    LabelStyle { visible: sec4.open; id: waterNameStyle; label: "Water name style:"; enabled: lakeNames.checked || seaNames.checked; plated: false }
+    Note { visible: sec4.open; text: "Oceans are written at 1.5x the size, seas at 1.15x, small lakes at 0.85x; a name goes only where the water is wide enough for it, after the country names, places and state names. Italic is the map convention for water. The lake and sea files are fetched once, the first time they are asked for (part of the border download from now on)." }
 
     // ============================================================== Time zones
     SectionHeader { id: sec5; title: "Time zones"; sourceNames: ["Borders (Natural Earth)"]; twin: timeZones; summary: timeZones.checked ? "Zone outlines " + form.cfg_ZoneOpacity + " %" + (zoneLabels.checked ? " · " + zoneClock.currentText.toLowerCase() + " " + zoneLabelSize.value + " px, " + form.zoneStyles[zoneLook.currentIndex].name.split(":")[0].toLowerCase() : "") : "Off" }

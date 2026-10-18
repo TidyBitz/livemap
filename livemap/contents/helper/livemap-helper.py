@@ -37,6 +37,7 @@ Everything is stored in $XDG_DATA_HOME/livemap (usually ~/.local/share/livemap).
 import argparse
 import gzip
 import ipaddress
+import contextlib
 import json
 import os
 import re
@@ -72,7 +73,8 @@ NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m
             "ne_50m_coastline", "ne_50m_admin_0_boundary_lines_land", "ne_50m_admin_1_states_provinces_lines",
             "ne_10m_time_zones", "ne_10m_populated_places_simple",    # time zone polygons; cities, capitals, home search
             "ne_10m_admin_1_label_points",                              # state and province names (label points with a rank)
-            "ne_110m_rivers_lake_centerlines", "ne_50m_rivers_lake_centerlines"]   # major rivers
+            "ne_110m_rivers_lake_centerlines", "ne_50m_rivers_lake_centerlines",   # major rivers
+            "ne_110m_lakes", "ne_50m_lakes", "ne_50m_geography_marine_polys"]       # lakes; oceans, seas, gulfs and bays (names)
 # Tectonic plate boundaries: Peter Bird's PB2002 model (2003), GeoJSON conversion by Hugo Ahlenius (Nordpil),
 # Open Data Commons Attribution licence. Downloaded with the border data, drawn under the Earthquakes settings.
 PLATES_URL = "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json"
@@ -441,6 +443,77 @@ def _river_mouths(step):
     return out
 
 
+def _water_names(scale, lake_rank, sea_rank):
+    """Names of lakes (from the lakes file at `scale`) and of oceans, seas, gulfs, bays and straits (the 1:50m
+    marine polygons), as [name, lon, lat, rank, kind]: kind 0 lake, 1 ocean, 2 sea, 3 gulf, bay, strait or
+    channel. The label sits at the centroid of the biggest polygon, or - for a crescent like the Mediterranean
+    whose centroid is on land - at the middle of the widest stretch of water on that latitude. A lake rank
+    (Natural Earth's scalerank: 0-1 the great lakes, up to 6) or sea rank (0 oceans, 1 the big seas, 2-4
+    the rest) below zero leaves that kind out."""
+    out = []
+
+    def label_point(geom):
+        kind, c = geom.get("type"), geom.get("coordinates") or []
+        polys = [c] if kind == "Polygon" else c if kind == "MultiPolygon" else []
+        rings = [(poly[0], _ring_area(poly[0])) for poly in polys if poly and len(poly[0]) >= 4]
+        if not rings:
+            return None, 0
+        ring, area = max(rings, key=lambda r: r[1])
+        cx = cy = 0.0
+        for i in range(len(ring) - 1):
+            cross = ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]
+            cx += (ring[i][0] + ring[i + 1][0]) * cross
+            cy += (ring[i][1] + ring[i + 1][1]) * cross
+        signed = sum(ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1] for i in range(len(ring) - 1)) / 2
+        if abs(signed) < 1e-9:
+            return None, 0
+        cx, cy = cx / (6 * signed), cy / (6 * signed)
+        # the row: the centroid's, unless another row through the middle of the shape has much wider water
+        # (the Mediterranean's centroid row is cut by Sicily; the row just south runs from Gibraltar to Syria)
+        lats = [pt[1] for pt in ring]
+        lo, hi = min(lats), max(lats)
+        best = None
+        for k in range(9):
+            lat = lo + (hi - lo) * (0.2 + 0.6 * k / 8)
+            for a, b in _spans_at(ring, lat):
+                if best is None or b - a > best[0]:
+                    best = (b - a, lat, (a + b) / 2)
+        spans = _spans_at(ring, cy)
+        width = max((b - a for a, b in spans), default=0)
+        if best and best[0] > width * 1.25:
+            cy, cx, width = best[1], best[2], best[0]
+        elif not any(a <= cx <= b for a, b in spans) and spans:      # centroid on land: the widest water on that row
+            a, b = max(spans, key=lambda s: s[1] - s[0])
+            cx = (a + b) / 2
+        return (round(cx, 2), round(cy, 2)), round(width, 2)
+
+    if lake_rank >= 0:
+        f = BORDERS / ("ne_%s_lakes.geojson" % scale)
+        if not f.exists():
+            return None
+        for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+            p = feat.get("properties") or {}
+            name, rank = p.get("name"), int(p.get("scalerank") or 0)
+            if not name or rank > lake_rank:
+                continue
+            at, width = label_point(feat.get("geometry") or {})
+            if at:
+                out.append([name, at[0], at[1], rank, 0, width])
+    if sea_rank >= 0:
+        f = BORDERS / "ne_50m_geography_marine_polys.geojson"
+        if not f.exists():
+            return None
+        for feat in json.loads(f.read_text(encoding="utf-8"))["features"]:
+            p = feat.get("properties") or {}
+            name, rank, cla = p.get("name"), int(p.get("scalerank") or 0), p.get("featurecla") or ""
+            if not name or rank > sea_rank or cla in ("river", "reef"):
+                continue
+            at, width = label_point(feat.get("geometry") or {})
+            if at:
+                out.append([name.title() if name.isupper() else name, at[0], at[1], rank, 1 if cla == "ocean" else 2 if cla == "sea" else 3, width])
+    return sorted(out, key=lambda n: (n[3], -n[5]))
+
+
 def _names():
     f = BORDERS / "ne_110m_admin_0_countries.geojson"
     if not f.exists():
@@ -641,6 +714,14 @@ def cmd_borders(args):
     scale, step = ("50m", 0.04) if args.detail == "50m" else ("110m", 0.0)
     zones, zone_labels = _zones(args.zone_row) if args.zones else ([], [])
     river_scale = args.river_detail or scale
+    # the lakes and marine files are new in 0.48: an install that downloaded earlier fetches just those, once
+    for name in (["ne_%s_lakes" % river_scale] if args.lakes or args.lake_names >= 0 else []) + (["ne_50m_geography_marine_polys"] if args.sea_names >= 0 else []):
+        if not (BORDERS / (name + ".geojson")).exists() and (BORDERS / "ne_110m_coastline.geojson").exists():
+            try:
+                with contextlib.redirect_stdout(sys.stderr):          # download() prints the URL; stdout is the JSON answer
+                    download(NE + name + ".geojson", BORDERS / (name + ".geojson"))
+            except Exception:
+                pass
     rivers = _lines("ne_%s_rivers_lake_centerlines" % river_scale, 0.02 if river_scale == "50m" else 0.0) if args.rivers else []
     if rivers and river_scale == "50m" and scale == "110m":   # finer rivers than coast: carry the mouths on to the coast
         rivers = rivers + _river_mouths(0.02)
@@ -648,6 +729,9 @@ def cmd_borders(args):
            "borders": _lines("ne_%s_admin_0_boundary_lines_land" % scale, step),
            "states": _lines("ne_50m_admin_1_states_provinces_lines", 0.04) if args.states else [],
            "rivers": rivers,
+           # lakes as rings (every polygon of the lakes file at the rivers' level); water names by rank
+           "lakes": _lines("ne_%s_lakes" % river_scale, 0.02 if river_scale == "50m" else 0.0) if args.lakes else [],
+           "water_names": _water_names(river_scale, args.lake_names, args.sea_names) if (args.lake_names >= 0 or args.sea_names >= 0) else [],
            "names": _names() if args.names else [],
            "state_names": _state_names() if args.state_names else [],
            "places": _places(args.capitals, args.state_capitals, args.city_pop) if (args.capitals or args.state_capitals or args.city_pop) else [],
@@ -4754,6 +4838,9 @@ def main():
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)
     b.add_argument("--rivers", action="store_true"); b.add_argument("--river-detail", dest="river_detail", choices=["110m", "50m"])   # rivers' own level (default: the borders')
+    b.add_argument("--lakes", action="store_true")                                                       # lake outlines at the rivers' level
+    b.add_argument("--lake-names", dest="lake_names", type=int, default=-1)                              # lakes named up to this scalerank (-1 none)
+    b.add_argument("--sea-names", dest="sea_names", type=int, default=-1)                                # oceans, seas, gulfs up to this scalerank
     b.add_argument("--land", action="store_true")
     b.add_argument("--state-names", dest="state_names", action="store_true"); b.add_argument("--capitals", action="store_true")
     b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)

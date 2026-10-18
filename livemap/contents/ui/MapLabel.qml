@@ -14,6 +14,7 @@ Item {
     property real plateOpacity: 0.6
     property int px: 11
     property bool bold: false
+    property bool italic: false             // water names: the map convention
     property real unit: 1
     property bool caps: false
     property real haloScale: 1              // country names: thicker or thinner halo
@@ -36,6 +37,7 @@ Item {
         haloColor: Qt.rgba(label.plateColor.r, label.plateColor.g, label.plateColor.b, 0.9 * label.textOpacity)
         font.pixelSize: label.px
         font.bold: label.bold
+        font.italic: label.italic
         font.capitalization: label.caps ? Font.AllUppercase : Font.MixedCase
         font.letterSpacing: (label.caps ? label.unit : 0) * label.letterScale
     }

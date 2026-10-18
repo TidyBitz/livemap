@@ -192,6 +192,16 @@ Item {
     readonly property real riverThickness: Math.max(0.3, (cfg ? cfg.RiverWidth : 80) / 100 * unit)
     readonly property real zoneThickness: Math.max(0.3, (cfg ? cfg.ZoneWidth : 80) / 100 * unit)
     readonly property bool showBorders: cfg ? cfg.ShowBorders : true
+    // lakes: outlines in the river colour at the rivers' level, with a faint fill; names of lakes and of the
+    // oceans, seas, gulfs and bays, in their own style (italic by map convention), fitted after every other name
+    readonly property bool showLakes: cfg ? cfg.ShowLakes : false
+    readonly property real lakeFill: (cfg ? cfg.LakeFill : 15) / 100
+    readonly property int lakeRank: cfg && cfg.ShowLakeNames ? [1, 6][cfg.LakeNameDensity] || 1 : -1
+    readonly property int seaRank: cfg && cfg.ShowSeaNames ? [0, 1, 2, 4][cfg.SeaNameDensity] || 1 : -1
+    readonly property int waterPx: Math.round((cfg ? cfg.WaterNameSize : 10) * unit)
+    readonly property color waterInk: cfg && !cfg.WaterNameTextFollows ? cfg.WaterNameTextColor : riverInk
+    property var lakeLines: []
+    property var waterNames: []
     property var stateNames: []
     property var places: []
     property var riverLines: []
@@ -204,6 +214,7 @@ Item {
           + (showZones ? " --zones" + (rowMode ? " --zone-row " + zoneRowLat : "") : "")
           + (showStateNames ? " --state-names" : "") + (showCapitals ? " --capitals" : "") + (showStateCapitals ? " --state-capitals" : "")
           + (cityPop > 0 ? " --city-pop " + cityPop : "") + (showRivers ? " --rivers --river-detail " + riverDetail : "")
+          + (showLakes ? " --lakes --river-detail " + riverDetail : "") + (lakeRank >= 0 ? " --lake-names " + lakeRank : "") + (seaRank >= 0 ? " --sea-names " + seaRank : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
     P5Support.DataSource {
@@ -223,6 +234,7 @@ Item {
                 if (r.zone_tint) overlay.zoneTintFile = r.zone_tint;
                 else if (overlay.wantTint && overlay.helper !== "") tintExec.connectSource("python3 '" + overlay.helper + "' zone-tint # " + Date.now());
                 overlay.stateNames = r.state_names || []; overlay.places = r.places || []; overlay.riverLines = r.rivers || [];
+                overlay.lakeLines = r.lakes || []; overlay.waterNames = r.water_names || [];
                 overlay.note = r.note || "";
                 console.warn("livemap borders:", r.coast.length, "coast lines,", r.borders.length, "border lines,",
                              r.states.length, "state lines,", r.names.length, "names,", (r.state_names || []).length, "state names,", (r.places || []).length, "places,", (r.zones || []).length, "time zone lines (" + overlay.detail + ")", overlay.note);
@@ -248,6 +260,7 @@ Item {
     readonly property var borderPaths: showBorders ? project(borderLines, width, height) : []
     readonly property var statePaths: showBorders && showStates ? project(stateLines, width, height) : []
     readonly property var riverPaths: showRivers ? project(riverLines, width, height) : []
+    readonly property var lakePaths: showLakes ? project(lakeLines, width, height) : []
     readonly property var zonePaths: showZones ? project(zoneLines, width, height) : []
     // one label per zone polygon, only where the polygon is wide enough for it; biggest polygons first
     // Zone labels: widest areas first, only where the area is wide enough for the text, never over a country
@@ -301,7 +314,7 @@ Item {
     readonly property var rowZoneBoxes: rowZones.map(zoneBox)
     readonly property var fittedZones: (function () {
         if (rowMode) return rowZones;
-        var taken = nameBoxes.concat(placeBoxes, stateBoxes);
+        var taken = nameBoxes.concat(placeBoxes, stateBoxes, waterBoxes);
         var wanted = wantedZones.filter(function (z) { return z.w * width / 360 > longestLine(z.text) * zonePx * 0.7; });
         var keep = Geo.declutter(taken.concat(wanted.map(zoneBox)), 3 * unit);
         return wanted.filter(function (_z, k) { return keep[taken.length + k]; });
@@ -326,6 +339,14 @@ Item {
             joinStyle: ShapePath.RoundJoin
             capStyle: ShapePath.RoundCap
             PathMultiline { paths: overlay.riverPaths }
+        }
+        ShapePath {                                           // lakes: outlined like a river, faintly filled
+            strokeColor: Qt.rgba(overlay.riverInk.r, overlay.riverInk.g, overlay.riverInk.b, overlay.riverStrength)
+            strokeWidth: overlay.riverThickness
+            fillColor: Qt.rgba(overlay.riverInk.r, overlay.riverInk.g, overlay.riverInk.b, overlay.lakeFill)
+            fillRule: ShapePath.WindingFill
+            joinStyle: ShapePath.RoundJoin
+            PathMultiline { paths: overlay.lakePaths }
         }
         ShapePath {                                           // time zones, underneath the political lines
             strokeColor: Qt.rgba(overlay.zoneInk.r, overlay.zoneInk.g, overlay.zoneInk.b, overlay.zoneStrength)
@@ -411,6 +432,23 @@ Item {
         return wanted.filter(function (_n, k) { return keep[taken.length + k]; });
     })()
     readonly property var stateBoxes: fittedStates.map(function (n) { return boxOf(n.x, n.y, n.name, statePx, cfg ? cfg.StateNameLabelBold : false); })
+    // Water names: n = [name, lon, lat, rank, kind (0 lake, 1 ocean, 2 sea, 3 gulf/bay/strait), water width in
+    // degrees on the label's row]. Oceans at 1.5x, seas 1.15x, the rest 1x, small lakes 0.85x; a name goes only
+    // where the water is wide enough for it; after the country names, places and state names, biggest first.
+    readonly property var fittedWater: (function () {
+        if (lakeRank < 0 && seaRank < 0) return [];
+        var wanted = [];
+        for (var i = 0; i < waterNames.length; i++) {
+            var n = waterNames[i];
+            var size = Math.round(waterPx * (n[4] === 1 ? 1.5 : n[4] === 2 ? 1.15 : n[4] === 0 && n[3] > 1 ? 0.85 : 1));
+            if (n[5] * width / 360 * (n[4] === 0 ? 2 : 1.3) < n[0].length * size * 0.62) continue;   // a name may overhang the water: a sea a little, a lake by half
+            wanted.push({ name: n[0], x: (n[1] + 180) / 360 * width, y: (90 - n[2]) / 180 * height, size: size, kind: n[4] });
+        }
+        var taken = rowZoneBoxes.concat(nameBoxes, placeBoxes, stateBoxes);
+        var keep = Geo.declutter(taken.concat(wanted.map(function (n) { return boxOf(n.x, n.y, n.name, n.size, cfg ? cfg.WaterNameLabelBold : false); })), 2 * unit);
+        return wanted.filter(function (_n, k) { return keep[taken.length + k]; });
+    })()
+    readonly property var waterBoxes: fittedWater.map(function (n) { return boxOf(n.x, n.y, n.name, n.size, cfg ? cfg.WaterNameLabelBold : false); })
 
     // The band under the row: a translucent strip the width of the map with a tick at each zone edge, so the
     // labels have a baseline and sit on something instead of on the imagery.
@@ -541,6 +579,27 @@ Item {
             caps: cfg ? cfg.StateNameLabelCaps : false
             haloScale: (cfg ? cfg.StateNameLabelHalo : 100) / 100
             letterScale: (cfg ? cfg.StateNameLabelSpacing : 100) / 100
+            unit: overlay.unit
+        }
+    }
+
+    Repeater {                                                // water names: lakes, oceans, seas, gulfs and bays
+        model: overlay.fittedWater
+        MapLabel {
+            required property var modelData
+            x: modelData.x - width / 2
+            y: modelData.y - height / 2
+            text: modelData.name
+            textColor: overlay.waterInk
+            textOpacity: (cfg ? cfg.WaterNameLabelOpacity : 80) / 100
+            plate: false
+            plateColor: cfg ? cfg.PlateColor : "#000510"
+            px: modelData.size
+            bold: cfg ? cfg.WaterNameLabelBold : false
+            italic: cfg ? cfg.WaterNameItalic : true
+            caps: cfg ? cfg.WaterNameLabelCaps : false
+            haloScale: (cfg ? cfg.WaterNameLabelHalo : 100) / 100
+            letterScale: (cfg ? cfg.WaterNameLabelSpacing : 100) / 100
             unit: overlay.unit
         }
     }

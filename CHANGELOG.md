@@ -6,6 +6,14 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Lakes: outlines in the river colour at the river detail level (the 24 great lakes, or 412 lakes and
+  reservoirs), with a fill opacity (0 % for outlines only). Lake names (the great lakes, or every named
+  lake) and sea names (the oceans; and the seas; and the gulfs and bays; or everything down to the straits),
+  in their own text style - italic by map convention, the river colour or their own, size, bold, capitals,
+  spacing, opacity, outline. A name goes only where the water is wide enough for it (a sea's may overhang a
+  little, a lake's by half) and after the country names, places and state names, so the great oceans and
+  seas label a world view and the small lakes appear as a region is zoomed in. Natural Earth lakes and
+  marine polygons; fetched once on first use for installs that downloaded the border data earlier.
 - A fourth fit mode, "Fill, true proportions, trimming the edges": Fit without bars. The chosen area at true
   proportions with more map around it where the screen has room, zoomed in only as far as the world's edges
   demand - so a region fills the screen with its surroundings, and the whole world on a 16:10 screen loses
