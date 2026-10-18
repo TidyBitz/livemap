@@ -3994,6 +3994,17 @@ def cmd_feed(args):
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers()})
 
 
+HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version
+
+
+def history_mark():
+    try:
+        h = json.loads(HISTORY.read_text(encoding="utf-8"))
+        return h.get("news") if isinstance(h, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
 def read_history():
     try:
         h = json.loads(HISTORY.read_text(encoding="utf-8"))
@@ -4007,6 +4018,11 @@ def remember_history(items, now):
     status win); entries older than HISTORY_DAYS go. Nothing is fetched for this: it is a side effect of `feed`."""
     hist = read_history()
     changed = False
+    reseed = history_mark() != HISTORY_MARK                       # the first look with this news bookkeeping (or a
+                                                                  # fix to it): every entry's clock is set afresh
+    def seed(old):                                                # an entry from before seen/updated were kept:
+        when = old.get("when") or now                             # a past event was news when it happened; a planned
+        return when if when <= now else now - 86400               # one is at least a day old, never today's news
     for it in items:
         key = it.get("key")
         if not key or it.get("pin"):
@@ -4022,23 +4038,25 @@ def remember_history(items, now):
         # entering its last hour, a storm's category, a volcano's level): the widget's "newest first" order
         if was != keep and (old is None or it.get("future") or was.get("when") != keep["when"] or was.get("title") != keep["title"]
                             or was.get("level") != keep.get("level") or was.get("facilities") != keep.get("facilities")):
-            keep["seen"] = (old.get("seen") or min(now, old.get("when") or now)) if old else now
+            keep["seen"] = (old.get("seen") or seed(old)) if old else now
             keep["updated"] = now if (old is None or was.get("when") != keep["when"] or was.get("title") != keep["title"]
                                       or was.get("level") != keep.get("level")) else old.get("updated", now)
             hist[key] = keep
             changed = True
         elif old:
-            old.setdefault("seen", min(now, old.get("when") or now)); old.setdefault("updated", old["seen"])   # entries from before 0.48
+            old.setdefault("seen", seed(old)); old.setdefault("updated", old["seen"])   # entries from before 0.48
+        if reseed and old is not None:
+            hist[key]["seen"] = hist[key]["updated"] = seed(hist[key])
         it["seen"], it["updated"] = hist[key].get("seen", now), hist[key].get("updated", now)
     cutoff = now - HISTORY_DAYS * 86400
     stale = [k for k, v in hist.items() if (v.get("when") or 0) < cutoff]
     for k in stale:
         hist.pop(k, None)
-    if changed or stale:
+    if changed or stale or reseed:
         try:
             HISTORY.parent.mkdir(parents=True, exist_ok=True)
             tmp = HISTORY.with_suffix(".tmp%d" % os.getpid())
-            tmp.write_text(json.dumps({"items": hist}, separators=(",", ":")), encoding="utf-8")
+            tmp.write_text(json.dumps({"items": hist, "news": HISTORY_MARK}, separators=(",", ":")), encoding="utf-8")
             tmp.replace(HISTORY)
         except OSError:
             pass
