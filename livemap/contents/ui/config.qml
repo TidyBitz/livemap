@@ -533,7 +533,7 @@ Kirigami.FormLayout {
         Kirigami.Heading {
             level: 3
             text: sh.title
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+            Layout.preferredWidth: Math.max(Kirigami.Units.gridUnit * 10, implicitWidth + Kirigami.Units.smallSpacing)
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sh.open = !sh.open }
         }
         QQC2.Label {
@@ -2325,7 +2325,7 @@ Kirigami.FormLayout {
     Note { visible: sec16.open; text: "With no animation running, the desktop is only redrawn when data changes, which costs next to nothing. Animations are what cost GPU time: packets, pulsing lines and ripples; 20 updates a second is plenty for a wallpaper. The satellite marker moves once a second regardless (a single small item). Fewer hotspot cells (Wildfires) and fewer labels also mean less work." }
 
     // ================================================================= Status
-    SectionHeader { id: sec17; title: "Status of the data sources"; twin: null; summary: statusLoader.item && statusLoader.item.checks.length > 0 ? statusLoader.item.checks.filter(function (c) { return c.state === "error" }).length + " problems, " + statusLoader.item.checks.filter(function (c) { return c.state === "warn" }).length + " notes" : "Not checked yet" }
+    SectionHeader { id: sec17; title: "Status"; keywords: "status of the data sources download maps borders geoip log report"; twin: null; summary: statusLoader.item && statusLoader.item.checks.length > 0 ? statusLoader.item.checks.filter(function (c) { return c.state === "error" }).length + " problems, " + statusLoader.item.checks.filter(function (c) { return c.state === "warn" }).length + " notes" : "Not checked yet" }
 
     Loader {
         visible: sec17.open
@@ -2344,7 +2344,7 @@ Kirigami.FormLayout {
     }
 
     // =============================================================== Coverage
-    SectionHeader { id: sec17c; title: "Coverage: what covers where, and how fast"; twin: null; summary: coverageLoader.item && coverageLoader.item.coverage ? (coverageLoader.item.coverage.here ? "Where you are: " + (coverageLoader.item.coverage.here.country || coverageLoader.item.coverage.here.region) + " · " : "") + coverageLoader.item.coverage.sources.length + " sources, " + coverageLoader.item.coverage.hazards.length + " hazards by " + coverageLoader.item.coverage.regions.length + " regions" : "Hazards by world region, with the source and how fast it reports" }
+    SectionHeader { id: sec17c; title: "Coverage"; keywords: "what covers where how fast sources regions credits licences attribution"; twin: null; summary: coverageLoader.item && coverageLoader.item.coverage ? "What covers where, and how fast · " + (coverageLoader.item.coverage.here ? "where you are: " + (coverageLoader.item.coverage.here.country || coverageLoader.item.coverage.here.region) + " · " : "") + coverageLoader.item.coverage.sources.length + " sources, " + coverageLoader.item.coverage.hazards.length + " hazards by " + coverageLoader.item.coverage.regions.length + " regions" : "What covers where, and how fast: hazards by world region, with the source and its lead time" }
     Loader {
         visible: sec17c.open
         id: coverageLoader
