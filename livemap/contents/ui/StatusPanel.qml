@@ -19,6 +19,13 @@ ColumnLayout {
 
     property string quakeFeed: "4.5_day"
     property string oceanFrom: ""        // the fallback image: its dark ocean is kept when the NASA maps are downloaded
+    property var checks: []
+    property string version: ""
+    property var logLines: []
+    property bool busy: false
+    property string problem: ""
+    readonly property string helper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
+
     function run(args) {
         busy = true;
         problem = "";

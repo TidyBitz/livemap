@@ -31,13 +31,6 @@ ColumnLayout {
         connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { panel.coverage = JSON.parse(data.stdout); } catch (e) { panel.coverage = null; } }
     }
-    property var checks: []
-    property string version: ""
-    property var logLines: []
-    property bool busy: false
-    property string problem: ""
-    readonly property string helper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
-
     Component.onCompleted: askCoverage()
     // ---- coverage: what covers where, and how fast ------------------------------------------------------------
     QQC2.Label {
