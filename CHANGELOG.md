@@ -14,6 +14,9 @@ release notes written at the time; their dates are the day the version was hande
   old collapsible sections, the Layers checklist and Expand/Collapse all are gone - the sidebar is all three.
 
 ### Added
+- Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame
+  included, to an opacity of your choice, so the map shows through - and come back as the pointer arrives; or
+  hold a fixed opacity. Settings, "On the desktop". It draws its own (Plasma's usual) frame there for that.
 - A forecast cone for the storms JTWC covers (the western Pacific, Indian Ocean and southern hemisphere), which
   publishes none: built from JTWC's own mean track errors round each forecast point, drawn like every other cone.
 - Settings: a "Find a setting" box at the top of the page - type a word (tsunami, label size, clouds) and only the

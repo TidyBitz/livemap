@@ -34,6 +34,9 @@ Kirigami.FormLayout {
     property alias cfg_ShowLaunches: showLaunches.checked
     property alias cfg_ShowSats: showSats.checked
     property alias cfg_NewMinutes: newMinutes.value
+    property int cfg_IdleOpacity
+    property alias cfg_FadeIdle: fadeIdle.checked
+    property alias cfg_IdleSeconds: idleSeconds.value
     property alias cfg_LiveUrl: liveUrl.text
     property alias cfg_LiveEmbed: liveEmbed.checked
     property alias cfg_LiveExtra: liveExtra.text
@@ -69,6 +72,33 @@ Kirigami.FormLayout {
         from: 5; to: 1440; stepSize: 5
         textFromValue: function (v) { return v + " min" }
         valueFromText: function (t) { return parseInt(t) || 60 }
+    }
+    Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "On the desktop" }
+    RowLayout {
+        Kirigami.FormData.label: "When idle:"
+        QQC2.CheckBox { id: fadeIdle; text: "Fade to" }
+        QQC2.Slider {
+            id: idleOpacity
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+            from: 5; to: 100; stepSize: 5
+            value: page.cfg_IdleOpacity
+            onMoved: page.cfg_IdleOpacity = Math.round(value)
+        }
+        QQC2.Label { text: page.cfg_IdleOpacity + " %"; Layout.minimumWidth: Kirigami.Units.gridUnit * 3 }
+    }
+    QQC2.SpinBox {
+        id: idleSeconds
+        Kirigami.FormData.label: "After:"
+        enabled: fadeIdle.checked
+        from: 1; to: 60
+        textFromValue: function (v) { return v + " s" }
+        valueFromText: function (t) { return parseInt(t) || 3 }
+    }
+    QQC2.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        opacity: 0.7
+        text: "As a desktop widget, the whole thing - frame included - fades to this opacity once the pointer has been away for that long, so the map shows through, and comes back as the pointer arrives. Untick Fade for a fixed opacity at the slider's value (100 % is the plain Plasma look). In a panel the popup is never faded."
     }
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Notification sound" }
     RowLayout {

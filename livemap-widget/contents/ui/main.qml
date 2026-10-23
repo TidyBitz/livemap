@@ -14,6 +14,7 @@ import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.plasma.plasma5support as P5Support
+import org.kde.ksvg as KSvg
 import org.kde.kirigami as Kirigami
 
 PlasmoidItem {
@@ -349,470 +350,492 @@ PlasmoidItem {
         }
     }
 
-    fullRepresentation: ColumnLayout {
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 22
-        Layout.minimumHeight: Kirigami.Units.gridUnit * 18
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 26
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 28
-        spacing: Kirigami.Units.smallSpacing
-
-        PC3.TabBar {
-            id: tabs
-            Layout.fillWidth: true
-            PC3.TabButton { text: "Events" }
-            PC3.TabButton { text: "Live" }
-            PC3.TabButton { text: "Map controls" }
-            PC3.TabButton { text: "Status" }
-            onCurrentIndexChanged: if (currentIndex === 3 && (root.checks.length === 0 || Date.now() / 1000 - root.statusAt > 300)) root.checkStatus()
-        }
-
-        // ---- Events -------------------------------------------------------------
+    // On the desktop the widget draws its own frame (Plasma's usual one), so the frame and what is in it fade
+    // together once the pointer has been away for a while, and come back as it arrives; or hold one opacity, with
+    // the fade off. In a panel the popup keeps Plasma's own background and is never faded.
+    readonly property bool onDesktop: Plasmoid.formFactor === PlasmaCore.Types.Planar
+    Plasmoid.backgroundHints: onDesktop ? PlasmaCore.Types.NoBackground : PlasmaCore.Types.DefaultBackground
+    fullRepresentation: Item {
+        id: full
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 22 + frame.fixedMargins.left + frame.fixedMargins.right
+        Layout.minimumHeight: Kirigami.Units.gridUnit * 18 + frame.fixedMargins.top + frame.fixedMargins.bottom
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 26 + frame.fixedMargins.left + frame.fixedMargins.right
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 28 + frame.fixedMargins.top + frame.fixedMargins.bottom
+        readonly property real restOpacity: Math.max(5, Math.min(100, Plasmoid.configuration.IdleOpacity || 100)) / 100
+        readonly property bool fades: root.onDesktop && Plasmoid.configuration.FadeIdle && restOpacity < 1
+        property bool idle: false
+        onFadesChanged: if (!fades) idle = false
+        HoverHandler { id: hover; onHoveredChanged: if (hovered) full.idle = false }
+        Timer { interval: Math.max(1, Plasmoid.configuration.IdleSeconds || 3) * 1000; running: full.fades && !hover.hovered; onTriggered: full.idle = true }
+        opacity: !root.onDesktop ? 1 : full.fades ? (full.idle ? full.restOpacity : 1) : full.restOpacity
+        Behavior on opacity { NumberAnimation { duration: full.idle ? 600 : 150; easing.type: Easing.InOutQuad } }
+        KSvg.FrameSvgItem { id: frame; anchors.fill: parent; imagePath: "widgets/background"; visible: root.onDesktop }
         ColumnLayout {
-            visible: tabs.currentIndex === 0
-            Layout.fillWidth: true; Layout.fillHeight: true
+            anchors.fill: parent
+            anchors.leftMargin: root.onDesktop ? frame.fixedMargins.left : 0
+            anchors.rightMargin: root.onDesktop ? frame.fixedMargins.right : 0
+            anchors.topMargin: root.onDesktop ? frame.fixedMargins.top : 0
+            anchors.bottomMargin: root.onDesktop ? frame.fixedMargins.bottom : 0
             spacing: Kirigami.Units.smallSpacing
-            RowLayout {
+
+            PC3.TabBar {
+                id: tabs
                 Layout.fillWidth: true
-                PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
-                PC3.ComboBox {                            // the groups already sort by kind; "By kind" (2) reads as newest first
+                PC3.TabButton { text: "Events" }
+                PC3.TabButton { text: "Live" }
+                PC3.TabButton { text: "Map controls" }
+                PC3.TabButton { text: "Status" }
+                onCurrentIndexChanged: if (currentIndex === 3 && (root.checks.length === 0 || Date.now() / 1000 - root.statusAt > 300)) root.checkStatus()
+            }
+
+            // ---- Events -------------------------------------------------------------
+            ColumnLayout {
+                visible: tabs.currentIndex === 0
+                Layout.fillWidth: true; Layout.fillHeight: true
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
                     Layout.fillWidth: true
-                    model: ["Newest first", "Most severe first", "Soonest launch first"]
-                    currentIndex: root.sortMode === 1 ? 1 : root.sortMode === 3 ? 2 : 0
-                    onActivated: function (i) { Plasmoid.configuration.SortMode = [0, 1, 3][i] }
+                    PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
+                    PC3.ComboBox {                            // the groups already sort by kind; "By kind" (2) reads as newest first
+                        Layout.fillWidth: true
+                        model: ["Newest first", "Most severe first", "Soonest launch first"]
+                        currentIndex: root.sortMode === 1 ? 1 : root.sortMode === 3 ? 2 : 0
+                        onActivated: function (i) { Plasmoid.configuration.SortMode = [0, 1, 3][i] }
+                    }
+                    PC3.ComboBox {                            // which kinds: what the map shows (its Show switches), or every kind
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 7.5
+                        model: ["On the map", "Every kind"]
+                        currentIndex: Plasmoid.configuration.FollowMap ? 0 : 1
+                        onActivated: function (i) { Plasmoid.configuration.FollowMap = i === 0 }
+                        PC3.ToolTip.text: "On the map: only the kinds the wallpaper has switched on. Every kind: all of them, whatever the map shows."; PC3.ToolTip.visible: hovered
+                    }
+                    PC3.ComboBox {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 8
+                        model: ["On the map now", "Past 24 hours", "Past 7 days", "Past 30 days", "Custom dates\u2026"]
+                        currentIndex: root.range
+                        onActivated: function (i) { root.range = i }
+                        PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
+                    }
+                    PC3.ToolButton { icon.name: root.grouped ? "view-list-tree" : "view-list-details"; text: root.grouped ? "Groups" : "List"; display: PC3.AbstractButton.TextBesideIcon
+                                     checkable: true; checked: root.grouped
+                                     onToggled: Plasmoid.configuration.Grouped = checked
+                                     PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
+                    PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
+                                     PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
+                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
+                    PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
                 }
-                PC3.ComboBox {                            // which kinds: what the map shows (its Show switches), or every kind
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 7.5
-                    model: ["On the map", "Every kind"]
-                    currentIndex: Plasmoid.configuration.FollowMap ? 0 : 1
-                    onActivated: function (i) { Plasmoid.configuration.FollowMap = i === 0 }
-                    PC3.ToolTip.text: "On the map: only the kinds the wallpaper has switched on. Every kind: all of them, whatever the map shows."; PC3.ToolTip.visible: hovered
+                RowLayout {                                   // custom range
+                    visible: root.range === 4
+                    Layout.fillWidth: true
+                    PC3.Label { text: "From" }
+                    PC3.TextField { id: fromField; placeholderText: "YYYY-MM-DD"; text: root.fromText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
+                    PC3.Label { text: "to" }
+                    PC3.TextField { id: toField; placeholderText: "YYYY-MM-DD"; text: root.toText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
+                    PC3.Button { id: applyRange; text: "Show"; icon.name: "view-filter"; onClicked: { root.fromText = fromField.text; root.toText = toField.text; root.refreshPast(); } }
+                    PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                text: !root.rangeValid && (root.fromText !== "" || root.toText !== "") ? "dates as YYYY-MM-DD, from before to" : "" }
                 }
-                PC3.ComboBox {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 8
-                    model: ["On the map now", "Past 24 hours", "Past 7 days", "Past 30 days", "Custom dates\u2026"]
-                    currentIndex: root.range
-                    onActivated: function (i) { root.range = i }
-                    PC3.ToolTip.text: "Past events: everything the feed has shown, kept for 90 days, including what has left the map"; PC3.ToolTip.visible: hovered
+                PC3.Label {
+                    visible: root.range > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    text: "Past events from this computer's own record, kept 90 days" + (root.historyFrom > 0 ? ", since " + Qt.formatDate(new Date(root.historyFrom * 1000), "d MMM yyyy") : "") + ". Sorted as chosen above."
                 }
-                PC3.ToolButton { icon.name: root.grouped ? "view-list-tree" : "view-list-details"; text: root.grouped ? "Groups" : "List"; display: PC3.AbstractButton.TextBesideIcon
-                                 checkable: true; checked: root.grouped
-                                 onToggled: Plasmoid.configuration.Grouped = checked
-                                 PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
-                PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
-                                 PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
-                PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
-            }
-            RowLayout {                                   // custom range
-                visible: root.range === 4
-                Layout.fillWidth: true
-                PC3.Label { text: "From" }
-                PC3.TextField { id: fromField; placeholderText: "YYYY-MM-DD"; text: root.fromText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
-                PC3.Label { text: "to" }
-                PC3.TextField { id: toField; placeholderText: "YYYY-MM-DD"; text: root.toText; Layout.preferredWidth: Kirigami.Units.gridUnit * 7; onAccepted: applyRange.clicked() }
-                PC3.Button { id: applyRange; text: "Show"; icon.name: "view-filter"; onClicked: { root.fromText = fromField.text; root.toText = toField.text; root.refreshPast(); } }
-                PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                            text: !root.rangeValid && (root.fromText !== "" || root.toText !== "") ? "dates as YYYY-MM-DD, from before to" : "" }
-            }
-            PC3.Label {
-                visible: root.range > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                text: "Past events from this computer's own record, kept 90 days" + (root.historyFrom > 0 ? ", since " + Qt.formatDate(new Date(root.historyFrom * 1000), "d MMM yyyy") : "") + ". Sorted as chosen above."
-            }
-            PC3.Label { visible: root.problem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.problem; color: Kirigami.Theme.negativeTextColor }
-            PC3.Label { visible: root.problems.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; opacity: 0.7; text: root.problems.join("; ") }
-            PlasmaExtras.PlaceholderMessage {
-                visible: root.shown.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
-                Layout.fillWidth: true; Layout.fillHeight: true
-                iconName: root.range > 0 ? "view-history" : "globe"
-                text: root.range > 0 ? "Nothing in this range" : "No events yet"
-                explanation: root.range > 0 ? "The record starts when this version first ran and only holds what the feed has shown since."
-                                            : "Is the Live World Map wallpaper installed and running? The widget reads its caches."
-            }
-            PC3.ScrollView {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                visible: root.shown.length > 0 || root.hiddenKinds.length > 0
-                ListView {
-                    id: list
-                    model: root.rows
-                    spacing: 2
-                    clip: true
-                    delegate: Loader {
-                        required property var modelData
-                        required property int index
-                        width: list.width
-                        sourceComponent: modelData.head ? headerRow : eventRow
-                        onLoaded: { item.modelData = modelData; item.width = Qt.binding(function () { return list.width; }); }
+                PC3.Label { visible: root.problem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.problem; color: Kirigami.Theme.negativeTextColor }
+                PC3.Label { visible: root.problems.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; opacity: 0.7; text: root.problems.join("; ") }
+                PlasmaExtras.PlaceholderMessage {
+                    visible: root.shown.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    iconName: root.range > 0 ? "view-history" : "globe"
+                    text: root.range > 0 ? "Nothing in this range" : "No events yet"
+                    explanation: root.range > 0 ? "The record starts when this version first ran and only holds what the feed has shown since."
+                                                : "Is the Live World Map wallpaper installed and running? The widget reads its caches."
+                }
+                PC3.ScrollView {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    visible: root.shown.length > 0 || root.hiddenKinds.length > 0
+                    ListView {
+                        id: list
+                        model: root.rows
+                        spacing: 2
+                        clip: true
+                        delegate: Loader {
+                            required property var modelData
+                            required property int index
+                            width: list.width
+                            sourceComponent: modelData.head ? headerRow : eventRow
+                            onLoaded: { item.modelData = modelData; item.width = Qt.binding(function () { return list.width; }); }
+                        }
                     }
                 }
-            }
-            // A group's header: chevron, the kind, how many, and the one fact that matters
-            Component {
-                id: headerRow
-                PC3.ItemDelegate {
-                    property var modelData: ({})           // set by the Loader once created
-                    readonly property bool open: !!modelData.open
-                    onClicked: root.toggleKind(modelData.kind)
-                    background: Rectangle { color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06); radius: 3 }
-                    contentItem: RowLayout {
-                        spacing: Kirigami.Units.smallSpacing
-                        Kirigami.Icon { source: open ? "arrow-down" : "arrow-right"; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.7 }
-                        Kirigami.Icon {                          // wildfires and satellites have an icon of their own (icons/<kind>.svg)
-                            visible: root.kindIconUrl(modelData.kind) !== ""
-                            source: root.kindIconUrl(modelData.kind); isMask: true; color: Kirigami.Theme.textColor; opacity: 0.85
-                            implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
-                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2
+                // A group's header: chevron, the kind, how many, and the one fact that matters
+                Component {
+                    id: headerRow
+                    PC3.ItemDelegate {
+                        property var modelData: ({})           // set by the Loader once created
+                        readonly property bool open: !!modelData.open
+                        onClicked: root.toggleKind(modelData.kind)
+                        background: Rectangle { color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06); radius: 3 }
+                        contentItem: RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            Kirigami.Icon { source: open ? "arrow-down" : "arrow-right"; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.7 }
+                            Kirigami.Icon {                          // wildfires and satellites have an icon of their own (icons/<kind>.svg)
+                                visible: root.kindIconUrl(modelData.kind) !== ""
+                                source: root.kindIconUrl(modelData.kind); isMask: true; color: Kirigami.Theme.textColor; opacity: 0.85
+                                implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2
+                            }
+                            PC3.Label { visible: root.kindIconUrl(modelData.kind) === ""; text: root.kindIcon[modelData.kind] || "•"; Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2; horizontalAlignment: Text.AlignHCenter; opacity: 0.8 }
+                            PC3.Label { text: root.kindPlural[modelData.kind] || modelData.kind; font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight
+                                        text: modelData.hidden ? "off on the map \u00b7 " + modelData.count + " hidden" : modelData.count + (modelData.fact ? " \u00b7 " + modelData.fact : "") }
                         }
-                        PC3.Label { visible: root.kindIconUrl(modelData.kind) === ""; text: root.kindIcon[modelData.kind] || "•"; Layout.preferredWidth: Kirigami.Units.gridUnit * 1.2; horizontalAlignment: Text.AlignHCenter; opacity: 0.8 }
-                        PC3.Label { text: root.kindPlural[modelData.kind] || modelData.kind; font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
-                        PC3.Label { Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight
-                                    text: modelData.hidden ? "off on the map \u00b7 " + modelData.count + " hidden" : modelData.count + (modelData.fact ? " \u00b7 " + modelData.fact : "") }
                     }
                 }
-            }
-            Component {
-                id: eventRow
-                PC3.ItemDelegate {
-                    id: row
-                    property var modelData: ({})           // set by the Loader once created
-                    readonly property bool facilitiesOpen: !!root.openFacilities[modelData.key]
-                    readonly property bool fresh: root.isNew(modelData)
-                    readonly property bool soon: root.isSoon(modelData)
-                    readonly property color accent: soon ? "#ffb347" : modelData.level >= 3 ? Kirigami.Theme.negativeTextColor
-                                                  : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
-                    background: Rectangle {
-                        color: soon ? Qt.rgba(1, 0.7, 0.28, 0.16) : fresh ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.12) : "transparent"
-                        radius: 3
-                        Rectangle {                           // accent bar: new or imminent items get their colour on the left edge
-                            visible: fresh || soon
-                            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                            width: 3; radius: 1
-                            color: accent
+                Component {
+                    id: eventRow
+                    PC3.ItemDelegate {
+                        id: row
+                        property var modelData: ({})           // set by the Loader once created
+                        readonly property bool facilitiesOpen: !!root.openFacilities[modelData.key]
+                        readonly property bool fresh: root.isNew(modelData)
+                        readonly property bool soon: root.isSoon(modelData)
+                        readonly property color accent: soon ? "#ffb347" : modelData.level >= 3 ? Kirigami.Theme.negativeTextColor
+                                                      : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
+                        background: Rectangle {
+                            color: soon ? Qt.rgba(1, 0.7, 0.28, 0.16) : fresh ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.12) : "transparent"
+                            radius: 3
+                            Rectangle {                           // accent bar: new or imminent items get their colour on the left edge
+                                visible: fresh || soon
+                                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                                width: 3; radius: 1
+                                color: accent
+                            }
                         }
-                    }
-                    onClicked: root.openWeb(modelData.url)
-                    PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
-                    PC3.ToolTip.visible: hovered
-                    contentItem: RowLayout {
-                        spacing: Kirigami.Units.smallSpacing
-                        Kirigami.Icon {
-                            visible: !root.grouped && root.kindIconUrl(modelData.kind) !== ""   // in groups the header carries the kind's icon
-                            source: root.kindIconUrl(modelData.kind); isMask: true
-                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
-                            implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
-                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
-                        }
-                        PC3.Label {
-                            visible: !root.grouped && root.kindIconUrl(modelData.kind) === ""
-                            text: root.kindIcon[modelData.kind] || "•"
-                            font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
-                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
-                            Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
-                            horizontalAlignment: Text.AlignHCenter
-                        }
-                        Rectangle {                              // in groups: a small severity dot instead of the icon
-                            visible: root.grouped
-                            Layout.preferredWidth: 7; Layout.preferredHeight: 7; radius: 4
-                            Layout.leftMargin: Kirigami.Units.smallSpacing
-                            color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.35)
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 0
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: Kirigami.Units.smallSpacing
-                                PC3.Label { Layout.fillWidth: true; text: modelData.title; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: fresh || soon }
-                                Rectangle {                   // "NEW" / "SOON" / "LIVE" tag
-                                    visible: fresh || soon || !!modelData.webcast_live
-                                    radius: 3; implicitHeight: tag.implicitHeight + 2; implicitWidth: tag.implicitWidth + 8
-                                    color: modelData.webcast_live ? "#e53935" : accent
-                                    PC3.Label { id: tag; anchors.centerIn: parent; text: modelData.webcast_live ? "LIVE" : soon ? "SOON" : "NEW"; font.pointSize: Kirigami.Theme.smallFont.pointSize; font.bold: true; color: "white" }
-                                }
+                        onClicked: root.openWeb(modelData.url)
+                        PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
+                        PC3.ToolTip.visible: hovered
+                        contentItem: RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
+                            Kirigami.Icon {
+                                visible: !root.grouped && root.kindIconUrl(modelData.kind) !== ""   // in groups the header carries the kind's icon
+                                source: root.kindIconUrl(modelData.kind); isMask: true
+                                color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                                implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
                             }
                             PC3.Label {
-                                Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
-                                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                text: (root.grouped ? "" : (root.kindName[modelData.kind] || "") + " \u00b7 ") + (modelData.pin ? modelData.detail
-                                      : (modelData.nonew ? "" : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " \u00b7 ") + modelData.detail)
+                                visible: !root.grouped && root.kindIconUrl(modelData.kind) === ""
+                                text: root.kindIcon[modelData.kind] || "•"
+                                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.3
+                                color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.textColor
+                                Layout.preferredWidth: Kirigami.Units.gridUnit * 1.4
+                                horizontalAlignment: Text.AlignHCenter
                             }
-                            // a storm's oil and gas facilities: a chip for what it crossed, one for what lies in its
-                            // path; a click on a chip unfolds the full list under the storm, another folds it back
-                            Flow {
+                            Rectangle {                              // in groups: a small severity dot instead of the icon
+                                visible: root.grouped
+                                Layout.preferredWidth: 7; Layout.preferredHeight: 7; radius: 4
+                                Layout.leftMargin: Kirigami.Units.smallSpacing
+                                color: modelData.level >= 3 ? Kirigami.Theme.negativeTextColor : modelData.level === 2 ? Kirigami.Theme.neutralTextColor : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.35)
+                            }
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                Layout.topMargin: 2
-                                spacing: Kirigami.Units.smallSpacing
-                                visible: root.facilityChips(modelData.facilities).length > 0
-                                Repeater {
-                                    model: root.facilityChips(modelData.facilities)
-                                    Rectangle {
-                                        required property var modelData
-                                        radius: height / 2
-                                        implicitHeight: chip.implicitHeight + 4; implicitWidth: chip.implicitWidth + 14
-                                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, chipHover.containsMouse ? 0.16 : 0.08)
-                                        border.width: 1; border.color: modelData.crossed ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
-                                        PC3.Label { id: chip; anchors.centerIn: parent; text: modelData.text; font.pointSize: Kirigami.Theme.smallFont.pointSize; textFormat: Text.PlainText }
-                                        PC3.ToolTip.text: facilitiesOpen ? "Fold the list away" : "Unfold the full list"; PC3.ToolTip.visible: !!(chipHover && chipHover.containsMouse)
-                                        HoverHandler { id: chipHover }
-                                        TapHandler { onTapped: root.toggleFacilities(row.modelData.key) }
-                                    }
-                                }
-                            }
-                            Repeater {                            // the unfolded list: a heading per group, then each facility
-                                model: facilitiesOpen ? root.facilityRows(modelData.facilities) : []
+                                spacing: 0
                                 RowLayout {
-                                    required property var modelData
                                     Layout.fillWidth: true
-                                    Layout.leftMargin: Kirigami.Units.gridUnit * 0.6
                                     spacing: Kirigami.Units.smallSpacing
-                                    PC3.Label {
-                                        text: modelData.head ? (modelData.crossed ? "\u2713" : "\u2192") : (modelData.kind === "refinery" ? "\u25b2" : "\u25a0")
-                                        opacity: modelData.head ? 0.8 : 0.55
-                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 0.9
-                                        horizontalAlignment: Text.AlignHCenter
+                                    PC3.Label { Layout.fillWidth: true; text: modelData.title; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: fresh || soon }
+                                    Rectangle {                   // "NEW" / "SOON" / "LIVE" tag
+                                        visible: fresh || soon || !!modelData.webcast_live
+                                        radius: 3; implicitHeight: tag.implicitHeight + 2; implicitWidth: tag.implicitWidth + 8
+                                        color: modelData.webcast_live ? "#e53935" : accent
+                                        PC3.Label { id: tag; anchors.centerIn: parent; text: modelData.webcast_live ? "LIVE" : soon ? "SOON" : "NEW"; font.pointSize: Kirigami.Theme.smallFont.pointSize; font.bold: true; color: "white" }
                                     }
-                                    PC3.Label {
-                                        Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
-                                        text: modelData.text
-                                        opacity: modelData.head ? 0.8 : 0.65
-                                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                        font.italic: modelData.head
+                                }
+                                PC3.Label {
+                                    Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; textFormat: Text.PlainText
+                                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                    text: (root.grouped ? "" : (root.kindName[modelData.kind] || "") + " \u00b7 ") + (modelData.pin ? modelData.detail
+                                          : (modelData.nonew ? "" : (root.range > 0 ? Qt.formatDateTime(new Date(modelData.when * 1000), "d MMM hh:mm") + " (" + root.ago(modelData.when) + ")" : root.ago(modelData.when)) + " \u00b7 ") + modelData.detail)
+                                }
+                                // a storm's oil and gas facilities: a chip for what it crossed, one for what lies in its
+                                // path; a click on a chip unfolds the full list under the storm, another folds it back
+                                Flow {
+                                    Layout.fillWidth: true
+                                    Layout.topMargin: 2
+                                    spacing: Kirigami.Units.smallSpacing
+                                    visible: root.facilityChips(modelData.facilities).length > 0
+                                    Repeater {
+                                        model: root.facilityChips(modelData.facilities)
+                                        Rectangle {
+                                            required property var modelData
+                                            radius: height / 2
+                                            implicitHeight: chip.implicitHeight + 4; implicitWidth: chip.implicitWidth + 14
+                                            color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, chipHover.containsMouse ? 0.16 : 0.08)
+                                            border.width: 1; border.color: modelData.crossed ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
+                                            PC3.Label { id: chip; anchors.centerIn: parent; text: modelData.text; font.pointSize: Kirigami.Theme.smallFont.pointSize; textFormat: Text.PlainText }
+                                            PC3.ToolTip.text: facilitiesOpen ? "Fold the list away" : "Unfold the full list"; PC3.ToolTip.visible: !!(chipHover && chipHover.containsMouse)
+                                            HoverHandler { id: chipHover }
+                                            TapHandler { onTapped: root.toggleFacilities(row.modelData.key) }
+                                        }
+                                    }
+                                }
+                                Repeater {                            // the unfolded list: a heading per group, then each facility
+                                    model: facilitiesOpen ? root.facilityRows(modelData.facilities) : []
+                                    RowLayout {
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: Kirigami.Units.gridUnit * 0.6
+                                        spacing: Kirigami.Units.smallSpacing
+                                        PC3.Label {
+                                            text: modelData.head ? (modelData.crossed ? "\u2713" : "\u2192") : (modelData.kind === "refinery" ? "\u25b2" : "\u25a0")
+                                            opacity: modelData.head ? 0.8 : 0.55
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            Layout.preferredWidth: Kirigami.Units.gridUnit * 0.9
+                                            horizontalAlignment: Text.AlignHCenter
+                                        }
+                                        PC3.Label {
+                                            Layout.fillWidth: true; elide: Text.ElideRight; textFormat: Text.PlainText
+                                            text: modelData.text
+                                            opacity: modelData.head ? 0.8 : 0.65
+                                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            font.italic: modelData.head
+                                        }
                                     }
                                 }
                             }
-                        }
-                        Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)
-                            model: modelData.links || []
-                            PC3.ToolButton {
-                                required property var modelData
-                                icon.name: modelData.icon || "internet-web-browser"
-                                display: PC3.AbstractButton.IconOnly
-                                PC3.ToolTip.text: modelData.label + "\n" + modelData.url; PC3.ToolTip.visible: hovered
-                                onClicked: root.openWeb(modelData.url)
+                            Repeater {                                // extra links an item carries (e.g. who is aboard the ISS)
+                                model: modelData.links || []
+                                PC3.ToolButton {
+                                    required property var modelData
+                                    icon.name: modelData.icon || "internet-web-browser"
+                                    display: PC3.AbstractButton.IconOnly
+                                    PC3.ToolTip.text: modelData.label + "\n" + modelData.url; PC3.ToolTip.visible: hovered
+                                    onClicked: root.openWeb(modelData.url)
+                                }
                             }
-                        }
-                        Kirigami.Icon { source: "internet-web-browser"; visible: !!modelData.url; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.6 }
-                    }
-                }
-            }
-        }
-
-        // ---- Live ---------------------------------------------------------------
-        ColumnLayout {
-            id: liveTab
-            visible: tabs.currentIndex === 1
-            Layout.fillWidth: true; Layout.fillHeight: true
-            spacing: Kirigami.Units.smallSpacing
-            readonly property string liveUrl: Plasmoid.configuration.LiveUrl || ""
-            readonly property string videoId: (function () {
-                var u = chosenUrl;
-                var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
-                return m ? m[1] : "";
-            })()
-            property bool playHere: false              // "Play here" on the placeholder: embed for this popup session
-            readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.expanded && visible
-            property int chosen: 0                     // 0 = the ISS stream from the settings; then the launches with a webcast
-            readonly property var extra: String(Plasmoid.configuration.LiveExtra || "").split("\n").map(function (line) {
-                var i = line.indexOf("|");
-                return i > 0 ? { title: line.substring(0, i).trim(), url: line.substring(i + 1).trim() } : { title: line.trim(), url: line.trim() };
-            }).filter(function (c) { return c.url.indexOf("http") === 0; })
-            readonly property var choices: [{ title: "ISS live view", url: liveUrl }].concat(root.webcasts.map(function (L) {
-                return { title: (L.webcast_live ? "LIVE · " : "") + L.title + " · " + root.ago(L.when), url: L.videos[0].url };
-            })).concat(extra)
-            readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""
-            PC3.ComboBox {
-                Layout.fillWidth: true
-                model: liveTab.choices.map(function (c) { return c.title })
-                currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
-                onActivated: function (i) { liveTab.chosen = i }
-            }
-            Loader {
-                id: liveWeb
-                Layout.fillWidth: true; Layout.fillHeight: true
-                active: liveTab.embed && liveTab.videoId !== ""
-                source: "LiveWeb.qml"
-                onLoaded: item.videoId = Qt.binding(function () { return liveTab.videoId })
-            }
-            PlasmaExtras.PlaceholderMessage {
-                visible: !liveWeb.active || liveWeb.status === Loader.Error
-                Layout.fillWidth: true; Layout.fillHeight: true
-                iconName: "camera-video"
-                text: liveWeb.status === Loader.Error ? "Embedded player unavailable" : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Not a YouTube stream" : Plasmoid.configuration.LiveEmbed ? "Player starts when the popup is open" : "Stream not embedded"
-                explanation: liveWeb.status === Loader.Error ? "QtWebEngine's QML module is not installed (qt6-qtwebengine). Use a player below."
-                           : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Only YouTube streams can be embedded; use a player or the browser for this one."
-                           : Plasmoid.configuration.LiveEmbed ? "" : "Play it here (a browser engine runs inside the widget while the popup is open), in a player, or in the browser."
-                helpfulAction: Kirigami.Action {
-                    visible: !Plasmoid.configuration.LiveEmbed && liveWeb.status !== Loader.Error && liveTab.videoId !== ""
-                    text: "Play here"; icon.name: "media-playback-start"
-                    onTriggered: liveTab.playHere = true
-                }
-            }
-            RowLayout {
-                PC3.Button {
-                    text: "Open in player"; icon.name: "media-playback-start"
-                    enabled: root.webUrl(liveTab.chosenUrl) !== ""
-                    onClicked: exec.connectSource((Plasmoid.configuration.LivePlayer || "mpv") + " '" + root.webUrl(liveTab.chosenUrl) + "' >/dev/null 2>&1 & # " + Date.now())
-                    PC3.ToolTip.text: "Runs: " + (Plasmoid.configuration.LivePlayer || "mpv") + " <url>  (mpv needs yt-dlp for YouTube)"
-                    PC3.ToolTip.visible: hovered
-                }
-                PC3.Button { text: "Open in browser"; icon.name: "internet-web-browser"; enabled: root.webUrl(liveTab.chosenUrl) !== ""; onClicked: root.openWeb(liveTab.chosenUrl) }
-                PC3.Button { text: "Who is aboard"; icon.name: "user-group-new"; onClicked: root.openWeb("https://issinfo.net/whos-in-space"); PC3.ToolTip.text: "issinfo.net: everyone in space right now, by station"; PC3.ToolTip.visible: hovered }
-                PC3.Button {
-                    visible: liveWeb.status === Loader.Ready
-                    text: "Reload"; icon.name: "view-refresh"; onClicked: liveWeb.item.show()
-                }
-            }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        text: liveTab.chosenUrl + (root.webcasts.length === 0 ? "   ·   no launch webcasts listed yet (they appear a day or so before lift-off)" : "") }
-        }
-
-        // ---- Map controls -------------------------------------------------------
-        ColumnLayout {
-            visible: tabs.currentIndex === 2
-            Layout.fillWidth: true; Layout.fillHeight: true
-            spacing: Kirigami.Units.smallSpacing
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; text: "These reach the wallpaper within 20 seconds and stay until changed here. They sit on top of the wallpaper's own settings." }
-            PC3.CheckBox {
-                text: "Pause animations"
-                checked: !!root.mode.pause
-                onToggled: root.setMode("--pause " + (checked ? "on" : "off"))
-            }
-            PC3.CheckBox {
-                text: "Plain map only (live layers off)"
-                checked: !!root.mode.plain
-                onToggled: root.setMode("--plain " + (checked ? "on" : "off"))
-            }
-            PC3.Label { text: "Hide layers:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
-            GridLayout {
-                columns: 2
-                Repeater {
-                    model: [["quakes", "Earthquakes"], ["volcanoes", "Volcanoes"], ["storms", "Storms"], ["fires", "Wildfires"], ["floods", "Floods"], ["tsunami", "Tsunami"], ["alerts", "Air raid alerts"], ["sats", "Satellites"], ["launches", "Launches"], ["network", "Network"]]
-                    PC3.CheckBox {
-                        required property var modelData
-                        text: modelData[1]
-                        checked: !!(root.mode.hide && root.mode.hide.indexOf(modelData[0]) >= 0)
-                        onToggled: {
-                            var hide = (root.mode.hide || []).filter(function (h) { return h !== modelData[0]; });
-                            if (checked) hide.push(modelData[0]);
-                            root.setMode("--hide '" + hide.join(",") + "'");
+                            Kirigami.Icon { source: "internet-web-browser"; visible: !!modelData.url; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth; opacity: 0.6 }
                         }
                     }
                 }
             }
-            PC3.Label { text: "Clouds:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
-            RowLayout {
-                Layout.fillWidth: true
-                PC3.CheckBox {
-                    text: "Show clouds"
-                    tristate: false
-                    checked: root.mode.clouds !== false
-                    onToggled: root.setMode("--clouds " + (checked ? "auto" : "off"))
-                }
-                PC3.Label { text: root.mode.clouds === false ? "(hidden from here)" : "(as set in the wallpaper)"; opacity: 0.6 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                enabled: root.mode.clouds !== false
-                PC3.Label { text: "Opacity" }
-                PC3.Slider {
-                    id: cloudOpacity
-                    Layout.fillWidth: true
-                    from: 0; to: 100; stepSize: 5
-                    value: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null ? root.mode.cloud_opacity : 100
-                    onMoved: cloudSend.restart()
-                    Timer { id: cloudSend; interval: 400; onTriggered: root.setMode("--cloud-opacity " + Math.round(cloudOpacity.value)) }
-                }
-                PC3.Label { text: Math.round(cloudOpacity.value) + " %"; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5 }
-                PC3.ToolButton {
-                    icon.name: "edit-undo"; visible: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null
-                    PC3.ToolTip.text: "Back to the wallpaper's own opacity"; PC3.ToolTip.visible: hovered
-                    onClicked: root.setMode("--cloud-opacity auto")
-                }
-            }
-            PC3.Label { text: "Power:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
-            RowLayout {
-                Layout.fillWidth: true
-                PC3.CheckBox {
-                    id: fullSpeed
-                    text: "Full speed"
-                    checked: !!root.mode.full
-                    onToggled: root.setMode(checked ? "--full on --full-hours " + [0, 1, 4, 8][fullHours.currentIndex] : "--full off")
-                    PC3.ToolTip.text: "Ignore the wallpaper's on-battery policy and its load guard for a while. Pause and Plain map above still apply."
-                    PC3.ToolTip.visible: hovered
-                }
+
+            // ---- Live ---------------------------------------------------------------
+            ColumnLayout {
+                id: liveTab
+                visible: tabs.currentIndex === 1
+                Layout.fillWidth: true; Layout.fillHeight: true
+                spacing: Kirigami.Units.smallSpacing
+                readonly property string liveUrl: Plasmoid.configuration.LiveUrl || ""
+                readonly property string videoId: (function () {
+                    var u = chosenUrl;
+                    var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
+                    return m ? m[1] : "";
+                })()
+                property bool playHere: false              // "Play here" on the placeholder: embed for this popup session
+                readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.expanded && visible
+                property int chosen: 0                     // 0 = the ISS stream from the settings; then the launches with a webcast
+                readonly property var extra: String(Plasmoid.configuration.LiveExtra || "").split("\n").map(function (line) {
+                    var i = line.indexOf("|");
+                    return i > 0 ? { title: line.substring(0, i).trim(), url: line.substring(i + 1).trim() } : { title: line.trim(), url: line.trim() };
+                }).filter(function (c) { return c.url.indexOf("http") === 0; })
+                readonly property var choices: [{ title: "ISS live view", url: liveUrl }].concat(root.webcasts.map(function (L) {
+                    return { title: (L.webcast_live ? "LIVE · " : "") + L.title + " · " + root.ago(L.when), url: L.videos[0].url };
+                })).concat(extra)
+                readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""
                 PC3.ComboBox {
-                    id: fullHours
-                    model: ["until switched off", "for 1 hour", "for 4 hours", "for 8 hours"]
-                    currentIndex: 2
-                    enabled: !fullSpeed.checked
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                    Layout.fillWidth: true
+                    model: liveTab.choices.map(function (c) { return c.title })
+                    currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
+                    onActivated: function (i) { liveTab.chosen = i }
                 }
+                Loader {
+                    id: liveWeb
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    active: liveTab.embed && liveTab.videoId !== ""
+                    source: "LiveWeb.qml"
+                    onLoaded: item.videoId = Qt.binding(function () { return liveTab.videoId })
+                }
+                PlasmaExtras.PlaceholderMessage {
+                    visible: !liveWeb.active || liveWeb.status === Loader.Error
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    iconName: "camera-video"
+                    text: liveWeb.status === Loader.Error ? "Embedded player unavailable" : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Not a YouTube stream" : Plasmoid.configuration.LiveEmbed ? "Player starts when the popup is open" : "Stream not embedded"
+                    explanation: liveWeb.status === Loader.Error ? "QtWebEngine's QML module is not installed (qt6-qtwebengine). Use a player below."
+                               : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Only YouTube streams can be embedded; use a player or the browser for this one."
+                               : Plasmoid.configuration.LiveEmbed ? "" : "Play it here (a browser engine runs inside the widget while the popup is open), in a player, or in the browser."
+                    helpfulAction: Kirigami.Action {
+                        visible: !Plasmoid.configuration.LiveEmbed && liveWeb.status !== Loader.Error && liveTab.videoId !== ""
+                        text: "Play here"; icon.name: "media-playback-start"
+                        onTriggered: liveTab.playHere = true
+                    }
+                }
+                RowLayout {
+                    PC3.Button {
+                        text: "Open in player"; icon.name: "media-playback-start"
+                        enabled: root.webUrl(liveTab.chosenUrl) !== ""
+                        onClicked: exec.connectSource((Plasmoid.configuration.LivePlayer || "mpv") + " '" + root.webUrl(liveTab.chosenUrl) + "' >/dev/null 2>&1 & # " + Date.now())
+                        PC3.ToolTip.text: "Runs: " + (Plasmoid.configuration.LivePlayer || "mpv") + " <url>  (mpv needs yt-dlp for YouTube)"
+                        PC3.ToolTip.visible: hovered
+                    }
+                    PC3.Button { text: "Open in browser"; icon.name: "internet-web-browser"; enabled: root.webUrl(liveTab.chosenUrl) !== ""; onClicked: root.openWeb(liveTab.chosenUrl) }
+                    PC3.Button { text: "Who is aboard"; icon.name: "user-group-new"; onClicked: root.openWeb("https://issinfo.net/whos-in-space"); PC3.ToolTip.text: "issinfo.net: everyone in space right now, by station"; PC3.ToolTip.visible: hovered }
+                    PC3.Button {
+                        visible: liveWeb.status === Loader.Ready
+                        text: "Reload"; icon.name: "view-refresh"; onClicked: liveWeb.item.show()
+                    }
+                }
+                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            text: liveTab.chosenUrl + (root.webcasts.length === 0 ? "   ·   no launch webcasts listed yet (they appear a day or so before lift-off)" : "") }
             }
-            PC3.Label {
-                Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6
-                text: !root.mode.full ? "Battery policy and load guard as set in the wallpaper."
-                    : root.mode.full_until ? "Full speed until " + Qt.formatTime(new Date(root.mode.full_until * 1000), "hh:mm") + " (" + Math.max(1, Math.round((root.mode.full_until - root.nowSec) / 60)) + " min left), then back to the wallpaper's settings."
-                    : "Full speed until switched off here: the battery policy and the load guard are ignored."
-            }
-            RowLayout {
-                PC3.Button { text: "Clear all overrides"; icon.name: "edit-clear"; onClicked: root.setMode("--clear") }
-                PC3.Button { text: "Re-read"; icon.name: "view-refresh"; onClicked: root.refreshMode() }
-            }
-            Item { Layout.fillHeight: true }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Uses the " + root.helper + " and its data folder; nothing is fetched twice." }
-        }
 
-        // ---- Status: every data source and local file, as the wallpaper's own Status section sees them ----
-        ColumnLayout {
-            visible: tabs.currentIndex === 3
-            Layout.fillWidth: true; Layout.fillHeight: true
-            spacing: Kirigami.Units.smallSpacing
-            RowLayout {
-                Layout.fillWidth: true
-                PC3.Label {
-                    Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7
-                    text: root.statusBusy ? (root.statusAt > 0 ? "Checking again\u2026 (last answers shown)" : "Checking every source\u2026") : root.checks.length === 0 ? "Not checked yet"
-                        : (root.checks.filter(function (c) { return c.state === "error" }).length + " problems, "
-                           + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
-                           + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
-                }
-                PC3.BusyIndicator { visible: root.statusBusy; running: visible; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
-            }
-            PC3.Label { visible: root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
-            PC3.ScrollView {
+            // ---- Map controls -------------------------------------------------------
+            ColumnLayout {
+                visible: tabs.currentIndex === 2
                 Layout.fillWidth: true; Layout.fillHeight: true
-                contentWidth: availableWidth
-                ListView {
-                    model: root.checks
-                    spacing: 2
-                    clip: true
-                    delegate: RowLayout {
-                        required property var modelData
-                        width: ListView.view.width
-                        spacing: Kirigami.Units.smallSpacing
-                        readonly property bool pending: modelData.state === ""          // no answer yet
-                        Rectangle {
-                            Layout.alignment: Qt.AlignTop; Layout.topMargin: 5
-                            width: 9; height: 9; radius: 4.5
-                            color: pending ? Kirigami.Theme.disabledTextColor : modelData.state === "ok" ? Kirigami.Theme.positiveTextColor : modelData.state === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.negativeTextColor
-                            opacity: root.statusBusy ? 0.5 : 1
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 0
-                            RowLayout {
-                                Layout.fillWidth: true
-                                PC3.Label { Layout.fillWidth: true; text: modelData.name; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: !pending && modelData.state !== "ok" }
-                                PC3.Label { visible: root.statusBusy; text: "checking\u2026"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                spacing: Kirigami.Units.smallSpacing
+                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; text: "These reach the wallpaper within 20 seconds and stay until changed here. They sit on top of the wallpaper's own settings." }
+                PC3.CheckBox {
+                    text: "Pause animations"
+                    checked: !!root.mode.pause
+                    onToggled: root.setMode("--pause " + (checked ? "on" : "off"))
+                }
+                PC3.CheckBox {
+                    text: "Plain map only (live layers off)"
+                    checked: !!root.mode.plain
+                    onToggled: root.setMode("--plain " + (checked ? "on" : "off"))
+                }
+                PC3.Label { text: "Hide layers:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                GridLayout {
+                    columns: 2
+                    Repeater {
+                        model: [["quakes", "Earthquakes"], ["volcanoes", "Volcanoes"], ["storms", "Storms"], ["fires", "Wildfires"], ["floods", "Floods"], ["tsunami", "Tsunami"], ["alerts", "Air raid alerts"], ["sats", "Satellites"], ["launches", "Launches"], ["network", "Network"]]
+                        PC3.CheckBox {
+                            required property var modelData
+                            text: modelData[1]
+                            checked: !!(root.mode.hide && root.mode.hide.indexOf(modelData[0]) >= 0)
+                            onToggled: {
+                                var hide = (root.mode.hide || []).filter(function (h) { return h !== modelData[0]; });
+                                if (checked) hide.push(modelData[0]);
+                                root.setMode("--hide '" + hide.join(",") + "'");
                             }
-                            PC3.Label { Layout.fillWidth: true; visible: !pending; text: modelData.detail; textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: root.statusBusy ? 0.4 : 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                         }
                     }
                 }
+                PC3.Label { text: "Clouds:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.CheckBox {
+                        text: "Show clouds"
+                        tristate: false
+                        checked: root.mode.clouds !== false
+                        onToggled: root.setMode("--clouds " + (checked ? "auto" : "off"))
+                    }
+                    PC3.Label { text: root.mode.clouds === false ? "(hidden from here)" : "(as set in the wallpaper)"; opacity: 0.6 }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    enabled: root.mode.clouds !== false
+                    PC3.Label { text: "Opacity" }
+                    PC3.Slider {
+                        id: cloudOpacity
+                        Layout.fillWidth: true
+                        from: 0; to: 100; stepSize: 5
+                        value: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null ? root.mode.cloud_opacity : 100
+                        onMoved: cloudSend.restart()
+                        Timer { id: cloudSend; interval: 400; onTriggered: root.setMode("--cloud-opacity " + Math.round(cloudOpacity.value)) }
+                    }
+                    PC3.Label { text: Math.round(cloudOpacity.value) + " %"; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5 }
+                    PC3.ToolButton {
+                        icon.name: "edit-undo"; visible: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null
+                        PC3.ToolTip.text: "Back to the wallpaper's own opacity"; PC3.ToolTip.visible: hovered
+                        onClicked: root.setMode("--cloud-opacity auto")
+                    }
+                }
+                PC3.Label { text: "Power:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.CheckBox {
+                        id: fullSpeed
+                        text: "Full speed"
+                        checked: !!root.mode.full
+                        onToggled: root.setMode(checked ? "--full on --full-hours " + [0, 1, 4, 8][fullHours.currentIndex] : "--full off")
+                        PC3.ToolTip.text: "Ignore the wallpaper's on-battery policy and its load guard for a while. Pause and Plain map above still apply."
+                        PC3.ToolTip.visible: hovered
+                    }
+                    PC3.ComboBox {
+                        id: fullHours
+                        model: ["until switched off", "for 1 hour", "for 4 hours", "for 8 hours"]
+                        currentIndex: 2
+                        enabled: !fullSpeed.checked
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                    }
+                }
+                PC3.Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6
+                    text: !root.mode.full ? "Battery policy and load guard as set in the wallpaper."
+                        : root.mode.full_until ? "Full speed until " + Qt.formatTime(new Date(root.mode.full_until * 1000), "hh:mm") + " (" + Math.max(1, Math.round((root.mode.full_until - root.nowSec) / 60)) + " min left), then back to the wallpaper's settings."
+                        : "Full speed until switched off here: the battery policy and the load guard are ignored."
+                }
+                RowLayout {
+                    PC3.Button { text: "Clear all overrides"; icon.name: "edit-clear"; onClicked: root.setMode("--clear") }
+                    PC3.Button { text: "Re-read"; icon.name: "view-refresh"; onClicked: root.refreshMode() }
+                }
+                Item { Layout.fillHeight: true }
+                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Uses the " + root.helper + " and its data folder; nothing is fetched twice." }
             }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        text: "Green: working. Yellow: something to download or a source that is slow or stale (the map keeps its last good data). Red: a source or file that is not working." }
+
+            // ---- Status: every data source and local file, as the wallpaper's own Status section sees them ----
+            ColumnLayout {
+                visible: tabs.currentIndex === 3
+                Layout.fillWidth: true; Layout.fillHeight: true
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Label {
+                        Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7
+                        text: root.statusBusy ? (root.statusAt > 0 ? "Checking again\u2026 (last answers shown)" : "Checking every source\u2026") : root.checks.length === 0 ? "Not checked yet"
+                            : (root.checks.filter(function (c) { return c.state === "error" }).length + " problems, "
+                               + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
+                               + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
+                    }
+                    PC3.BusyIndicator { visible: root.statusBusy; running: visible; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
+                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
+                }
+                PC3.Label { visible: root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
+                PC3.ScrollView {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    contentWidth: availableWidth
+                    ListView {
+                        model: root.checks
+                        spacing: 2
+                        clip: true
+                        delegate: RowLayout {
+                            required property var modelData
+                            width: ListView.view.width
+                            spacing: Kirigami.Units.smallSpacing
+                            readonly property bool pending: modelData.state === ""          // no answer yet
+                            Rectangle {
+                                Layout.alignment: Qt.AlignTop; Layout.topMargin: 5
+                                width: 9; height: 9; radius: 4.5
+                                color: pending ? Kirigami.Theme.disabledTextColor : modelData.state === "ok" ? Kirigami.Theme.positiveTextColor : modelData.state === "warn" ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.negativeTextColor
+                                opacity: root.statusBusy ? 0.5 : 1
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    PC3.Label { Layout.fillWidth: true; text: modelData.name; textFormat: Text.PlainText; elide: Text.ElideRight; font.bold: !pending && modelData.state !== "ok" }
+                                    PC3.Label { visible: root.statusBusy; text: "checking\u2026"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                                }
+                                PC3.Label { Layout.fillWidth: true; visible: !pending; text: modelData.detail; textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: root.statusBusy ? 0.4 : 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            }
+                        }
+                    }
+                }
+                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            text: "Green: working. Yellow: something to download or a source that is slow or stale (the map keeps its last good data). Red: a source or file that is not working." }
+            }
         }
     }
 }
