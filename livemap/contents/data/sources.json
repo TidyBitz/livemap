@@ -487,6 +487,25 @@
       "note": "US volcanoes only (Alaska, Hawaii, Cascades, Yellowstone, Marianas)"
     },
     {
+      "id": "geonet-val",
+      "name": "GeoNet volcanic alert levels",
+      "hazard": "volcano",
+      "regions": [
+        "oc"
+      ],
+      "countries": [
+        "NZ"
+      ],
+      "gives": "official Volcanic Alert Level and aviation colour code of every monitored New Zealand volcano",
+      "lead": "minutes",
+      "cadence": "hourly",
+      "official": true,
+      "licence": "GeoNet data policy (CC BY 4.0), attribution",
+      "attribution": "GeoNet (GNS Science, Toka Tū Ake EQC)",
+      "url": "https://www.geonet.org.nz/volcano",
+      "status": "Volcano alert levels (GeoNet)"
+    },
+    {
       "id": "alerts-ua",
       "name": "Ukraine air raid alerts (alerts.in.ua / mirror)",
       "hazard": "alert",

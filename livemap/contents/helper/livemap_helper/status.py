@@ -24,7 +24,7 @@ from .net import connections, lookup
 from .space import chk_launches, chk_sats
 from .storms import chk_storms, chk_storms_jtwc, chk_storms_nhc
 from .tsunami import chk_tsunami
-from .volcanoes import chk_eruptions, chk_usgs_alerts, chk_volcanoes, chk_weekly_page
+from .volcanoes import chk_geonet, chk_eruptions, chk_usgs_alerts, chk_volcanoes, chk_weekly_page
 
 
 def chk_maps():
@@ -145,7 +145,7 @@ def status_jobs(offline=False, feed="4.5_day"):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Volcano alert levels (GeoNet)", chk_geonet), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Earthquakes, secondary (EMSC)", chk_emsc), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]

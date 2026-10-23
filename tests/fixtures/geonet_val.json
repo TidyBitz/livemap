@@ -1,0 +1,5 @@
+{"type": "FeatureCollection", "features": [
+ {"type": "Feature", "geometry": {"type": "Point", "coordinates": [177.183, -37.521]}, "properties": {"volcanoID": "whiteisland", "volcanoTitle": "Whakaari/White Island", "level": 2, "acc": "Yellow", "activity": "Moderate to heightened volcanic unrest.", "hazards": "Volcanic unrest hazards, potential for eruption hazards."}},
+ {"type": "Feature", "geometry": {"type": "Point", "coordinates": [175.564, -39.281]}, "properties": {"volcanoID": "ruapehu", "volcanoTitle": "Ruapehu", "level": 1, "acc": "Green", "activity": "Minor volcanic unrest.", "hazards": "Volcanic unrest hazards."}},
+ {"type": "Feature", "geometry": {"type": "Point", "coordinates": [175.896, -38.808]}, "properties": {"volcanoID": "taupo", "volcanoTitle": "Taupō", "level": 0, "acc": "Green", "activity": "No volcanic unrest.", "hazards": "Volcanic environment hazards."}}
+]}

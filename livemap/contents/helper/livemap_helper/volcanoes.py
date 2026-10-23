@@ -174,6 +174,43 @@ def fetch_usgs_alerts(now=None):
     return out
 
 
+# GeoNet (New Zealand): the official Volcanic Alert Level (0-5) and aviation colour code of every monitored
+# volcano, GeoJSON, no key. Only raised levels (1 and up) are drawn, in the colour code's colour, like USGS's.
+GEONET_VAL = "https://api.geonet.org.nz/volcano/val"
+GEONET_HEADERS = dict(UA, Accept="application/vnd.geo+json;version=2")
+GEONET_COLOUR = {"green": "green", "yellow": "yellow", "orange": "orange", "red": "red"}
+
+
+def parse_geonet(body):
+    out = []
+    for f in body.get("features") or []:
+        p = f.get("properties") or {}
+        c = (f.get("geometry") or {}).get("coordinates") or []
+        try:
+            level = int(p.get("level") or 0)
+            lon, lat = float(c[0]), float(c[1])
+        except (TypeError, ValueError, IndexError):
+            continue
+        if level < 1:
+            continue
+        acc = str(p.get("acc") or "").lower()
+        out.append({"name": str(p.get("volcanoTitle") or p.get("volcanoID") or ""), "vnum": "geonet:" + str(p.get("volcanoID") or ""), "lat": lat, "lon": lon,
+                    "alert": GEONET_COLOUR.get(acc, "yellow" if level < 3 else "orange" if level < 4 else "red"), "level": "Level %d" % level,
+                    "issued_hours": None, "elevated_since": "", "elevated_hours": None, "observatory": "GeoNet", "notice": "https://www.geonet.org.nz/volcano",
+                    "activity": str(p.get("activity") or ""), "hazards": str(p.get("hazards") or "")})
+    return out
+
+
+def fetch_geonet_alerts():
+    body = json.loads(_http(GEONET_VAL, timeout=12, headers=GEONET_HEADERS)[2].decode("utf-8", "replace"))
+    return parse_geonet(body)
+
+
+def chk_geonet():
+    alerts = fetch_geonet_alerts()
+    return "ok", "%d New Zealand volcanoes at a raised level%s" % (len(alerts), ": " + ", ".join("%s %s" % (a["name"], a["level"].lower()) for a in alerts) if alerts else "")
+
+
 def merge_usgs_alerts(rows, alerts):
     """Attach alert levels to the weekly report's volcanoes (matched by name, accents ignored) and append the
     elevated US volcanoes the report does not mention, so a raised level shows up the day it happens."""
@@ -184,7 +221,7 @@ def merge_usgs_alerts(rows, alerts):
         if r is None:
             if a["lat"] is None:
                 continue
-            r = {"name": a["name"], "country": "United States", "lat": a["lat"], "lon": a["lon"], "new": False,
+            r = {"name": a["name"], "country": "New Zealand" if a.get("observatory") == "GeoNet" else "United States", "lat": a["lat"], "lon": a["lon"], "new": False,
                  "reported": None, "since": "", "status": "alert"}
             rows.append(r)
             by_name[key] = r
@@ -365,6 +402,9 @@ def cmd_volcanoes(args):
         url = GVP_FEEDS[0]
     alerts_note = ""
     adata, astale, aerr = last_good("usgs-alerts", fetch_usgs_alerts)
+    gdata, _gstale, _gerr = last_good("geonet-alerts", fetch_geonet_alerts)
+    if gdata:
+        rows = merge_usgs_alerts(rows, gdata)
     if adata:
         rows = merge_usgs_alerts(rows, adata)
     if aerr:

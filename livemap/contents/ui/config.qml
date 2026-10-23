@@ -1516,8 +1516,8 @@ Kirigami.FormLayout {
     LabelStyle { visible: sec20.open; id: infraStyle; label: "Infrastructure label style:"; enabled: infra.checked && (infraLabels.currentIndex > 0 || infraNameThreatened.checked); plated: false }
     Note { visible: sec20.open; text: "Fixed structures only: every platform on the US Gulf of Mexico shelf from BSEE (public domain, updated monthly) and offshore platforms elsewhere plus refineries from OpenStreetMap (ODbL, (c) OpenStreetMap contributors). Mobile drilling rigs are in no free feed. Still marks under the events; the download takes a minute or two because OpenStreetMap's Overpass service is slow." }
 
-    SectionHeader { id: sec7; title: "Volcanoes"; sourceNames: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)"]; twin: volcanoes; summary: volcanoes.checked ? "Weekly report and USGS levels" + (volcanoAlertColors.checked ? ", colour by level" : "") + " · labels: " + volcanoLabels.currentText.toLowerCase() + " · pulse: " + volcanoPulseMode.currentText.toLowerCase() : "Off" }
-    Source { visible: sec7.open; names: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)"] }
+    SectionHeader { id: sec7; title: "Volcanoes"; sourceNames: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)", "Volcano alert levels (GeoNet)"]; twin: volcanoes; summary: volcanoes.checked ? "Weekly report and USGS levels" + (volcanoAlertColors.checked ? ", colour by level" : "") + " · labels: " + volcanoLabels.currentText.toLowerCase() + " · pulse: " + volcanoPulseMode.currentText.toLowerCase() : "Off" }
+    Source { visible: sec7.open; names: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)", "Volcano alert levels (GeoNet)"] }
 
     QQC2.CheckBox { visible: sec7.open; id: volcanoes; Kirigami.FormData.label: "Show:"; text: "Weekly report and USGS alert levels" }
     Amount {

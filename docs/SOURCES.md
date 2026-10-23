@@ -295,6 +295,13 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 - **Processing:** joined to the Smithsonian entries by plain name; a level above green counts as "raised"
   (`raised_of`) so the mark says how long it has been raised as seen from here.
 
+### Volcano alert levels - GeoNet (New Zealand)
+- **What:** `api.geonet.org.nz/volcano/val` (GeoJSON, `Accept: application/vnd.geo+json;version=2`): every
+  monitored volcano's Volcanic Alert Level (0-5), aviation colour code, activity and hazards text.
+- **Processing (`parse_geonet`):** levels 1 and up only, in the colour code's colour; joined to the weekly
+  report's entries by plain name like the USGS levels, or added on their own with country "New Zealand".
+  Cached by `last_good("geonet-alerts")`, read with the volcanoes (hourly).
+
 ### Air raid alerts - alerts.in.ua (with a token) or the ubilling.net.ua mirror
 - **What:** Ukraine's civil alert status per oblast (and raion / hromada with the API): alert type, start time.
 - **Why:** the API gives minute-by-minute data with types and partial alerts but needs a personal token; the

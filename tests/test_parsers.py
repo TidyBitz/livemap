@@ -265,3 +265,14 @@ def test_quakes_cache_survives_a_source_outage(no_network, data_dir):
     no_network("earthquake.usgs.gov", "<html>down</html>")
     features, problems = quakes.quakes_cached("4.5_day", 3, max_age=0)
     assert len(features) == 2 and any("USGS" in p for p in problems)   # EMSC still answers, USGS's part comes from the cache
+
+
+def test_geonet_raised_levels_only_and_merge_into_the_report():
+    from livemap_helper import volcanoes
+    alerts = volcanoes.parse_geonet(json.loads(fixture("geonet_val.json")))
+    assert [a["name"] for a in alerts] == ["Whakaari/White Island", "Ruapehu"]   # Taupō at level 0 is not raised
+    assert alerts[0]["alert"] == "yellow" and alerts[0]["level"] == "Level 2"
+    rows, _tags = volcanoes.parse_volcano_feed(fixture("gvp_weekly.rss"))
+    merged = volcanoes.merge_usgs_alerts(rows, alerts)
+    wi = next(r for r in merged if r["name"].startswith("Whakaari"))
+    assert wi["country"] == "New Zealand" and wi["alert"] == "yellow" and wi["lat"] == -37.521
