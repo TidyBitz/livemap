@@ -189,6 +189,8 @@ def cmd_styles(args):
             emit({"error": "built-in styles cannot be overwritten; save as a new one"})
             return
         if sid == "user:previous":                       # a snapshot before an apply: dated, kept with the last SNAPS_KEEP
+            if SNAPS.exists() and not SNAPS.is_dir():    # something else (a file) in the way: move it aside, say so
+                SNAPS.rename(SNAPS.with_name("history.not-a-folder"))
             os.makedirs(SNAPS, exist_ok=True)           # two saves can race here (the original and a previous): both tolerate it
             now = int(time.time())
             sid = "history:" + str(now)

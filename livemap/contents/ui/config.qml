@@ -488,9 +488,12 @@ RowLayout {
     // The sections, in the order they appear in the file; the sidebar lists them by group.
     property var sections: []
     readonly property var groupOrder: ["", "Map", "Natural events", "Civil, space and network", "Shared"]
-    readonly property var sideList: sections.map(function (s, i) { return { s: s, i: i }; })   // a stable sort: by group, then file order
-        .sort(function (a, b) { return (form.groupOrder.indexOf(a.s.group) - form.groupOrder.indexOf(b.s.group)) || (a.i - b.i); })
-        .map(function (x) { return x.s; })
+    // the sidebar's order: by group, and inside a group as listed here (sections are completed in no fixed order)
+    readonly property var sideOrder: ["Essentials", "Map", "Day and night", "Clouds", "Countries", "Rivers, lakes and seas", "Time zones", "Tectonic plates",
+        "Oil and gas infrastructure", "Earthquakes", "Volcanoes", "Storms", "Wildfires", "Floods", "Tsunami bulletins", "Air raid alerts (Ukraine)",
+        "Satellites", "Launches", "Network activity", "Units", "Markers and labels", "Ageing and pulses", "Performance and power", "Status", "Coverage"]
+    function sideRank(s) { var g = groupOrder.indexOf(s.group), i = sideOrder.indexOf(s.title); return (g < 0 ? 99 : g) * 100 + (i < 0 ? 99 : i); }
+    readonly property var sideList: sections.slice().sort(function (a, b) { return form.sideRank(a) - form.sideRank(b); })
     property string page: "Essentials"
     // "Find a setting": the sidebar keeps only the sections whose title, summary or keywords contain the words
     property string filter: ""
@@ -617,6 +620,7 @@ RowLayout {
                 }
                 QQC2.Label {
                     Layout.fillWidth: true
+                    Layout.preferredWidth: Kirigami.Units.gridUnit * 26
                     Layout.maximumWidth: Kirigami.Units.gridUnit * 28
                     text: modelData + (check ? ": " + check.detail : statusLoader.item && statusLoader.item.busy ? ": checking..." : "")
                     wrapMode: Text.Wrap
@@ -977,12 +981,13 @@ RowLayout {
         // the data folder. Picking one writes its values into the controls, after "Previous" has been saved; editing
         // anything a style covers marks it modified, and Save / Save as / Reset work on that. Every setting is in one
         // bucket (base, look, layers, machine) and the Includes boxes say which buckets an apply touches and a save captures.
-        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Look" }
+        Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Look"; topPadding: Kirigami.Units.largeSpacing }
         // one swatch per style: its base map's colours, the current one framed; a click applies it
         Flow {
             visible: secE.open
             Kirigami.FormData.label: "Style:"
             Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.smallSpacing
             Repeater {
@@ -1007,7 +1012,7 @@ RowLayout {
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                         font.bold: swatch.current
                         color: swatch.colours[2]
-                        style: Text.Outline; styleColor: swatch.colours[2] === "#ffffff" ? "#000000" : "#ffffff"
+                        style: Text.Outline; styleColor: swatch.colours[2] === "#2b2418" ? "#ffffffaa" : "#000000aa"
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: form.applyStyle(swatch.modelData.id) }
                     QQC2.ToolTip.text: swatch.modelData.name + (swatch.modelData.builtin ? " (built in)" : " (yours)"); QQC2.ToolTip.visible: hoverArea.containsMouse
@@ -1056,7 +1061,7 @@ RowLayout {
         }
         Note { visible: secE.open; text: (form.styleNote !== "" ? form.styleNote + "\n" : "")
                      + "A built-in style is a base map with its recommended colours; it leaves your sizes, line widths and label styles alone. Before every apply the settings are saved as a dated snapshot (More has the way back, and \"Original\" is how they were before styles). Save as keeps your version with everything the ticked boxes cover; home place, units, frame and profile are never part of a style." }
-        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Profile" }
+        Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Profile"; topPadding: Kirigami.Units.largeSpacing }
         QQC2.ComboBox {
             visible: secE.open
             id: profile
@@ -1068,7 +1073,7 @@ RowLayout {
                       "20 updates a second while something is newly reported, then still: pulses on news only (a hurricane or a red flood that pulsed for its whole life kept the screen redrawing 20 times a second for days), packets on the lines, 25+ detection hotspot cells, one orbit of track. Load guard at 70 / 90 %.",
                       "10 updates a second, steady lines, pulses only on news, 50+ detection hotspot cells, short track, standard borders. Load guard at 50 / 80 %.",
                       "Your own mix of the settings below."][profile.currentIndex] }
-        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Where you are" }
+        Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Where you are"; topPadding: Kirigami.Units.largeSpacing }
         Loader {
             visible: secE.open
             id: citySearch
@@ -1088,17 +1093,18 @@ RowLayout {
             QQC2.TextField { id: homeLon; Layout.preferredWidth: Kirigami.Units.gridUnit * 8; placeholderText: "longitude, e.g. 4.90"; validator: DoubleValidator { bottom: -180; top: 180; decimals: 4; locale: "C" } }
         }
         Note { visible: secE.open; text: (citySearch.status === Loader.Error ? "The city search could not be loaded; type the coordinates. " : "Searched offline in Natural Earth's list of about 7 000 towns and cities (part of the border download); pick one to fill in the coordinates, or type them. ") + "Where you are decides where the network arcs start and what Coverage says about your area; nothing about it leaves this machine." }
-        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "On screen" }
+        Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "On screen"; topPadding: Kirigami.Units.largeSpacing }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
-        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Events widget" }
+        Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Events widget"; topPadding: Kirigami.Units.largeSpacing }
         // the companion widget: a card that says what it is and puts it on the desktop (helper `widget --add`, through
         // plasmashell's scripting interface), points at the Store when it is not installed, and says when it is there
         RowLayout {
             visible: secE.open
             Kirigami.FormData.label: "Events widget:"
             Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.largeSpacing
             Kirigami.Icon { source: "view-list-details"; implicitWidth: Kirigami.Units.iconSizes.large; implicitHeight: implicitWidth; Layout.alignment: Qt.AlignTop }
@@ -1137,6 +1143,7 @@ RowLayout {
         RowLayout {
             visible: secE.open && (form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain)
             Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
             QQC2.Label {
@@ -2521,6 +2528,7 @@ RowLayout {
             visible: sec17.open
             id: statusLoader
             Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 44
             source: "StatusPanel.qml"
             onLoaded: {
                 item.quakeFeed = Qt.binding(function () { return ["2.5_day", "4.5_day", "significant_week"][quakeFeed.currentIndex] || "4.5_day" });
@@ -2539,6 +2547,7 @@ RowLayout {
             visible: sec17c.open
             id: coverageLoader
             Layout.fillWidth: true
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 44
             source: "CoveragePanel.qml"
             onLoaded: {
                 item.homeLat = Qt.binding(function () { return homeLat.text });
