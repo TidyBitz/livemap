@@ -30,7 +30,7 @@ import org.kde.plasma.plasma5support as P5Support
  */
 RowLayout {
     id: form
-    property alias formLayout: page
+    property alias formLayout: pageForm
     spacing: Kirigami.Units.largeSpacing
 
     // map
@@ -497,7 +497,7 @@ RowLayout {
         var cur = sections.find(function (s) { return s.title === form.page; });
         if (cur && cur.matches) return;
         var first = sideList.find(function (s) { return s.matches; });
-        if (first) page = first.title;
+        if (first) form.page = first.title;
     }
     // A section is one page: its heading row (the Show switch, the health of its sources, the title and one line
     // that says what it is set to) and every row below it that is `visible: secN.open`.
@@ -571,7 +571,7 @@ RowLayout {
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: row.implicitHeight + Kirigami.Units.smallSpacing * 2
-                radius: Kirigami.Units.cornerRadius
+                radius: Kirigami.Units.smallSpacing
                 color: se.selected ? Qt.alpha(Kirigami.Theme.highlightColor, 0.3) : hover.containsMouse ? Qt.alpha(Kirigami.Theme.highlightColor, 0.12) : "transparent"
                 MouseArea { id: hover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: form.page = se.modelData.title }
                 Rectangle { visible: se.selected; width: 3; height: parent.height; radius: 1; color: Kirigami.Theme.highlightColor }
@@ -920,7 +920,7 @@ RowLayout {
     // stacked layout in a narrow window, which moves every label; with the controls capped in width the page
     // simply gets narrower instead.
     Kirigami.FormLayout {
-        id: page
+        id: pageForm
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignTop
         wideMode: true
