@@ -2285,13 +2285,29 @@ Kirigami.FormLayout {
         onLoaded: {
             item.quakeFeed = Qt.binding(function () { return ["2.5_day", "4.5_day", "significant_week"][quakeFeed.currentIndex] || "4.5_day" });
             item.oceanFrom = Qt.binding(function () { return baseImage.text });
-            item.homeLat = Qt.binding(function () { return homeLat.text });
-            item.homeLon = Qt.binding(function () { return homeLon.text });
         }
     }
     QQC2.Label {
         visible: sec17.open && statusLoader.status === Loader.Error
         text: "The status panel could not be loaded. The settings above still work."
+        color: Kirigami.Theme.negativeTextColor
+    }
+
+    // =============================================================== Coverage
+    SectionHeader { id: sec17c; title: "Coverage: what covers where, and how fast"; twin: null; summary: coverageLoader.item && coverageLoader.item.coverage ? (coverageLoader.item.coverage.here ? "Where you are: " + (coverageLoader.item.coverage.here.country || coverageLoader.item.coverage.here.region) + " · " : "") + coverageLoader.item.coverage.sources.length + " sources, " + coverageLoader.item.coverage.hazards.length + " hazards by " + coverageLoader.item.coverage.regions.length + " regions" : "Hazards by world region, with the source and how fast it reports" }
+    Loader {
+        visible: sec17c.open
+        id: coverageLoader
+        Layout.fillWidth: true
+        source: "CoveragePanel.qml"
+        onLoaded: {
+            item.homeLat = Qt.binding(function () { return homeLat.text });
+            item.homeLon = Qt.binding(function () { return homeLon.text });
+        }
+    }
+    QQC2.Label {
+        visible: sec17c.open && coverageLoader.status === Loader.Error
+        text: "The coverage panel could not be loaded. The settings above still work."
         color: Kirigami.Theme.negativeTextColor
     }
 

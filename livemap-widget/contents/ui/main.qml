@@ -329,7 +329,7 @@ PlasmoidItem {
     Component.onCompleted: { refresh(); refreshMode(); }
     Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
-    onExpandedChanged: if (expanded) { refresh(); refreshMode(); markSeen(); }
+    onExpandedChanged: if (root.expanded) { refresh(); refreshMode(); markSeen(); }
 
     toolTipMainText: "Live World Map"
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
@@ -551,7 +551,7 @@ PlasmoidItem {
                                         color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, chipHover.containsMouse ? 0.16 : 0.08)
                                         border.width: 1; border.color: modelData.crossed ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.neutralTextColor
                                         PC3.Label { id: chip; anchors.centerIn: parent; text: modelData.text; font.pointSize: Kirigami.Theme.smallFont.pointSize; textFormat: Text.PlainText }
-                                        PC3.ToolTip.text: facilitiesOpen ? "Fold the list away" : "Unfold the full list"; PC3.ToolTip.visible: chipHover.containsMouse
+                                        PC3.ToolTip.text: facilitiesOpen ? "Fold the list away" : "Unfold the full list"; PC3.ToolTip.visible: !!(chipHover && chipHover.containsMouse)
                                         HoverHandler { id: chipHover }
                                         TapHandler { onTapped: root.toggleFacilities(row.modelData.key) }
                                     }
