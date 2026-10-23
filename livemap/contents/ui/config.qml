@@ -319,6 +319,7 @@ Kirigami.FormLayout {
     property alias cfg_FloodAreaOpacity: floodAreaOpacity.value
     property alias cfg_FloodNws: floodNws.checked
     property alias cfg_FloodNwsEach: floodNwsEach.checked
+    property int cfg_FloodWarnSources
     property alias cfg_FloodLabels: floodLabels.currentIndex
     property alias cfg_FloodLabelSize: floodLabelSize.value
     property alias cfg_FloodLabelPlate: floodPlate.checked
@@ -1717,8 +1718,8 @@ Kirigami.FormLayout {
     Note { visible: sec9.open; text: "Labels: an incident reads name, size, containment or stage, personnel and age ('Bouquet · 1.0k ac · 35 % contained · 600 personnel · 3 d'); a GDACS event reads place, burned area and how long it has been listed. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = a GDACS orange or red, or an incident of 1 000 ha still burning; with 'Orange and red only' those are the only incidents labelled. A fire ages out once its source drops it." }
 
     // ============================================================== Floods
-    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
-    Source { visible: sec9f.open; names: ["Floods (GDACS)", "US flood alerts (NWS)"] }
+    SectionHeader { id: sec9f; title: "Floods"; sourceNames: ["Floods (GDACS)", "US flood alerts (NWS)", "European warnings (MeteoAlarm)", "Canadian alerts (Environment Canada)", "England flood warnings (Environment Agency)"]; twin: floods; summary: floods.checked ? floodMinLevel.currentText + (floodNws.checked ? " · US alerts" : "") + (form.cfg_FloodWarnSources ? " · " + [[2, "Europe"], [4, "Canada"], [8, "England"]].filter(function (p) { return form.cfg_FloodWarnSources & p[0]; }).map(function (p) { return p[1]; }).join(", ") : "") + (floodArea.checked ? " · affected area " + floodAreaOpacity.value + " %" : "") + " · labels: " + floodLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9f.open; names: ["Floods (GDACS)", "US flood alerts (NWS)", "European warnings (MeteoAlarm)", "Canadian alerts (Environment Canada)", "England flood warnings (Environment Agency)"] }
 
     QQC2.CheckBox { visible: sec9f.open; id: floods; Kirigami.FormData.label: "Show:"; text: "Floods" }
     Amount {
@@ -1737,8 +1738,22 @@ Kirigami.FormLayout {
         model: ["All levels (GDACS green, NWS watches and advisories too)", "Orange and red (GDACS) · warnings (NWS)", "Red only (GDACS) · flash flood warnings (NWS)"]
     }
     QQC2.CheckBox { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
-    QQC2.CheckBox { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && floodNws.checked; text: "Every alert on its own (unticked: one mark per forecast office and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
-    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). A wet week has an office issue a flood warning per river gauge, so by default an office's warnings of one type are one mark, one label and one area; 'Red only' under labels keeps the text to flash floods. US only; untick outside the US to save the request." }
+    RowLayout {
+        visible: sec9f.open
+        Kirigami.FormData.label: "Official warnings:"
+        enabled: floods.checked
+        Repeater {
+            model: [[2, "MeteoAlarm (Europe, 38 services)"], [4, "Environment Canada"], [8, "Environment Agency (England)"]]
+            QQC2.CheckBox {
+                required property var modelData
+                text: modelData[1]
+                checked: (form.cfg_FloodWarnSources & modelData[0]) !== 0
+                onToggled: form.cfg_FloodWarnSources = checked ? (form.cfg_FloodWarnSources | modelData[0]) : (form.cfg_FloodWarnSources & ~modelData[0])
+            }
+        }
+    }
+    QQC2.CheckBox { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && (floodNws.checked || form.cfg_FloodWarnSources > 0); text: "Every alert on its own (unticked: one mark per forecast office or country and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
+    Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). A wet week has an office issue a flood warning per river gauge, so by default an office's warnings of one type are one mark, one label and one area; 'Red only' under labels keeps the text to flash floods. US only; untick outside the US to save the request. The official warnings elsewhere join the same list: MeteoAlarm's flood, rain and coastal warnings for the 38 European services (yellow counts as the watch tier, orange and red as warnings; placed on the named regions, every 30 minutes), Environment Canada's rainfall and flood alerts with their polygons (every 15 minutes), and the Environment Agency's flood alerts and warnings for England with each flood area's outline (every 15 minutes)." }
     Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
     RowLayout {
         visible: sec9f.open

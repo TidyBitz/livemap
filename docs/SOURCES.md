@@ -207,6 +207,26 @@ best track or, failing that, from the trail; `storm_impacts` works out what each
   message stays `TSUNAMI_KEEP_HOURS` past its own `expires` (6 h for an information statement, 24 h for a
   threat). Cached 5 minutes (`last-tsunami.json`); the layer asks every 5 minutes.
 
+### Official flood warnings beyond the US (`warnings.py`)
+Three sources in the NWS alert's shape, each cached and fetched on its own clock, joined to the flood layer by
+the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment Agency; NWS is bit 1 via
+`FloodNws`) and grouped per office or country and event like the NWS ones.
+- **MeteoAlarm** - `feeds.meteoalarm.org/api/v1/warnings/feeds-<country-slug>`, one JSON per country (38 feeds,
+  `Accept: */*`), every current warning as a CAP alert with English and local `info`s. Kept: `awareness_type`
+  7 coastal event, 10 rain, 12 flooding, 13 rain-flood; `awareness_level` 2 yellow → green tier, 3 orange,
+  4 red (1 green is no warning). No geometry: each `areaDesc` is placed on `contents/data/europe-regions.json`
+  (Natural Earth 10m admin-1 units and their regions for the 38 countries: normalised names, a centre, rings
+  thinned to 0.05°), matched exactly or on the longest shared name start of 5+ characters; unknown areas fall
+  back to the country's centre. Licence CC BY 4.0 (EUMETNET). Every 30 minutes.
+- **Environment and Climate Change Canada** - GeoMet WFS `typename=ALERTS` as GeoJSON with polygons; kept where
+  the headline matches `flood|rainfall|rain\b|storm surge`; level red for a flash flood, orange for a warning,
+  green otherwise. Open Government Licence - Canada. Every 15 minutes. (The property names are read
+  tolerantly - `headline`, `alert_type`, `area`, `expires`, `url` - and should be confirmed against the live layer.)
+- **Environment Agency** - `environment.data.gov.uk/flood-monitoring/id/floods`: `severityLevel` 1 severe (red),
+  2 warning (orange), 3 alert (green), 4 no longer in force (dropped); each flood area's polygon is fetched once
+  (`EA_AREAS_PER_RUN = 25` per refresh) and kept in `ea-areas/`. OGL v3 with the attribution line the Agency
+  requires (in `sources.json`). England only. Every 15 minutes.
+
 ### Wildfires - GDACS (worldwide events)
 - As for floods with `eventtype == "WF"`; the name has `^(forest )?fires? in ` stripped.
 

@@ -71,7 +71,7 @@ def test_coverage_matrix_has_every_hazard_and_region():
     for h in cov["hazards"]:
         assert set(cov["matrix"][h["id"]]) == {r["id"] for r in cov["regions"]}
     assert cov["matrix"]["quake"]["eu"][0]["id"] == "usgs"
-    assert cov["matrix"]["flood"]["na"][0]["id"] == "nws" and cov["matrix"]["flood"]["eu"][0]["id"] == "gdacs-fl"
+    assert cov["matrix"]["flood"]["na"][0]["id"] == "nws" and cov["matrix"]["flood"]["eu"][0]["id"] == "meteoalarm" and cov["matrix"]["flood"]["sca"][0]["id"] == "gdacs-fl"
     md = coverage.coverage_markdown(cov)
     assert md.startswith("# Coverage") and "| Earthquakes |" in md
 

@@ -9,11 +9,11 @@ import urllib.request
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .alerts import fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, HISTORY, HISTORY_DAYS, VERSION, _age, _http, area_text, emit, last_good, \
-    on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_units, \
+    on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
     wind_text
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
-from .floods import group_nws, nws_floods_cached, people_text
+from .floods import official_floods, group_nws, nws_floods_cached, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
 from .space import SATS, fetch_launches
@@ -145,14 +145,15 @@ def cmd_feed(args):
         problems.append("air alerts: %s" % e)
     # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
     try:
-        nws, _h, _e = nws_floods_cached(10)
+        nws, _note = official_floods(read_layers_int("flood_sources", 15), 10)
         if not read_layers_flag("nws_each"):
             nws = group_nws(nws or [])
         for a in nws or []:
             if ["green", "orange", "red"].index(a["alert"]) < flood_level:
                 continue
             items.append({"kind": "flood", "when": a.get("onset") or now, "title": "%s \u00b7 %s" % (a["event"], a["name"]),
-                          "detail": "NWS%s \u00b7 until %s" % ("" if a.get("count") else " " + a["office"], time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else "?"),
+                          "detail": "%s%s%s" % ({"meteoalarm": "MeteoAlarm", "eccc": "Environment Canada", "ea": "Environment Agency"}.get(a.get("source"), "NWS"), "" if a.get("count") or a.get("source") not in (None, "nws") else " " + a["office"],
+                                                 " \u00b7 until " + time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else ""),
                           "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
     except Exception as e:
         problems.append("nws floods: %s" % e)

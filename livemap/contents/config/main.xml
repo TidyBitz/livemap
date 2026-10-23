@@ -100,7 +100,8 @@
     <entry name="FloodArea" type="Bool"><default>true</default></entry>
     <entry name="FloodAreaOpacity" type="Int"><default>25</default></entry>
     <entry name="FloodNws" type="Bool"><default>true</default></entry>
-    <entry name="FloodNwsEach" type="Bool"><default>false</default></entry>   <!-- every NWS alert on its own; default one mark per office and alert type -->
+    <entry name="FloodNwsEach" type="Bool"><default>false</default></entry>
+    <entry name="FloodWarnSources" type="Int"><default>14</default></entry>   <!-- official warnings beyond the US: 2 MeteoAlarm (Europe), 4 Environment Canada, 8 Environment Agency (England) -->   <!-- every NWS alert on its own; default one mark per office and alert type -->
     <entry name="HotspotMinCount" type="Int"><default>2</default></entry>
     <entry name="HotspotTier" type="Int"><default>0</default></entry>     <!-- 0 needs attention only, 1 notable and up, 2 everything -->
     <!-- rivers (Natural Earth rivers and lake centerlines) -->

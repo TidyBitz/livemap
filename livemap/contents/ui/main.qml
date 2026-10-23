@@ -50,6 +50,7 @@ WallpaperItem {
             item.floodLevel = Qt.binding(function () { return cfg.FloodMinLevel });
             item.nwsEach = Qt.binding(function () { return cfg.FloodNwsEach });
             item.fireSources = Qt.binding(function () { return cfg.FireSources });
+            item.floodSources = Qt.binding(function () { return (cfg.FloodNws ? 1 : 0) | cfg.FloodWarnSources });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false

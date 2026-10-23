@@ -280,7 +280,7 @@ def group_nws(alerts):
         g["count"] = n
         g["counties"] = max(len(counties), g["counties"])   # the sum of the alerts' counts, or the named ones
         g["name"] = ("%d counties" % g["counties"] if g["counties"] > 2 else "; ".join(counties)) + (" \u00b7 " + g["office"] if g["office"] else "")
-        g["url"] = "https://alerts.weather.gov/search?area=" + urllib.request.quote(g["office"]) if n > 1 else g["url"]
+        g["url"] = ("https://alerts.weather.gov/search?area=" + urllib.request.quote(g["office"])) if n > 1 and g.get("source") in (None, "nws") else g["url"]
         for k in ("members", "counties_list", "lats", "lons"):
             g.pop(k, None)
         out.append(g)
@@ -300,11 +300,25 @@ def nws_floods_cached(max_age_min=10):
     return last_good("nws-floods", fetch_nws_floods)
 
 
+def official_floods(mask, max_age_min=10, stale_limit=6):
+    """Every official flood warning source in the mask (1 NWS, 2 MeteoAlarm, 4 ECCC, 8 EA): (alerts, note)."""
+    from .warnings import warnings_cached
+    alerts, notes = [], []
+    if mask & 1:
+        data, stale_h, err = nws_floods_cached(max_age_min)
+        if err:
+            notes.append(stale_note("US flood alerts", stale_h, err, stale_limit))
+        alerts += data or []
+    if mask & ~1:
+        more, more_notes = warnings_cached(mask)
+        alerts += more
+        notes += ["Flood warnings - " + n for n in more_notes]
+    return alerts, "; ".join(n for n in notes if n)
+
+
 def cmd_nws_floods(args):
     note, alerts = "", []
-    data, stale_h, err = nws_floods_cached(args.max_age)
-    if err:
-        note = stale_note("US flood alerts", stale_h, err, args.stale)
+    data, note = official_floods(args.sources, args.max_age, args.stale)
     try:
         alerts = remember_events("nwsflood", data or [], lambda a: a["id"], 0.5, sig_of=lambda a: a["alert"])
         alerts = [a for a in alerts if not a.get("gone")]       # an alert that ended is simply gone: no ageing out
@@ -314,7 +328,7 @@ def cmd_nws_floods(args):
         note = note or "US flood alerts: %s" % e
     if args.table:
         import time
-        print(note or "%d active NWS flood alerts" % len(alerts))
+        print(note or "%d active official flood alerts (sources %d)" % (len(alerts), args.sources))
         for a in sorted(alerts, key=lambda a: ("green", "orange", "red").index(a["alert"]), reverse=True):
             print("  %-22s %-7s %-44s %s  until %s  %d rings  first seen %s" % (
                 a["event"][:22], a["alert"], a["name"][:44], "" if not args.each else a["office"][:18],

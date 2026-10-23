@@ -57,9 +57,11 @@ Item {
         return !!(!fl.gone && (((pulseMode & 1) && first >= 0 && first < pulseNewHours) || ((pulseMode & 2) && significant(fl))));
     }
     readonly property bool wantNws: cfg ? cfg.FloodNws : true
+    readonly property int warnSources: (wantNws ? 1 : 0) | (cfg ? cfg.FloodWarnSources : 14)   // 1 NWS, 2 MeteoAlarm, 4 ECCC, 8 EA
+    readonly property bool wantWarnings: warnSources > 0
     property var floods: []
     property var nws: []
-    readonly property var shown: floods.concat(wantNws ? nws : []).filter(function (fl) { return levelOf(fl) >= minLevel; })
+    readonly property var shown: floods.concat(wantWarnings ? nws : []).filter(function (fl) { return levelOf(fl) >= minLevel; })
         .sort(function (a, b) { return levelOf(b) - levelOf(a) || (b.days || 0) - (a.days || 0); })
     property string note: ""
     readonly property string hint: note
@@ -147,13 +149,14 @@ Item {
     }
     Timer {                                       // warnings are minutes old when issued: every 10 minutes (30 when saving)
         interval: (overlay.slow ? 30 : 10) * 60000
-        running: overlay.helper !== "" && overlay.wantNws
+        running: overlay.helper !== "" && overlay.wantWarnings
         repeat: true
         triggeredOnStart: true
         onTriggered: overlay.askNws()
     }
-    function askNws() { nwsExec.connectSource("python3 '" + helper + "' nws-floods --stale " + staleHours + (nwsEach ? " --each" : "") + " # " + Date.now()) }
-    onNwsEachChanged: if (helper !== "" && wantNws) askNws()
+    function askNws() { nwsExec.connectSource("python3 '" + helper + "' nws-floods --stale " + staleHours + " --sources " + warnSources + (nwsEach ? " --each" : "") + " # " + Date.now()) }
+    onNwsEachChanged: if (helper !== "" && wantWarnings) askNws()
+    onWarnSourcesChanged: if (helper !== "" && wantWarnings) askNws()
 
     Repeater {                                    // the affected areas, under every mark
         model: overlay.showArea ? overlay.shown : []

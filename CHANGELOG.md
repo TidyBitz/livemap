@@ -6,6 +6,12 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Official flood warnings beyond the US: MeteoAlarm (the 38 European national weather services - flood, rain
+  and coastal warnings by region, placed on Natural Earth's regions by name), Environment Canada's rainfall and
+  flood alerts with their polygons, and the Environment Agency's flood alerts and warnings for England with each
+  flood area's outline, all in the flood layer and the widget beside the NWS alerts, grouped per country or
+  office and type; three new boxes under Floods, on by default. The coverage matrix's Floods row is now
+  "minutes" for Europe, Canada and England.
 - Tsunami bulletins: every large undersea earthquake the Pacific and National Tsunami Warning Centers evaluate
   (tsunami.gov), as a ringed mark at the epicentre coloured by the level - no threat found (quiet blue-grey),
   watch, advisory, warning or threat message - with rings running out while a threat stands and the threatened

@@ -74,7 +74,7 @@ def main():
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
-    pw.add_argument("--fire-sources", dest="fire_sources", type=int)
+    pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -109,6 +109,7 @@ def main():
     nw = sub.add_parser("nws-floods"); nw.add_argument("--table", action="store_true"); nw.add_argument("--stale", type=float, default=1)
     nw.add_argument("--max-age", dest="max_age", type=float, default=10)   # minutes the cache is trusted
     nw.add_argument("--each", action="store_true"); nw.set_defaults(fn=cmd_nws_floods)   # every alert on its own, not one per office and type
+    nw.add_argument("--sources", type=int, default=1)                                     # 1 NWS, 2 MeteoAlarm, 4 ECCC, 8 EA (a mask)
     b = sub.add_parser("borders"); b.add_argument("--detail", default="110m", choices=["110m", "50m"])
     b.add_argument("--states", action="store_true"); b.add_argument("--names", action="store_true")
     b.add_argument("--zones", action="store_true"); b.add_argument("--zone-row", dest="zone_row", type=float)

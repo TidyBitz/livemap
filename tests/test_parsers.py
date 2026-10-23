@@ -165,3 +165,74 @@ def test_history_seen_updated_and_reseed(data_dir):
     items[0]["level"] = 2                                          # the launch enters its last hour
     feed.remember_history(items, now + 10)
     assert items[0]["updated"] == now + 10
+
+
+# ---- official flood warnings beyond the US ------------------------------------------------------------------
+def _soon(hours):
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+
+def test_meteoalarm_flood_types_levels_and_placement():
+    from livemap_helper import warnings as w
+    body = json.loads(fixture("meteoalarm_italy.json").replace("EFFECTIVE", _soon(-1)).replace("EXPIRES", _soon(6)))
+    alerts = w.parse_meteoalarm(body, "italy")
+    events = {a["name"]: a for a in alerts}
+    assert "Piemonte" not in events                                  # wind is not this layer's
+    assert "Sardegna" not in events                                  # green is no warning
+    lig = events["Liguria"]
+    assert lig["alert"] == "orange" and lig["event"] == "Rain and Flood Warning" and lig["office"] == "Italy"
+    assert 43.5 < lig["lat"] < 45 and 7 < lig["lon"] < 10.5         # placed on Natural Earth's Liguria
+    assert lig["area"], "the region's rings come along as the area"
+    vda = events["Valle d'Aosta; Nowhere Special"]
+    assert vda["alert"] == "green" and vda["counties"] == 2 and 45 < vda["lat"] < 46.5   # the unknown area is ignored, the known one places it
+
+
+def test_meteoalarm_region_lookup_handles_accents_and_variants():
+    from livemap_helper import warnings as w
+    assert w.place_region("IT", "Valle d'Aosta") is not None
+    assert w.place_region("ES", "Andalucía") is not None
+    assert w.place_region("DE", "Bayern") is not None
+    assert w.place_region("FR", "No Such Region Anywhere") is None
+
+
+def test_eccc_flood_filter_and_levels():
+    from livemap_helper import warnings as w
+    body = json.loads(fixture("eccc_alerts.json").replace("2026-10-23T20:00:00Z", _soon(6)))
+    alerts = w.parse_eccc(body)
+    names = {a["name"]: a for a in alerts}
+    assert "Toronto" not in names                                     # snow is not this layer's
+    assert names["Metro Vancouver"]["alert"] == "orange" and names["Metro Vancouver"]["event"] == "Rainfall Warning"
+    assert names["Saint John"]["alert"] == "green"
+    assert names["Metro Vancouver"]["area"] and -123.4 < names["Metro Vancouver"]["lon"] < -122.8
+
+
+def test_ea_levels_and_area_cache(no_network, data_dir):
+    from livemap_helper import warnings as w
+    no_network("floodAreas/065WAF4Ouse/polygon", fixture("ea_area.json"))
+    no_network("floodAreas/122FWF123/polygon", fixture("ea_area.json").replace("-1.10", "-2.80").replace("-1.05", "-2.70"))
+    alerts = w.parse_ea(json.loads(fixture("ea_floods.json")))
+    by = {a["id"]: a for a in alerts}
+    assert "ea:gone" not in by                                        # no longer in force
+    assert by["ea:065waf4ouse"]["alert"] == "orange" and 53.9 < by["ea:065waf4ouse"]["lat"] < 54.01
+    assert by["ea:122fwf123"]["alert"] == "red" and by["ea:122fwf123"]["office"] == "West Midlands"
+    assert (data_dir / "ea-areas" / "065WAF4Ouse.json").exists()     # fetched once, kept
+    no_network("floodAreas/065WAF4Ouse/polygon", "not json at all")
+    again = w.parse_ea(json.loads(fixture("ea_floods.json")))
+    assert len(again) == 2                                           # served from the cache, the broken response never read
+
+
+def test_official_floods_mask_and_grouping(no_network, monkeypatch):
+    from livemap_helper import floods, warnings as w
+    no_network("api.weather.gov/alerts/active", fixture("nws_alerts.json"))
+    body = fixture("meteoalarm_italy.json").replace("EFFECTIVE", _soon(-1)).replace("EXPIRES", _soon(6))
+    for slug in w.METEOALARM_COUNTRIES:
+        no_network("feeds-" + slug, body if slug == "italy" else '{"warnings": []}')
+    alerts, note = floods.official_floods(1 | 2)
+    assert note == ""
+    assert {a["source"] for a in alerts} == {"nws", "meteoalarm"}
+    groups = floods.group_nws(alerts)
+    it = [g for g in groups if g["office"] == "Italy"]
+    assert len(it) == 2 and all(g["url"].startswith("https://www.meteoalarm.org") for g in it)
+    only_us, _ = floods.official_floods(1)
+    assert {a["source"] for a in only_us} == {"nws"}

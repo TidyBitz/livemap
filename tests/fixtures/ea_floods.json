@@ -1,0 +1,11 @@
+{"@context": "http://environment.data.gov.uk/flood-monitoring/meta/context.jsonld", "items": [
+ {"@id": "http://environment.data.gov.uk/flood-monitoring/id/floods/065WAF4Ouse", "description": "River Ouse at York", "eaAreaName": "Yorkshire",
+  "floodArea": {"@id": "http://environment.data.gov.uk/flood-monitoring/id/floodAreas/065WAF4Ouse", "county": "North Yorkshire", "notation": "065WAF4Ouse",
+                "polygon": "http://environment.data.gov.uk/flood-monitoring/id/floodAreas/065WAF4Ouse/polygon", "riverOrSea": "River Ouse"},
+  "floodAreaID": "065WAF4Ouse", "isTidal": false, "message": "River levels are rising", "severity": "Flood Warning", "severityLevel": 2,
+  "timeMessageChanged": "2026-10-23T05:00:00", "timeRaised": "2026-10-23T04:30:00", "timeSeverityChanged": "2026-10-23T04:30:00"},
+ {"@id": "http://environment.data.gov.uk/flood-monitoring/id/floods/122FWF123", "description": "Severe: River Severn at Shrewsbury", "eaAreaName": "West Midlands",
+  "floodArea": {"county": "Shropshire", "notation": "122FWF123", "polygon": "http://environment.data.gov.uk/flood-monitoring/id/floodAreas/122FWF123/polygon", "riverOrSea": "River Severn"},
+  "floodAreaID": "122FWF123", "severity": "Severe Flood Warning", "severityLevel": 1, "timeRaised": "2026-10-23T03:00:00"},
+ {"@id": "x", "description": "Gone", "floodArea": {"polygon": ""}, "floodAreaID": "GONE", "severity": "Warning no longer in force", "severityLevel": 4}
+]}

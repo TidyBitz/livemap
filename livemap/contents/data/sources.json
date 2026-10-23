@@ -1,82 +1,584 @@
 {
   "_about": "Every data source Live World Map reads, once: the coverage matrix on the Status tab, the 'where you are' lines and docs/COVERAGE.md are all made from this file (livemap-helper coverage). docs/SOURCES.md has the per-feed detail.",
   "regions": [
-    {"id": "na",  "name": "North America",            "box": [-170, 15, -50, 85]},
-    {"id": "la",  "name": "Latin America & Caribbean", "box": [-120, -60, -30, 33]},
-    {"id": "eu",  "name": "Europe",                    "box": [-30, 34, 45, 82]},
-    {"id": "mea", "name": "Middle East & Africa",      "box": [-25, -40, 65, 42]},
-    {"id": "sca", "name": "South & Central Asia",      "box": [44, 5, 98, 56]},
-    {"id": "eap", "name": "East Asia & Pacific",       "box": [98, -12, 180, 60]},
-    {"id": "oc",  "name": "Oceania",                   "box": [110, -55, 180, -10]},
-    {"id": "pol", "name": "Oceans & polar",            "box": null}
+    {
+      "id": "na",
+      "name": "North America",
+      "box": [
+        -170,
+        15,
+        -50,
+        85
+      ]
+    },
+    {
+      "id": "la",
+      "name": "Latin America & Caribbean",
+      "box": [
+        -120,
+        -60,
+        -30,
+        33
+      ]
+    },
+    {
+      "id": "eu",
+      "name": "Europe",
+      "box": [
+        -30,
+        34,
+        45,
+        82
+      ]
+    },
+    {
+      "id": "mea",
+      "name": "Middle East & Africa",
+      "box": [
+        -25,
+        -40,
+        65,
+        42
+      ]
+    },
+    {
+      "id": "sca",
+      "name": "South & Central Asia",
+      "box": [
+        44,
+        5,
+        98,
+        56
+      ]
+    },
+    {
+      "id": "eap",
+      "name": "East Asia & Pacific",
+      "box": [
+        98,
+        -12,
+        180,
+        60
+      ]
+    },
+    {
+      "id": "oc",
+      "name": "Oceania",
+      "box": [
+        110,
+        -55,
+        180,
+        -10
+      ]
+    },
+    {
+      "id": "pol",
+      "name": "Oceans & polar",
+      "box": null
+    }
   ],
   "hazards": [
-    {"id": "quake",   "name": "Earthquakes"},
-    {"id": "tsunami", "name": "Tsunami"},
-    {"id": "storm",   "name": "Tropical storms"},
-    {"id": "flood",   "name": "Floods & flood warnings"},
-    {"id": "fire",    "name": "Wildfires"},
-    {"id": "volcano", "name": "Volcanoes"},
-    {"id": "alert",   "name": "Civil alerts"},
-    {"id": "launch",  "name": "Rocket launches"},
-    {"id": "sat",     "name": "Satellites"},
-    {"id": "weather", "name": "Clouds & basemap"},
-    {"id": "map",     "name": "Borders, rivers, names"}
+    {
+      "id": "quake",
+      "name": "Earthquakes"
+    },
+    {
+      "id": "tsunami",
+      "name": "Tsunami"
+    },
+    {
+      "id": "storm",
+      "name": "Tropical storms"
+    },
+    {
+      "id": "flood",
+      "name": "Floods & flood warnings"
+    },
+    {
+      "id": "fire",
+      "name": "Wildfires"
+    },
+    {
+      "id": "volcano",
+      "name": "Volcanoes"
+    },
+    {
+      "id": "alert",
+      "name": "Civil alerts"
+    },
+    {
+      "id": "launch",
+      "name": "Rocket launches"
+    },
+    {
+      "id": "sat",
+      "name": "Satellites"
+    },
+    {
+      "id": "weather",
+      "name": "Clouds & basemap"
+    },
+    {
+      "id": "map",
+      "name": "Borders, rivers, names"
+    }
   ],
-  "leads": {"minutes": "minutes after the event or the warning", "hours": "hours", "days": "days (weekly or episodic reporting)", "static": "downloaded once"},
+  "leads": {
+    "minutes": "minutes after the event or the warning",
+    "hours": "hours",
+    "days": "days (weekly or episodic reporting)",
+    "static": "downloaded once"
+  },
   "sources": [
-    {"id": "usgs", "name": "USGS Earthquake Hazards Program", "hazard": "quake", "regions": ["world"], "gives": "events, magnitude, depth, tsunami flag", "lead": "minutes", "cadence": "every 5 min", "official": true,
-     "licence": "US public domain", "attribution": "U.S. Geological Survey", "url": "https://earthquake.usgs.gov/", "status": "Earthquake feed (USGS)",
-     "note": "Complete for M4.5+ worldwide; below that, US-centred"},
-    {"id": "ptwc", "name": "Pacific Tsunami Warning Center (tsunami.gov)", "hazard": "tsunami", "regions": ["na", "la", "eap", "oc", "sca", "mea", "pol"], "gives": "evaluations, watches, advisories, warnings and threat messages; threatened coast", "lead": "minutes", "cadence": "every 5 min", "official": true,
-     "licence": "US public domain", "attribution": "NOAA / NWS Pacific Tsunami Warning Center", "url": "https://www.tsunami.gov/", "status": "Tsunami bulletins (PTWC / NTWC)",
-     "note": "The Pacific and the Caribbean in full; threat messages for the Indian Ocean and other basins"},
-    {"id": "ntwc", "name": "National Tsunami Warning Center (tsunami.gov)", "hazard": "tsunami", "regions": ["na"], "countries": ["US", "CA"], "gives": "watches, advisories, warnings for the US and Canadian coasts", "lead": "minutes", "cadence": "every 5 min", "official": true,
-     "licence": "US public domain", "attribution": "NOAA / NWS National Tsunami Warning Center", "url": "https://www.tsunami.gov/", "status": "Tsunami bulletins (PTWC / NTWC)"},
-    {"id": "gdacs-tc", "name": "GDACS tropical cyclones", "hazard": "storm", "regions": ["world"], "gives": "events rated on humanitarian impact (green / orange / red), episode track and cone", "lead": "hours", "cadence": "every 30 min", "official": true,
-     "licence": "GDACS terms (UN / EU JRC), attribution", "attribution": "GDACS (UN OCHA / European Commission JRC)", "url": "https://www.gdacs.org/", "status": "Storms (GDACS)",
-     "note": "Lists a storm once it rates the impact; its wind is the episode peak"},
-    {"id": "nhc", "name": "NOAA National Hurricane Center", "hazard": "storm", "regions": ["na", "la", "pol"], "gives": "wind now, best track with winds, forecast with winds, cone", "lead": "minutes", "cadence": "every 30 min", "official": true,
-     "licence": "US public domain", "attribution": "NOAA National Hurricane Center", "url": "https://www.nhc.noaa.gov/", "status": "Storms, secondary (NHC)",
-     "note": "Atlantic, eastern and central Pacific"},
-    {"id": "jtwc", "name": "Joint Typhoon Warning Center", "hazard": "storm", "regions": ["eap", "sca", "oc", "mea", "pol"], "gives": "wind now, forecast with winds; best track via UCAR's ATCF mirror", "lead": "minutes", "cadence": "every 30 min", "official": true,
-     "licence": "US public domain (JTWC); UCAR terms of service for the decks", "attribution": "Joint Typhoon Warning Center; NCAR/UCAR TC guidance", "url": "https://www.metoc.navy.mil/jtwc/", "status": "Storms, secondary (JTWC)",
-     "note": "Western Pacific, Indian Ocean, southern hemisphere"},
-    {"id": "gdacs-fl", "name": "GDACS floods", "hazard": "flood", "regions": ["world"], "gives": "flood events rated on people exposed, affected districts, Sendai figures", "lead": "hours", "cadence": "hourly", "official": true,
-     "licence": "GDACS terms, attribution", "attribution": "GDACS", "url": "https://www.gdacs.org/", "status": "Floods (GDACS)"},
-    {"id": "nws", "name": "NWS flood alerts (api.weather.gov)", "hazard": "flood", "regions": ["na"], "countries": ["US"], "gives": "official flash flood and flood warnings, watches and advisories with counties and polygons", "lead": "minutes", "cadence": "every 10 min", "official": true,
-     "licence": "US public domain", "attribution": "NOAA National Weather Service", "url": "https://www.weather.gov/", "status": "US flood alerts (NWS)"},
-    {"id": "gdacs-wf", "name": "GDACS wildfires", "hazard": "fire", "regions": ["world"], "gives": "wildfire events by alert level", "lead": "hours", "cadence": "hourly", "official": true,
-     "licence": "GDACS terms, attribution", "attribution": "GDACS", "url": "https://www.gdacs.org/", "status": "Wildfires (GDACS)"},
-    {"id": "nifc", "name": "NIFC interagency perimeters", "hazard": "fire", "regions": ["na"], "countries": ["US"], "gives": "named incidents with size, containment, personnel, mapped perimeter", "lead": "minutes", "cadence": "every 30 min", "official": true,
-     "licence": "US public domain", "attribution": "National Interagency Fire Center (WFIGS)", "url": "https://data-nifc.opendata.arcgis.com/", "status": "US fire incidents (NIFC)"},
-    {"id": "cwfis", "name": "CWFIS active fires", "hazard": "fire", "regions": ["na"], "countries": ["CA"], "gives": "agency fires with stage of control, satellite perimeter estimates", "lead": "hours", "cadence": "every 30 min", "official": true,
-     "licence": "Open Government Licence - Canada", "attribution": "Natural Resources Canada, Canadian Wildland Fire Information System", "url": "https://cwfis.cfs.nrcan.gc.ca/", "status": "Canadian fires (CWFIS)"},
-    {"id": "effis", "name": "EFFIS burnt areas", "hazard": "fire", "regions": ["eu", "mea"], "gives": "burnt-area polygons of the last weeks with hectares", "lead": "hours", "cadence": "every 30 min", "official": true,
-     "licence": "Copernicus open data", "attribution": "Copernicus Emergency Management Service, EFFIS", "url": "https://forest-fire.emergency.copernicus.eu/", "status": "European burnt areas (EFFIS)",
-     "note": "Europe, the Middle East and North Africa"},
-    {"id": "firms", "name": "NASA FIRMS hotspots (VIIRS)", "hazard": "fire", "regions": ["world"], "gives": "raw satellite fire detections, clustered and rated (off by default)", "lead": "hours", "cadence": "every 3 h", "official": true,
-     "licence": "NASA open data (LANCE disclaimer)", "attribution": "NASA FIRMS (LANCE / EOSDIS)", "url": "https://firms.modaps.eosdis.nasa.gov/", "status": "Fire hotspots (NASA FIRMS)"},
-    {"id": "gvp", "name": "Smithsonian Global Volcanism Program", "hazard": "volcano", "regions": ["world"], "gives": "the weekly activity report and the eruption database (erupting since)", "lead": "days", "cadence": "hourly look at a weekly report", "official": true,
-     "licence": "Smithsonian terms, attribution", "attribution": "Smithsonian Institution, Global Volcanism Program", "url": "https://volcano.si.edu/", "status": "Volcanoes (Smithsonian / USGS)",
-     "note": "A new eruption can take days to appear"},
-    {"id": "hans", "name": "USGS volcano alert levels (HANS)", "hazard": "volcano", "regions": ["na", "pol"], "countries": ["US"], "gives": "official alert levels and colour codes", "lead": "minutes", "cadence": "hourly", "official": true,
-     "licence": "US public domain", "attribution": "U.S. Geological Survey Volcano Hazards Program", "url": "https://volcanoes.usgs.gov/", "status": "Volcano alert levels (USGS)",
-     "note": "US volcanoes only (Alaska, Hawaii, Cascades, Yellowstone, Marianas)"},
-    {"id": "alerts-ua", "name": "Ukraine air raid alerts (alerts.in.ua / mirror)", "hazard": "alert", "regions": ["eu"], "countries": ["UA"], "gives": "civil alert status per oblast (raion with a token)", "lead": "minutes", "cadence": "every minute", "official": false,
-     "licence": "alerts.in.ua API terms; mirror public", "attribution": "alerts.in.ua; ubilling.net.ua", "url": "https://alerts.in.ua/", "status": "Air raid alerts (alerts.in.ua)",
-     "note": "Off by default; a community relay of the official sirens"},
-    {"id": "ll2", "name": "The Space Devs, Launch Library 2", "hazard": "launch", "regions": ["world"], "gives": "upcoming launches with pad, provider, mission, webcast", "lead": "minutes", "cadence": "hourly (15 requests an hour allowed)", "official": false,
-     "licence": "Launch Library 2 terms, attribution", "attribution": "The Space Devs", "url": "https://thespacedevs.com/llapi", "status": "Launches (The Space Devs)"},
-    {"id": "celestrak", "name": "CelesTrak orbital elements", "hazard": "sat", "regions": ["world"], "gives": "ISS, Hubble and Tiangong elements, propagated locally", "lead": "minutes", "cadence": "every 6 h (one download per update, as CelesTrak asks)", "official": false,
-     "licence": "CelesTrak usage policy", "attribution": "CelesTrak", "url": "https://celestrak.org/", "status": "Satellite elements (CelesTrak)"},
-    {"id": "clouds", "name": "Live cloud maps (Matt Eason; GIBS / EUMETView fallback)", "hazard": "weather", "regions": ["world"], "gives": "global cloud mask every 3 h", "lead": "hours", "cadence": "every 3 h", "official": false,
-     "licence": "live-cloud-maps (EUMETSAT imagery); NASA GIBS and EUMETSAT terms for the stitched fallback", "attribution": "Matt Eason's live cloud maps; NASA GIBS; EUMETSAT", "url": "https://clouds.matteason.co.uk/", "status": "Cloud image (matteason.co.uk)"},
-    {"id": "nasa-maps", "name": "NASA Blue Marble, Black Marble, GIBS", "hazard": "weather", "regions": ["world"], "gives": "monthly basemaps, night lights, today's satellite view", "lead": "static", "cadence": "downloaded once; satellite view daily", "official": true,
-     "licence": "NASA public domain", "attribution": "NASA Earth Observatory; NASA GIBS", "url": "https://earthobservatory.nasa.gov/", "status": "Seasonal maps (NASA Blue Marble)"},
-    {"id": "ne", "name": "Natural Earth", "hazard": "map", "regions": ["world"], "gives": "coast, borders, rivers, lakes, names, places, time zones", "lead": "static", "cadence": "downloaded once", "official": false,
-     "licence": "Public domain", "attribution": "Made with Natural Earth", "url": "https://www.naturalearthdata.com/", "status": "Borders (Natural Earth)"},
-    {"id": "pb2002", "name": "PB2002 plate boundaries", "hazard": "map", "regions": ["world"], "gives": "tectonic plate boundaries", "lead": "static", "cadence": "downloaded once", "official": false,
-     "licence": "ODC-By (Hugo Ahlenius / Nordpil, after Peter Bird 2003)", "attribution": "Peter Bird; Hugo Ahlenius, Nordpil", "url": "https://github.com/fraxen/tectonicplates", "status": "Plate boundaries (PB2002)"}
+    {
+      "id": "usgs",
+      "name": "USGS Earthquake Hazards Program",
+      "hazard": "quake",
+      "regions": [
+        "world"
+      ],
+      "gives": "events, magnitude, depth, tsunami flag",
+      "lead": "minutes",
+      "cadence": "every 5 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "U.S. Geological Survey",
+      "url": "https://earthquake.usgs.gov/",
+      "status": "Earthquake feed (USGS)",
+      "note": "Complete for M4.5+ worldwide; below that, US-centred"
+    },
+    {
+      "id": "ptwc",
+      "name": "Pacific Tsunami Warning Center (tsunami.gov)",
+      "hazard": "tsunami",
+      "regions": [
+        "na",
+        "la",
+        "eap",
+        "oc",
+        "sca",
+        "mea",
+        "pol"
+      ],
+      "gives": "evaluations, watches, advisories, warnings and threat messages; threatened coast",
+      "lead": "minutes",
+      "cadence": "every 5 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "NOAA / NWS Pacific Tsunami Warning Center",
+      "url": "https://www.tsunami.gov/",
+      "status": "Tsunami bulletins (PTWC / NTWC)",
+      "note": "The Pacific and the Caribbean in full; threat messages for the Indian Ocean and other basins"
+    },
+    {
+      "id": "ntwc",
+      "name": "National Tsunami Warning Center (tsunami.gov)",
+      "hazard": "tsunami",
+      "regions": [
+        "na"
+      ],
+      "countries": [
+        "US",
+        "CA"
+      ],
+      "gives": "watches, advisories, warnings for the US and Canadian coasts",
+      "lead": "minutes",
+      "cadence": "every 5 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "NOAA / NWS National Tsunami Warning Center",
+      "url": "https://www.tsunami.gov/",
+      "status": "Tsunami bulletins (PTWC / NTWC)"
+    },
+    {
+      "id": "gdacs-tc",
+      "name": "GDACS tropical cyclones",
+      "hazard": "storm",
+      "regions": [
+        "world"
+      ],
+      "gives": "events rated on humanitarian impact (green / orange / red), episode track and cone",
+      "lead": "hours",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "GDACS terms (UN / EU JRC), attribution",
+      "attribution": "GDACS (UN OCHA / European Commission JRC)",
+      "url": "https://www.gdacs.org/",
+      "status": "Storms (GDACS)",
+      "note": "Lists a storm once it rates the impact; its wind is the episode peak"
+    },
+    {
+      "id": "nhc",
+      "name": "NOAA National Hurricane Center",
+      "hazard": "storm",
+      "regions": [
+        "na",
+        "la",
+        "pol"
+      ],
+      "gives": "wind now, best track with winds, forecast with winds, cone",
+      "lead": "minutes",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "NOAA National Hurricane Center",
+      "url": "https://www.nhc.noaa.gov/",
+      "status": "Storms, secondary (NHC)",
+      "note": "Atlantic, eastern and central Pacific"
+    },
+    {
+      "id": "jtwc",
+      "name": "Joint Typhoon Warning Center",
+      "hazard": "storm",
+      "regions": [
+        "eap",
+        "sca",
+        "oc",
+        "mea",
+        "pol"
+      ],
+      "gives": "wind now, forecast with winds; best track via UCAR's ATCF mirror",
+      "lead": "minutes",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "US public domain (JTWC); UCAR terms of service for the decks",
+      "attribution": "Joint Typhoon Warning Center; NCAR/UCAR TC guidance",
+      "url": "https://www.metoc.navy.mil/jtwc/",
+      "status": "Storms, secondary (JTWC)",
+      "note": "Western Pacific, Indian Ocean, southern hemisphere"
+    },
+    {
+      "id": "gdacs-fl",
+      "name": "GDACS floods",
+      "hazard": "flood",
+      "regions": [
+        "world"
+      ],
+      "gives": "flood events rated on people exposed, affected districts, Sendai figures",
+      "lead": "hours",
+      "cadence": "hourly",
+      "official": true,
+      "licence": "GDACS terms, attribution",
+      "attribution": "GDACS",
+      "url": "https://www.gdacs.org/",
+      "status": "Floods (GDACS)"
+    },
+    {
+      "id": "nws",
+      "name": "NWS flood alerts (api.weather.gov)",
+      "hazard": "flood",
+      "regions": [
+        "na"
+      ],
+      "countries": [
+        "US"
+      ],
+      "gives": "official flash flood and flood warnings, watches and advisories with counties and polygons",
+      "lead": "minutes",
+      "cadence": "every 10 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "NOAA National Weather Service",
+      "url": "https://www.weather.gov/",
+      "status": "US flood alerts (NWS)"
+    },
+    {
+      "id": "meteoalarm",
+      "name": "MeteoAlarm (EUMETNET)",
+      "hazard": "flood",
+      "regions": [
+        "eu"
+      ],
+      "gives": "official flood, rain and coastal warnings of 38 European weather services, by region",
+      "lead": "minutes",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "CC BY 4.0 (EUMETNET redistribution terms)",
+      "attribution": "MeteoAlarm, data provided by EUMETNET members",
+      "url": "https://www.meteoalarm.org/",
+      "status": "European warnings (MeteoAlarm)",
+      "note": "No geometry in the feed: regions are placed on Natural Earth's admin-1 units by name, the country's centre as the fallback"
+    },
+    {
+      "id": "eccc",
+      "name": "Environment and Climate Change Canada (GeoMet)",
+      "hazard": "flood",
+      "regions": [
+        "na"
+      ],
+      "countries": [
+        "CA"
+      ],
+      "gives": "rainfall and flood warnings, watches and statements with polygons",
+      "lead": "minutes",
+      "cadence": "every 15 min",
+      "official": true,
+      "licence": "Open Government Licence - Canada",
+      "attribution": "Environment and Climate Change Canada",
+      "url": "https://weather.gc.ca/warnings/index_e.html",
+      "status": "Canadian alerts (Environment Canada)"
+    },
+    {
+      "id": "ea",
+      "name": "Environment Agency flood warnings",
+      "hazard": "flood",
+      "regions": [
+        "eu"
+      ],
+      "countries": [
+        "GB"
+      ],
+      "gives": "flood alerts, warnings and severe warnings for England with each flood area's outline",
+      "lead": "minutes",
+      "cadence": "every 15 min",
+      "official": true,
+      "licence": "Open Government Licence v3 (attribution line required)",
+      "attribution": "This uses Environment Agency flood and river level data from the real-time data API (Beta)",
+      "url": "https://check-for-flooding.service.gov.uk/",
+      "status": "England flood warnings (Environment Agency)",
+      "note": "England only; not for safety-critical use, says the Agency"
+    },
+    {
+      "id": "gdacs-wf",
+      "name": "GDACS wildfires",
+      "hazard": "fire",
+      "regions": [
+        "world"
+      ],
+      "gives": "wildfire events by alert level",
+      "lead": "hours",
+      "cadence": "hourly",
+      "official": true,
+      "licence": "GDACS terms, attribution",
+      "attribution": "GDACS",
+      "url": "https://www.gdacs.org/",
+      "status": "Wildfires (GDACS)"
+    },
+    {
+      "id": "nifc",
+      "name": "NIFC interagency perimeters",
+      "hazard": "fire",
+      "regions": [
+        "na"
+      ],
+      "countries": [
+        "US"
+      ],
+      "gives": "named incidents with size, containment, personnel, mapped perimeter",
+      "lead": "minutes",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "National Interagency Fire Center (WFIGS)",
+      "url": "https://data-nifc.opendata.arcgis.com/",
+      "status": "US fire incidents (NIFC)"
+    },
+    {
+      "id": "cwfis",
+      "name": "CWFIS active fires",
+      "hazard": "fire",
+      "regions": [
+        "na"
+      ],
+      "countries": [
+        "CA"
+      ],
+      "gives": "agency fires with stage of control, satellite perimeter estimates",
+      "lead": "hours",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "Open Government Licence - Canada",
+      "attribution": "Natural Resources Canada, Canadian Wildland Fire Information System",
+      "url": "https://cwfis.cfs.nrcan.gc.ca/",
+      "status": "Canadian fires (CWFIS)"
+    },
+    {
+      "id": "effis",
+      "name": "EFFIS burnt areas",
+      "hazard": "fire",
+      "regions": [
+        "eu",
+        "mea"
+      ],
+      "gives": "burnt-area polygons of the last weeks with hectares",
+      "lead": "hours",
+      "cadence": "every 30 min",
+      "official": true,
+      "licence": "Copernicus open data",
+      "attribution": "Copernicus Emergency Management Service, EFFIS",
+      "url": "https://forest-fire.emergency.copernicus.eu/",
+      "status": "European burnt areas (EFFIS)",
+      "note": "Europe, the Middle East and North Africa"
+    },
+    {
+      "id": "firms",
+      "name": "NASA FIRMS hotspots (VIIRS)",
+      "hazard": "fire",
+      "regions": [
+        "world"
+      ],
+      "gives": "raw satellite fire detections, clustered and rated (off by default)",
+      "lead": "hours",
+      "cadence": "every 3 h",
+      "official": true,
+      "licence": "NASA open data (LANCE disclaimer)",
+      "attribution": "NASA FIRMS (LANCE / EOSDIS)",
+      "url": "https://firms.modaps.eosdis.nasa.gov/",
+      "status": "Fire hotspots (NASA FIRMS)"
+    },
+    {
+      "id": "gvp",
+      "name": "Smithsonian Global Volcanism Program",
+      "hazard": "volcano",
+      "regions": [
+        "world"
+      ],
+      "gives": "the weekly activity report and the eruption database (erupting since)",
+      "lead": "days",
+      "cadence": "hourly look at a weekly report",
+      "official": true,
+      "licence": "Smithsonian terms, attribution",
+      "attribution": "Smithsonian Institution, Global Volcanism Program",
+      "url": "https://volcano.si.edu/",
+      "status": "Volcanoes (Smithsonian / USGS)",
+      "note": "A new eruption can take days to appear"
+    },
+    {
+      "id": "hans",
+      "name": "USGS volcano alert levels (HANS)",
+      "hazard": "volcano",
+      "regions": [
+        "na",
+        "pol"
+      ],
+      "countries": [
+        "US"
+      ],
+      "gives": "official alert levels and colour codes",
+      "lead": "minutes",
+      "cadence": "hourly",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "U.S. Geological Survey Volcano Hazards Program",
+      "url": "https://volcanoes.usgs.gov/",
+      "status": "Volcano alert levels (USGS)",
+      "note": "US volcanoes only (Alaska, Hawaii, Cascades, Yellowstone, Marianas)"
+    },
+    {
+      "id": "alerts-ua",
+      "name": "Ukraine air raid alerts (alerts.in.ua / mirror)",
+      "hazard": "alert",
+      "regions": [
+        "eu"
+      ],
+      "countries": [
+        "UA"
+      ],
+      "gives": "civil alert status per oblast (raion with a token)",
+      "lead": "minutes",
+      "cadence": "every minute",
+      "official": false,
+      "licence": "alerts.in.ua API terms; mirror public",
+      "attribution": "alerts.in.ua; ubilling.net.ua",
+      "url": "https://alerts.in.ua/",
+      "status": "Air raid alerts (alerts.in.ua)",
+      "note": "Off by default; a community relay of the official sirens"
+    },
+    {
+      "id": "ll2",
+      "name": "The Space Devs, Launch Library 2",
+      "hazard": "launch",
+      "regions": [
+        "world"
+      ],
+      "gives": "upcoming launches with pad, provider, mission, webcast",
+      "lead": "minutes",
+      "cadence": "hourly (15 requests an hour allowed)",
+      "official": false,
+      "licence": "Launch Library 2 terms, attribution",
+      "attribution": "The Space Devs",
+      "url": "https://thespacedevs.com/llapi",
+      "status": "Launches (The Space Devs)"
+    },
+    {
+      "id": "celestrak",
+      "name": "CelesTrak orbital elements",
+      "hazard": "sat",
+      "regions": [
+        "world"
+      ],
+      "gives": "ISS, Hubble and Tiangong elements, propagated locally",
+      "lead": "minutes",
+      "cadence": "every 6 h (one download per update, as CelesTrak asks)",
+      "official": false,
+      "licence": "CelesTrak usage policy",
+      "attribution": "CelesTrak",
+      "url": "https://celestrak.org/",
+      "status": "Satellite elements (CelesTrak)"
+    },
+    {
+      "id": "clouds",
+      "name": "Live cloud maps (Matt Eason; GIBS / EUMETView fallback)",
+      "hazard": "weather",
+      "regions": [
+        "world"
+      ],
+      "gives": "global cloud mask every 3 h",
+      "lead": "hours",
+      "cadence": "every 3 h",
+      "official": false,
+      "licence": "live-cloud-maps (EUMETSAT imagery); NASA GIBS and EUMETSAT terms for the stitched fallback",
+      "attribution": "Matt Eason's live cloud maps; NASA GIBS; EUMETSAT",
+      "url": "https://clouds.matteason.co.uk/",
+      "status": "Cloud image (matteason.co.uk)"
+    },
+    {
+      "id": "nasa-maps",
+      "name": "NASA Blue Marble, Black Marble, GIBS",
+      "hazard": "weather",
+      "regions": [
+        "world"
+      ],
+      "gives": "monthly basemaps, night lights, today's satellite view",
+      "lead": "static",
+      "cadence": "downloaded once; satellite view daily",
+      "official": true,
+      "licence": "NASA public domain",
+      "attribution": "NASA Earth Observatory; NASA GIBS",
+      "url": "https://earthobservatory.nasa.gov/",
+      "status": "Seasonal maps (NASA Blue Marble)"
+    },
+    {
+      "id": "ne",
+      "name": "Natural Earth",
+      "hazard": "map",
+      "regions": [
+        "world"
+      ],
+      "gives": "coast, borders, rivers, lakes, names, places, time zones",
+      "lead": "static",
+      "cadence": "downloaded once",
+      "official": false,
+      "licence": "Public domain",
+      "attribution": "Made with Natural Earth",
+      "url": "https://www.naturalearthdata.com/",
+      "status": "Borders (Natural Earth)"
+    },
+    {
+      "id": "pb2002",
+      "name": "PB2002 plate boundaries",
+      "hazard": "map",
+      "regions": [
+        "world"
+      ],
+      "gives": "tectonic plate boundaries",
+      "lead": "static",
+      "cadence": "downloaded once",
+      "official": false,
+      "licence": "ODC-By (Hugo Ahlenius / Nordpil, after Peter Bird 2003)",
+      "attribution": "Peter Bird; Hugo Ahlenius, Nordpil",
+      "url": "https://github.com/fraxen/tectonicplates",
+      "status": "Plate boundaries (PB2002)"
+    }
   ]
 }

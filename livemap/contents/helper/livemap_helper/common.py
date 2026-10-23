@@ -461,7 +461,15 @@ def read_fire_sources():
         return 29
 
 
-def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None):
+def read_layers_int(key, default):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        return int(d.get(key, default)) if isinstance(d, dict) else default
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -474,7 +482,7 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
         flood_level = max(0, min(2, int(flood_level)))
     if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
             and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)) \
-            and (fire_sources is None or read_fire_sources() == int(fire_sources)):
+            and (fire_sources is None or read_fire_sources() == int(fire_sources)) and (flood_sources is None or read_layers_int("flood_sources", 15) == int(flood_sources)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -483,7 +491,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    "fire_focus": fire_focus if fire_focus is not None else read_fire_focus(),
                                    "flood_level": flood_level if flood_level is not None else read_flood_level(),
                                    "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"),
-                                   "fire_sources": int(fire_sources) if fire_sources is not None else read_fire_sources(), "at": int(time.time())}), encoding="utf-8")
+                                   "fire_sources": int(fire_sources) if fire_sources is not None else read_fire_sources(),
+                                   "flood_sources": int(flood_sources) if flood_sources is not None else read_layers_int("flood_sources", 15), "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass

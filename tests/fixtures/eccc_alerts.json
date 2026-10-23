@@ -1,0 +1,8 @@
+{"type": "FeatureCollection", "features": [
+ {"type": "Feature", "id": "ALERTS.1", "geometry": {"type": "Polygon", "coordinates": [[[-123.3, 49.1], [-122.9, 49.1], [-122.9, 49.4], [-123.3, 49.4], [-123.3, 49.1]]]},
+  "properties": {"identifier": "urn:oid:2.49.0.1.124.1", "alert_type": "warning", "headline": "RAINFALL WARNING", "area": "Metro Vancouver", "effective": "2026-10-23T02:00:00Z", "expires": "2026-10-23T20:00:00Z", "status": "active", "url": "https://weather.gc.ca/warnings/report_e.html?bc1"}},
+ {"type": "Feature", "id": "ALERTS.2", "geometry": {"type": "Polygon", "coordinates": [[[-79.6, 43.6], [-79.2, 43.6], [-79.2, 43.9], [-79.6, 43.9], [-79.6, 43.6]]]},
+  "properties": {"identifier": "urn:oid:2.49.0.1.124.2", "alert_type": "warning", "headline": "SNOWFALL WARNING", "area": "Toronto", "effective": "2026-10-23T02:00:00Z", "expires": "2026-10-23T20:00:00Z"}},
+ {"type": "Feature", "id": "ALERTS.3", "geometry": {"type": "Polygon", "coordinates": [[[-66.2, 45.2], [-66.0, 45.2], [-66.0, 45.4], [-66.2, 45.4], [-66.2, 45.2]]]},
+  "properties": {"identifier": "urn:oid:2.49.0.1.124.3", "alert_type": "statement", "headline": "special weather statement: heavy rain and localized flooding", "area": "Saint John", "expires": "2026-10-23T20:00:00Z"}}
+]}

@@ -70,7 +70,7 @@ def cmd_power(args):
     """One line of JSON for the wallpaper's 20-second poll: power source, load, and the widget's mode file.
     `--layers quakes,storms,...` is the wallpaper telling the widget which event layers it shows (layers.json)."""
     if getattr(args, "layers", None) is not None:
-        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None), getattr(args, "fire_sources", None))
+        write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None), getattr(args, "fire_sources", None), getattr(args, "flood_sources", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 
