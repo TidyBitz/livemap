@@ -1654,14 +1654,27 @@ def jtwc_warning(text, now):
     return lon, lat, wind, issued, [[f[0], f[1], f[2]] for f in fixes[1:]]
 
 
+# NCAR/UCAR's real-time tropical cyclone guidance site mirrors the ATCF decks of every basin during the season;
+# NHC's ATCF directory carries only the Atlantic and eastern / central Pacific
+UCAR_DECKS = "https://hurricanes.ral.ucar.edu/realtime/plots/%s/%s/%s/b%s.dat"
+UCAR_BASIN = {"wp": "northwestpacific", "io": "northindian", "sh": "southernhemisphere", "ep": "northeastpacific", "cp": "northcentralpacific", "al": "northatlantic"}
+
+
 def jtwc_best_track(sid):
-    """The b-deck for a JTWC storm id like wp292026: NHC's ATCF relay first, JTWC's own directory second."""
-    try:
-        return nhc_best_track(sid)
-    except Exception:
-        year = sid[-4:]
-        body = _http("%sbest-tracks/%s/%ss-b%s/b%s.dat" % (JTWC_PRODUCTS, year, year, sid[:2], sid), timeout=15)[2].decode("ascii", "replace")
-        return _parse_bdeck(body)
+    """The b-deck for a JTWC storm id like wp292026 (a southern-hemisphere one carries its season year,
+    sh022027): UCAR's real-time mirror first, JTWC's own best-track directory second."""
+    year, basin = sid[-4:], sid[:2]
+    errors = []
+    for url in (UCAR_DECKS % (UCAR_BASIN.get(basin, basin), year, sid, sid),
+                "%sbest-tracks/%s/%ss-b%s/b%s.dat" % (JTWC_PRODUCTS, year, year, basin, sid)):
+        try:
+            track = _parse_bdeck(_http(url, timeout=15)[2].decode("ascii", "replace"))
+            if track:
+                return track
+            errors.append("empty")
+        except Exception as e:
+            errors.append(str(e))
+    raise RuntimeError("; ".join(errors))
 
 
 def _parse_bdeck(body):

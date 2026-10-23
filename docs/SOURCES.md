@@ -133,12 +133,15 @@ Conventions that hold for every source:
 ### Tropical storms - Joint Typhoon Warning Center (western Pacific, Indian Ocean, southern hemisphere)
 - **What:** the US Navy's warnings for the basins NHC does not cover. The RSS feed lists the active storms and
   their products; the warning text gives the position and 1-minute wind now and the forecast positions with
-  winds; the best track is the ATCF b-deck, read from NHC's public ATCF directory (which relays JTWC's) with
-  JTWC's own `products/best-tracks/<year>/<year>s-b<basin>/b<id>.dat` as the fallback.
+  winds; the best track is the ATCF b-deck, read from NCAR/UCAR's real-time tropical cyclone guidance mirror
+  (`hurricanes.ral.ucar.edu/realtime/plots/<basin folder>/<year>/<id>/b<id>.dat`, every basin during the
+  season; NHC's own ATCF directory carries only al/ep/cp) with JTWC's `products/best-tracks/<year>/<year>s-b<basin>/b<id>.dat`
+  as the fallback.
 - **Why:** per-fix winds, so these storms get the same intensity-coloured track, current wind and coloured
   forecast as the Atlantic ones instead of a single peak-wind colour.
 - **Format:** RSS (`metoc.navy.mil/jtwc/rss/jtwc.rss`), plain-text warnings
-  (`metoc.navy.mil/jtwc/products/<basin><nn><yy>web.txt`), ATCF b-deck as above.
+  (`metoc.navy.mil/jtwc/products/<basin><nn><yy>web.txt`), ATCF b-deck as above. Basin folders on the UCAR
+  mirror: `wp → northwestpacific`, `io → northindian`, `sh → southernhemisphere` (`UCAR_BASIN`).
 - **Processing (`fetch_storms_jtwc`, `jtwc_warning`, `jtwc_best_track`):** every product link in the RSS is
   attributed to the storm last named before it; the eastern / central Pacific items (`ep`, `cp`) are skipped
   because NHC feeds those. The storm id is `<basin><nn>20<yy>` (`wp292026`; a southern-hemisphere storm carries

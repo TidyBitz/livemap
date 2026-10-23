@@ -150,7 +150,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | Tectonic plate boundaries | PB2002 plate boundary model (Peter Bird 2003; GeoJSON by Hugo Ahlenius / Nordpil, ODC-By), downloaded with the borders (0.2 MB) | - |
 | Oil and gas infrastructure | BSEE platform structures (US Gulf of Mexico, public domain); OpenStreetMap offshore platforms and refineries via Overpass (ODbL, (c) OpenStreetMap contributors); downloaded on demand | - |
 | Volcanoes | Smithsonian Global Volcanism Program (eruption database, weekly report), USGS alert levels (HANS) | hourly |
-| Storms | GDACS worldwide; NOAA NHC (Atlantic, eastern Pacific) and JTWC (western Pacific, Indian Ocean, southern hemisphere) for current intensity, best track and forecast winds | every 30 min |
+| Storms | GDACS worldwide; NOAA NHC (Atlantic, eastern Pacific) and JTWC (western Pacific, Indian Ocean, southern hemisphere) for current intensity and forecast winds; best tracks from the ATCF decks (NHC; UCAR's real-time mirror for the JTWC basins) | every 30 min |
 | Wildfires | NIFC WFIGS perimeters, CWFIS active fires + M3 perimeters, EFFIS burnt areas | every 30 min |
 | Wildfires, world | GDACS events, NASA FIRMS hotspots (MODIS) | hourly |
 | Floods | GDACS events, their Sendai figures and affected-area polygons | hourly |
