@@ -5,6 +5,14 @@ release notes written at the time; their dates are the day the version was hande
 
 ## 0.48 - unreleased
 
+### Changed
+- The settings page has a new shape, the one KDE's own System Settings uses: a sidebar on the left lists every
+  layer as one row - its on/off switch, its name and the health of its sources - grouped as Map, Natural events,
+  Civil/space/network and Shared, with "Find a setting" above; the right side shows one page at a time. The
+  first page, Essentials, holds the handful of choices most people make (style, profile, home place, what part
+  of the world is on screen) and says how the data is doing; the layers' own pages are unchanged inside. The
+  old collapsible sections, the Layers checklist and Expand/Collapse all are gone - the sidebar is all three.
+
 ### Added
 - A forecast cone for the storms JTWC covers (the western Pacific, Indian Ocean and southern hemisphere), which
   publishes none: built from JTWC's own mean track errors round each forecast point, drawn like every other cone.
