@@ -1035,8 +1035,7 @@ RowLayout {
         // ---- the companion widget's overrides (Map controls: pause, plain map, hidden layers) sit on top of everything
         // here, and a layer switched on stays off the map while the widget hides it - so say so.
         RowLayout {
-            visible: secE.open
-            visible: form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain
+            visible: secE.open && (form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain)
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
