@@ -13,7 +13,7 @@ from .common import DATA, EVENTS, HISTORY, HISTORY_DAYS, VERSION, _age, _http, a
     wind_text
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
-from .floods import official_floods, group_nws, nws_floods_cached, people_text
+from .floods import official_floods, group_nws, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
 from .space import SATS, fetch_launches

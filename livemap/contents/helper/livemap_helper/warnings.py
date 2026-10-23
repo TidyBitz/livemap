@@ -9,7 +9,6 @@ import json
 import re
 import time
 import unicodedata
-import urllib.request
 
 from .common import DATA, PKG, UA, _http, _split, last_good, safe_xml  # noqa: F401
 
