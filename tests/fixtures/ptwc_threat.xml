@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
+  <identifier>PHEB-1-26282000</identifier><sender>ntwc@noaa.gov</sender><sent>SENT</sent>
+  <status>Actual</status><msgType>Alert</msgType><source>PTWC</source><scope>Public</scope><incidents>26282000</incidents>
+  <info><category>Geo</category><event>Tsunami Threat Message</event><urgency>Immediate</urgency><severity>Extreme</severity><certainty>Likely</certainty>
+    <onset>SENT</onset><expires>EXPIRES</expires><senderName>NWS PACIFIC TSUNAMI WARNING CENTER HONOLULU HI</senderName>
+    <headline>TSUNAMI THREAT MESSAGE</headline><description>HAZARDOUS TSUNAMI WAVES ARE FORECAST FOR SOME COASTS</description>
+    <web>http://www.tsunami.gov/events/PHEB/2026/10/09/26282000/1/WEPA40/WEPA40.txt</web>
+    <parameter><valueName>EventLocationName</valueName><value>NEAR THE COAST OF PANAMA</value></parameter>
+    <parameter><valueName>EventPreliminaryMagnitude</valueName><value>7.6</value></parameter>
+    <parameter><valueName>EventPreliminaryMagnitudeType</valueName><value>Mwp</value></parameter>
+    <parameter><valueName>EventOriginTime</valueName><value>SENT</value></parameter>
+    <parameter><valueName>EventDepth</valueName><value>10 kilometers</value></parameter>
+    <parameter><valueName>EventLatLon</valueName><value>8.100,-82.700 0.000</value></parameter>
+    <resource><resourceDesc>Event Data as a JSON document</resourceDesc><mimeType>application/json</mimeType><uri>http://www.tsunami.gov/events/PHEB/2026/10/09/26282000/1/WEPA40/PHEB.json</uri></resource>
+    <area><areaDesc>NEAR THE COAST OF PANAMA</areaDesc><circle>8.100,-82.700 0.0</circle></area>
+  </info>
+</alert>

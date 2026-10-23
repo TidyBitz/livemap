@@ -1,0 +1,3 @@
+{"twcEventID": "26282000", "alerts": {"areaList": [["PANAMA", "COSTA RICA"]]},
+ "segments": [{"id": 1, "category": "Threat", "bkp_start_location": "Puerto Armuelles", "bkp_start_lat": 8.27, "bkp_start_lon": -82.86, "bkp_end_location": "Punta Mala", "bkp_end_lat": 7.47, "bkp_end_lon": -80.0, "headline": "x"},
+              {"id": 2, "category": "Information", "bkp_start_lat": 0, "bkp_start_lon": 0, "bkp_end_lat": 0, "bkp_end_lon": 0}]}

@@ -67,7 +67,7 @@
      "licence": "alerts.in.ua API terms; mirror public", "attribution": "alerts.in.ua; ubilling.net.ua", "url": "https://alerts.in.ua/", "status": "Air raid alerts (alerts.in.ua)",
      "note": "Off by default; a community relay of the official sirens"},
     {"id": "ll2", "name": "The Space Devs, Launch Library 2", "hazard": "launch", "regions": ["world"], "gives": "upcoming launches with pad, provider, mission, webcast", "lead": "minutes", "cadence": "hourly (15 requests an hour allowed)", "official": false,
-     "licence": "Launch Library 2 terms, attribution", "attribution": "The Space Devs", "url": "https://thespacedevs.com/llapi", "status": "Launches (Launch Library 2)"},
+     "licence": "Launch Library 2 terms, attribution", "attribution": "The Space Devs", "url": "https://thespacedevs.com/llapi", "status": "Launches (The Space Devs)"},
     {"id": "celestrak", "name": "CelesTrak orbital elements", "hazard": "sat", "regions": ["world"], "gives": "ISS, Hubble and Tiangong elements, propagated locally", "lead": "minutes", "cadence": "every 6 h (one download per update, as CelesTrak asks)", "official": false,
      "licence": "CelesTrak usage policy", "attribution": "CelesTrak", "url": "https://celestrak.org/", "status": "Satellite elements (CelesTrak)"},
     {"id": "clouds", "name": "Live cloud maps (Matt Eason; GIBS / EUMETView fallback)", "hazard": "weather", "regions": ["world"], "gives": "global cloud mask every 3 h", "lead": "hours", "cadence": "every 3 h", "official": false,

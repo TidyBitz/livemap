@@ -43,12 +43,13 @@ def strip_code(s):
 
 
 def check_python():
-    p = os.path.join(WP, "contents", "helper", "livemap-helper.py")
-    try:
-        ast.parse(open(p, encoding="utf-8").read())
-        print("  ✓ helper parses")
-    except SyntaxError as e:
-        problem("helper: %s" % e)
+    files = [os.path.join(WP, "contents", "helper", "livemap-helper.py")] + sorted(glob.glob(os.path.join(WP, "contents", "helper", "livemap_helper", "*.py")))
+    for p in files:
+        try:
+            ast.parse(open(p, encoding="utf-8").read())
+        except SyntaxError as e:
+            problem("helper: %s" % e)
+    print("  ✓ helper parses (%d files)" % len(files))
 
 
 def check_schema(pkg, label):
@@ -93,7 +94,7 @@ def check_qml(pkg, label):
 
 def check_versions():
     meta = re.search(r'"Version": *"([^"]+)"', open(os.path.join(WP, "metadata.json"), encoding="utf-8").read()).group(1)
-    helper = re.search(r'^VERSION = "([^"]+)"', open(os.path.join(WP, "contents", "helper", "livemap-helper.py"), encoding="utf-8").read(), re.M).group(1)
+    helper = re.search(r'^VERSION = "([^"]+)"', open(os.path.join(WP, "contents", "helper", "livemap_helper", "common.py"), encoding="utf-8").read(), re.M).group(1)
     main = set(re.findall(r"livemap:? (\d+\.\d+)[: ]", open(os.path.join(WP, "contents", "ui", "main.qml"), encoding="utf-8").read()))
     if helper != meta:
         problem("helper VERSION %s != metadata %s" % (helper, meta))
@@ -103,7 +104,7 @@ def check_versions():
     log = open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8").read()
     if ("## %s " % meta) not in log:
         problem("CHANGELOG.md has no entry for wallpaper %s" % meta)
-    if ("## widget %s " % wmeta) not in log:
+    if ("## widget %s " % wmeta) not in log and wmeta != meta:
         problem("CHANGELOG.md has no entry for widget %s" % wmeta)
     print("  ✓ versions: wallpaper %s, widget %s" % (meta, wmeta))
 

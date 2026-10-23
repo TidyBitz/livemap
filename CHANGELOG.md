@@ -23,6 +23,12 @@ release notes written at the time; their dates are the day the version was hande
   told apart.
 
 ### Changed
+- The helper is a package: `livemap_helper/` with one module per feed and `common.py` for what they share;
+  `livemap-helper.py` stays the entry point, so nothing the layers run has changed. Tests (`tests/`, pytest)
+  run every parser against recorded responses and check that config keys, settings aliases, status names,
+  `sources.json`, the versions and the changelog agree - they caught a mismatched status name on the first
+  run. CI runs ruff, the tests and qmllint beside the existing static checks and the zip; bug and feature
+  templates ask for the version and install method.
 - NASA FIRMS hotspots come from VIIRS on NOAA-21 (375 m), NOAA-20 as the fallback and MODIS last: Suomi NPP's
   data delivery ends on 2 November 2026 and MODIS collection in 2027. VIIRS confidence letters are mapped and a
   VIIRS detection weighs 0.4 so the cell tiers calibrated on MODIS hold; the Status tab warns when only MODIS

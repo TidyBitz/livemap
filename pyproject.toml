@@ -1,0 +1,11 @@
+[tool.ruff]
+line-length = 160
+target-version = "py39"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["F841", "F811", "E731", "E741", "E701", "E702", "E401"]   # the helper's compact style: a few statements per line, one-line imports
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

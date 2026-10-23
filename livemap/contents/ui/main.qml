@@ -107,7 +107,7 @@ WallpaperItem {
 
     // A few lines in the journal so problems can be diagnosed without guessing.
     // (console.warn, because Fedora's default Qt logging rules hide console.log.)
-    Component.onCompleted: { Look.matrix = cfg.MapStyle === 5; console.warn("livemap: 0.47 loaded - settings:", JSON.stringify({
+    Component.onCompleted: { Look.matrix = cfg.MapStyle === 5; console.warn("livemap: 0.48 loaded - settings:", JSON.stringify({
         seasonal: cfg.Seasonal, fill: cfg.FillMode, dayNight: cfg.ShowDayNight, cityLights: cfg.ShowCityLights,
         clouds: cfg.ShowClouds, borders: cfg.ShowBorders, quakes: cfg.ShowQuakes, quakeFeed: cfg.QuakeFeed, network: cfg.ShowNetwork })) }
 
@@ -369,7 +369,7 @@ WallpaperItem {
                     ctx.clearRect(0, 0, width, height);
                     var n = Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon,
                                            cfg.NightDarkness / 100, "3,5,14", cfg.Twilight);
-                    if (paints++ < 3) console.warn("livemap 0.47: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
+                    if (paints++ < 3) console.warn("livemap 0.48: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
                                  "- gradient columns:", n, "- map", Math.round(map.width) + "x" + Math.round(map.height));
                 }
                 onAvailableChanged: if (available) requestPaint()

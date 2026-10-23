@@ -1,0 +1,15 @@
+name: Feature or data source request
+description: A layer, a setting, or a data feed the map should read
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should the map show or do
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: For a data source - where it lives
+      description: URL, format (GeoJSON, CAP, CSV...), how often it updates, whether a key is needed, and its licence. docs/COVERAGE.md shows what is covered today.

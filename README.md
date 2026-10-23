@@ -188,13 +188,18 @@ wallpaper's helper and caches; nothing is fetched twice.
         *Layer.qml                 one file per layer (Quake, Storm, Volcano, Fire, Sat, Launch, Net, Border, Plate, Infra)
         LabelPass.qml, MapLabel.qml, HaloText.qml   one label layout pass above every layer, and the label itself
         FrameWatch.qml, PowerWatch.qml, CloudWatch.qml   small watchers that run the helper: imagery per view, power and load, clouds
-        config.qml, StatusPanel.qml   the settings page and its Status section
+        config.qml, StatusPanel.qml, CoveragePanel.qml   the settings page, its Status section and the coverage matrix
         Look.qml                   the appearance singleton (the Matrix style's font and glow)
         geo.js                     the maths: sun position, label placement, projections, ageing
-      contents/helper/livemap-helper.py   every fetch, cache and calculation the QML cannot do; `livemap-helper --help`
+      contents/helper/livemap-helper.py   the entry point the layers run (`livemap-helper --help`)
+      contents/helper/livemap_helper/     the helper as a package: one module per feed (storms, floods, fires, tsunami,
+                                          volcanoes, alerts, space, clouds, net, borders, infra), common.py for what they
+                                          share (paths, HTTP with limits, caches, event memory, geometry), feed.py,
+                                          status.py, coverage.py, fetch.py, styles.py, cli.py
       contents/config/main.xml   one <entry> per setting; scripts/check.py keeps it in step with config.qml
       contents/images/           spacecraft, launch-pad and storm icons (CC BY 4.0)
       contents/data/ukraine-regions.json   the 27 oblasts for the air raid alerts (Natural Earth 10m admin-1, thinned)
+      contents/data/sources.json   every data source: hazard, regions, lead, cadence, licence (the coverage matrix and docs/COVERAGE.md)
       contents/styles/*.json     the built-in styles: each base map's recommended colours as the keys that differ from main.xml
     livemap-widget/              the companion widget package (Plasma/Applet)
       contents/ui/main.qml         the Events, Live, Map controls and Status tabs
@@ -203,15 +208,24 @@ wallpaper's helper and caches; nothing is fetched twice.
     livemap.sh                   install / doctor / activate / remove / purge / status
     scripts/check.py             static checks (settings <-> config page, brackets, ids, versions); CI runs it
     scripts/package.sh           builds livemap.zip
-    .github/                     CI (checks on every push; a release on every v* tag), Dependabot, the bug template
+    tests/                       pytest: every parser against recorded responses in tests/fixtures/ (JTWC, PTWC, NWS,
+                                 FIRMS, ATCF, Smithsonian), the feed's news bookkeeping, and consistency (config keys <->
+                                 aliases, status names <-> sections <-> sources.json, versions <-> changelog <-> licence)
+    pyproject.toml               ruff and pytest settings
+    .github/                     CI on every push (check.py, ruff, pytest, qmllint, the zip); a release on every v* tag;
+                                 Dependabot; bug and feature templates
+    docs/SOURCES.md, docs/COVERAGE.md   every feed's format and handling; what covers where (generated)
     docs/screenshots/            the pictures in this README
     CHANGELOG.md                 every release, newest first
 
 Adding a layer: a new `FooLayer.qml`, an `<entry name="ShowFoo">` in main.xml, a `cfg_ShowFoo` alias and a
 section in config.qml, and a `Loader` in main.qml. Layers exist only while ticked. The wallpaper and the
 helper talk through JSON on stdout: a layer runs `livemap-helper foo` through a `P5Support.DataSource` and
-parses the answer; the helper never writes to the map. `livemap/README.md` has the developer notes (how
-the day/night shade avoids a shader, the `layer` id trap, and so on).
+parses the answer; the helper never writes to the map. A new feed is a module under `livemap_helper/` with its
+`fetch_*`, `cmd_*` and `chk_*`, a subparser in `cli.py`, a line in `status.py`, a record in `sources.json`
+and a fixture-backed test. `livemap/README.md` has the developer notes (how the day/night shade avoids a shader,
+the `layer` id trap, and so on). To run the checks locally: `python3 scripts/check.py && ruff check
+livemap/contents/helper tests && pytest -q tests`.
 
 ## If something does not show up
 

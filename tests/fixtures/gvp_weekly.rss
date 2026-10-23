@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:georss="http://www.georss.org/georss">
+<channel><title>Smithsonian / USGS Weekly Volcanic Activity Report</title>
+<item><title>Kilauea (United States)</title><category>New Activity/Unrest</category>
+<description>HVO reported that a new episode of lava fountaining began at Kilauea...</description>
+<pubDate>Wed, 21 Oct 2026 18:00:00 GMT</pubDate><georss:point>19.421 -155.287</georss:point></item>
+<item><title>Etna (Italy)</title><category>Ongoing Activity</category>
+<description>INGV reported continuing Strombolian activity at the Southeast Crater.</description>
+<pubDate>Wed, 21 Oct 2026 18:00:00 GMT</pubDate><georss:point>37.748 14.999</georss:point></item>
+<item><title>Etna (Italy)</title><category>Ongoing Activity</category><description>duplicate</description><georss:point>37.748 14.999</georss:point></item>
+</channel></rss>

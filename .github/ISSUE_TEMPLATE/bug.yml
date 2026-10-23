@@ -1,0 +1,39 @@
+name: Bug report
+description: Something on the map, in the widget or in the settings is wrong
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Status tab, first line ("Live World Map 0.48"), or `./livemap.sh status`
+      placeholder: "0.48"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options: ["livemap.sh install (checkout)", "livemap.sh install (release zip)", "kpackagetool6 by hand", "KDE Store"]
+    validations:
+      required: true
+  - type: input
+    id: plasma
+    attributes:
+      label: Plasma and distribution
+      placeholder: "Plasma 6.7.5, Fedora 44"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: A screenshot helps when it is about the map
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Status report
+      description: Settings > Status of the data sources > "Copy report" (it includes the wallpaper's log lines); or `./livemap.sh report`
+      render: text

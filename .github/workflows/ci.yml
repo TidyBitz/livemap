@@ -19,10 +19,20 @@ jobs:
           node-version: "20"
       - name: static checks
         run: python3 scripts/check.py
+      - name: lint the helper (ruff - syntax, undefined names, unused imports)
+        run: pip install -q ruff pytest && ruff check livemap/contents/helper tests
+      - name: tests (parsers against recorded fixtures; config, status, sources and version consistency)
+        run: pytest -q tests
       - name: shell syntax
         run: bash -n livemap.sh && bash livemap.sh help >/dev/null
       - name: helper runs offline
         run: python3 livemap/contents/helper/livemap-helper.py status --offline | python3 -m json.tool >/dev/null
+      - name: qmllint (syntax of every QML file; KDE imports are not installed here, so unresolved imports only warn)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q qt6-declarative-dev-tools >/dev/null
+          for f in livemap/contents/ui/*.qml livemap-widget/contents/ui/*.qml; do
+            /usr/lib/qt6/bin/qmllint --import disable --unqualified disable --unused-imports disable "$f" || exit 1
+          done
       - name: build livemap.zip
         run: scripts/package.sh
       - uses: actions/upload-artifact@v6
