@@ -12,6 +12,10 @@ release notes written at the time; their dates are the day the version was hande
   first page, Essentials, holds the handful of choices most people make (style, profile, home place, what part
   of the world is on screen) and says how the data is doing; the layers' own pages are unchanged inside. The
   old collapsible sections, the Layers checklist and Expand/Collapse all are gone - the sidebar is all three.
+  Essentials is laid out in labelled sub-sections (Look, Profile, Where you are, On screen, Events widget) with a
+  swatch per style to click, and an Events widget card: one button puts the widget on this desktop (through
+  plasmashell's scripting interface; helper `widget --add`), the Store link when it is not installed, a tick
+  when it is already there.
 
 ### Added
 - Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame

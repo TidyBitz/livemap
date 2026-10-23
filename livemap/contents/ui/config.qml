@@ -801,6 +801,23 @@ RowLayout {
     Timer { interval: 900; running: true; onTriggered: { styleExec.connectSource(form.styleCmd("keys")); styleExec.connectSource(form.styleCmd("list")); form.loadStyle(form.cfg_StyleName || "builtin:seasonal"); } }
 
     property var widgetMode: ({})
+    // the companion widget, as the helper sees it: installed, on which desktops, and how to get it
+    property var widgetInfo: ({})
+    property bool widgetBusy: false
+    function widgetRun(words) { widgetBusy = true; widgetExec.connectSource("python3 '" + widgetHelper + "' widget " + words + " # " + Date.now()); }
+    P5Support.DataSource {
+        id: widgetExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => { disconnectSource(source); form.widgetBusy = false; try { form.widgetInfo = JSON.parse(data.stdout) || ({}); } catch (e) { form.widgetInfo = ({ error: "The helper did not answer: " + String(data.stderr).trim().split("\n").pop() }); } }
+    }
+    Timer { interval: 1500; running: true; onTriggered: form.widgetRun("") }
+    // a style swatch: [top, bottom, text] for each base map (0 seasonal imagery, 1 satellite, 2 relief, 3 dark
+    // cartographic, 4 Dark Matter, 5 Matrix)
+    function swatchColours(base) {
+        return [["#2d5f8a", "#3b6b3a", "#ffffff"], ["#0a2a4a", "#15528f", "#ffffff"], ["#d9c9a3", "#7f9a62", "#2b2418"],
+                ["#1b2129", "#2e3946", "#ffffff"], ["#0d0d0d", "#2b2b2b", "#ffffff"], ["#000000", "#0b3b1f", "#7dffb0"]][base] || ["#4a4f55", "#6b7178", "#ffffff"];
+    }
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
         return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
@@ -928,10 +945,11 @@ RowLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignTop
         implicitHeight: pageForm.implicitHeight
+        clip: true
         Kirigami.FormLayout {
         id: pageForm
         anchors.left: parent.left
-        width: Math.min(parent.width, Math.max(implicitWidth, Kirigami.Units.gridUnit * 44))
+        width: Math.max(implicitWidth, Kirigami.Units.gridUnit * 44)
         wideMode: true
 
         // ================================================================= Essentials
@@ -959,9 +977,47 @@ RowLayout {
         // the data folder. Picking one writes its values into the controls, after "Previous" has been saved; editing
         // anything a style covers marks it modified, and Save / Save as / Reset work on that. Every setting is in one
         // bucket (base, look, layers, machine) and the Includes boxes say which buckets an apply touches and a save captures.
-        RowLayout {
+        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Look" }
+        // one swatch per style: its base map's colours, the current one framed; a click applies it
+        Flow {
             visible: secE.open
             Kirigami.FormData.label: "Style:"
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+            spacing: Kirigami.Units.smallSpacing
+            Repeater {
+                model: form.styleList.filter(function (s) { return !s.history; })
+                delegate: Rectangle {
+                    id: swatch
+                    required property var modelData
+                    readonly property bool current: form.cfg_StyleName === modelData.id
+                    readonly property var colours: form.swatchColours(modelData.base)
+                    width: Kirigami.Units.gridUnit * 6; height: Kirigami.Units.gridUnit * 3.5
+                    radius: Kirigami.Units.smallSpacing
+                    border.width: current ? 2 : 1
+                    border.color: current ? Kirigami.Theme.highlightColor : Qt.alpha(Kirigami.Theme.textColor, 0.25)
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: swatch.colours[0] }
+                        GradientStop { position: 1; color: swatch.colours[1] }
+                    }
+                    QQC2.Label {
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Kirigami.Units.smallSpacing }
+                        text: swatch.modelData.name + (swatch.modelData.builtin ? "" : " ·")
+                        elide: Text.ElideRight
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        font.bold: swatch.current
+                        color: swatch.colours[2]
+                        style: Text.Outline; styleColor: swatch.colours[2] === "#ffffff" ? "#000000" : "#ffffff"
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: form.applyStyle(swatch.modelData.id) }
+                    QQC2.ToolTip.text: swatch.modelData.name + (swatch.modelData.builtin ? " (built in)" : " (yours)"); QQC2.ToolTip.visible: hoverArea.containsMouse
+                    MouseArea { id: hoverArea; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                }
+            }
+        }
+        RowLayout {
+            visible: secE.open
+            Kirigami.FormData.label: "Saved as:"
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             QQC2.ComboBox {
@@ -999,10 +1055,8 @@ RowLayout {
             QQC2.CheckBox { text: "Layers"; checked: (form.cfg_StyleIncludes & 4) !== 0; onToggled: form.cfg_StyleIncludes = checked ? (form.cfg_StyleIncludes | 4) : (form.cfg_StyleIncludes & ~4) }
         }
         Note { visible: secE.open; text: (form.styleNote !== "" ? form.styleNote + "\n" : "")
-                     + "The built-in styles are each base map with its recommended colours: picking one sets the base and every colour, and leaves your sizes, line widths, opacities and label styles alone. Before every apply the settings are saved as a dated snapshot (the last 20 are listed at the bottom; More has the way back), and the settings as they were the first time this page opened with styles are kept as \"Original\" for good. Change anything a style set and it says modified; Save as keeps your version (" + (form.styleDir || "~/.local/share/livemap/styles") + ") with everything the ticked boxes cover, sizes and widths included. Layers are left out unless you tick them; which computer, home place, units, frame and profile are never part of a style." }
-
-        // ---- the profile sets the levers that cost CPU and GPU time in one go; changing any of them by hand turns
-        // the choice into "Custom". Everything it touches is on Performance and power.
+                     + "A built-in style is a base map with its recommended colours; it leaves your sizes, line widths and label styles alone. Before every apply the settings are saved as a dated snapshot (More has the way back, and \"Original\" is how they were before styles). Save as keeps your version with everything the ticked boxes cover; home place, units, frame and profile are never part of a style." }
+        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Profile" }
         QQC2.ComboBox {
             visible: secE.open
             id: profile
@@ -1014,8 +1068,7 @@ RowLayout {
                       "20 updates a second while something is newly reported, then still: pulses on news only (a hurricane or a red flood that pulsed for its whole life kept the screen redrawing 20 times a second for days), packets on the lines, 25+ detection hotspot cells, one orbit of track. Load guard at 70 / 90 %.",
                       "10 updates a second, steady lines, pulses only on news, 50+ detection hotspot cells, short track, standard borders. Load guard at 50 / 80 %.",
                       "Your own mix of the settings below."][profile.currentIndex] }
-
-        // ---- where you are: the home place for the network arcs, Coverage and (later) the widget
+        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Where you are" }
         Loader {
             visible: secE.open
             id: citySearch
@@ -1035,14 +1088,52 @@ RowLayout {
             QQC2.TextField { id: homeLon; Layout.preferredWidth: Kirigami.Units.gridUnit * 8; placeholderText: "longitude, e.g. 4.90"; validator: DoubleValidator { bottom: -180; top: 180; decimals: 4; locale: "C" } }
         }
         Note { visible: secE.open; text: (citySearch.status === Loader.Error ? "The city search could not be loaded; type the coordinates. " : "Searched offline in Natural Earth's list of about 7 000 towns and cities (part of the border download); pick one to fill in the coordinates, or type them. ") + "Where you are decides where the network arcs start and what Coverage says about your area; nothing about it leaves this machine." }
-
-        // ---- framing: the same two choices as on the Map page
+        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "On screen" }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
-
-        // ---- the companion widget's overrides (Map controls: pause, plain map, hidden layers) sit on top of everything
-        // here, and a layer switched on stays off the map while the widget hides it - so say so.
+        Kirigami.Separator { visible: secE.open; Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Events widget" }
+        // the companion widget: a card that says what it is and puts it on the desktop (helper `widget --add`, through
+        // plasmashell's scripting interface), points at the Store when it is not installed, and says when it is there
+        RowLayout {
+            visible: secE.open
+            Kirigami.FormData.label: "Events widget:"
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+            spacing: Kirigami.Units.largeSpacing
+            Kirigami.Icon { source: "view-list-details"; implicitWidth: Kirigami.Units.iconSizes.large; implicitHeight: implicitWidth; Layout.alignment: Qt.AlignTop }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                QQC2.Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap
+                    text: "A live list of what the map is showing - newest first, the same switches as here - that sits on the desktop beside the map, opens each event's source, and fades out of the way when you are not using it."
+                }
+                RowLayout {
+                    spacing: Kirigami.Units.smallSpacing
+                    QQC2.Button {
+                        visible: form.widgetInfo.installed === true && !(form.widgetInfo.placed && form.widgetInfo.placed.length > 0)
+                        enabled: !form.widgetBusy
+                        text: "Add it to this desktop"; icon.name: "list-add"
+                        onClicked: form.widgetRun("--add")
+                    }
+                    QQC2.Button {
+                        visible: form.widgetInfo.installed === false
+                        text: "Get it from the KDE Store"; icon.name: "get-hot-new-stuff"
+                        onClicked: Qt.openUrlExternally(form.widgetInfo.store || "https://store.kde.org")
+                    }
+                    QQC2.Label {
+                        visible: form.widgetInfo.placed && form.widgetInfo.placed.length > 0
+                        text: "✓ On " + (form.widgetInfo.placed && form.widgetInfo.placed.length > 1 ? form.widgetInfo.placed.length + " desktops" : "this desktop")
+                        color: Kirigami.Theme.positiveTextColor
+                    }
+                    QQC2.Label { visible: form.widgetInfo.installed === false; text: "Not installed (livemap.sh install puts it in with the wallpaper)"; opacity: 0.7 }
+                    QQC2.BusyIndicator { visible: form.widgetBusy; running: visible; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+                }
+                QQC2.Label { visible: !!form.widgetInfo.error; text: form.widgetInfo.error || ""; color: Kirigami.Theme.negativeTextColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                QQC2.Label { visible: form.widgetInfo.installed === true && form.widgetInfo.placed === null; text: "Could not ask plasmashell whether it is on a desktop; add it from the desktop's Add Widgets panel if not."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            }
+        }
         RowLayout {
             visible: secE.open && (form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain)
             Layout.fillWidth: true
