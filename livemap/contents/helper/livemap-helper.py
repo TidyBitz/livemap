@@ -3001,11 +3001,13 @@ def fetch_tsunami():
         rec["segments"], rec["areas"] = tsunami_segments(rec["json"]) if rec["level"] > 0 and rec.get("json") else ([], [])
         events[key] = rec
     cutoff = now - TSUNAMI_HOURS * 3600
+    latest = max(list(events.values()) + [state.get("latest") or {}], key=lambda v: v.get("sent") or 0, default=None)
+    latest = {k: latest[k] for k in ("centre", "event", "mag", "location", "sent", "level") if latest and k in latest} if latest and latest.get("sent") else None
     events = {k: v for k, v in events.items() if (v.get("sent") or 0) >= cutoff}
     try:
         TSUNAMI_STATE.parent.mkdir(parents=True, exist_ok=True)
         tmp = TSUNAMI_STATE.with_suffix(".tmp%d" % os.getpid())
-        tmp.write_text(json.dumps({"events": events}, separators=(",", ":")), encoding="utf-8")
+        tmp.write_text(json.dumps({"events": events, "latest": latest, "read": now}, separators=(",", ":")), encoding="utf-8")
         tmp.replace(TSUNAMI_STATE)
     except OSError:
         pass
@@ -3023,7 +3025,7 @@ def fetch_tsunami():
         it["active"] = v.get("level", 0) > 0 and not v.get("ended") and (v.get("expires") or now + 1) > now
         out.append(it)
     out.sort(key=lambda it: (-(it["level"] if it["active"] else -1), -it["sent"]))
-    return {"events": out, "problems": failed}
+    return {"events": out, "problems": failed, "latest": latest}
 
 
 def tsunami_cached(max_age_min=5):
@@ -3054,12 +3056,16 @@ def cmd_tsunami(args):
 
 
 def chk_tsunami():
+    import time
     d = fetch_tsunami()
     act = [e for e in d["events"] if e["active"]]
-    latest = d["events"][0] if d["events"] else None
-    return ("warn" if d["problems"] else "ok"), "%d threat%s active%s; latest message %s" % (
+    latest = d.get("latest")
+    age = (time.time() - latest["sent"]) / 3600 if latest else None
+    return ("warn" if d["problems"] else "ok"), "both centres read; %d threat%s active%s; %s" % (
         len(act), "" if len(act) == 1 else "s", ": " + ", ".join("%s (%s)" % (e["location"], e["event"]) for e in act) if act else "",
-        "%s %s, M%s %s, %.1f h ago" % (latest["centre"], latest["event"].lower(), latest.get("mag") or "?", latest.get("location", ""), latest["hours"]) if latest else "none remembered")
+        ("latest bulletin %s %s, M%s %s, %s ago%s" % (latest["centre"], latest["event"].lower(), latest.get("mag") or "?", latest.get("location", ""), _age(int(age * 3600)),
+                                                      "" if age < TSUNAMI_HOURS else " (older than the %d h kept on the map)" % TSUNAMI_HOURS)) if latest else "no bulletin seen yet"
+        + ("; " + "; ".join(d["problems"]) if d["problems"] else ""))
 
 
 # ------------------------------------------------------------- coverage -----
