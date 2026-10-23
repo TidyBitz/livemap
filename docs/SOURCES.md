@@ -159,7 +159,7 @@ Conventions that hold for every source:
   merge (below) takes JTWC's forecast points over GDACS's because they carry winds. JTWC publishes no cone of
   uncertainty, so `estimated_cone` builds one the way NHC builds its own: a circle of JTWC's 5-year mean track
   error round each forecast point (`JTWC_ERROR_NM`: 38 nm at 12 h to 290 nm at 120 h), joined into one
-  outline with a rounded end; the record carries `cone_estimated` and the layer draws it dashed.
+  outline with a rounded end; the record carries `cone_estimated` (the layer draws every cone alike).
 - **Regular expressions:**
   - storm heads in the RSS: `(Super Typhoon|Typhoon|Hurricane|Tropical Storm|Tropical Depression|Tropical Cyclone|Subtropical Storm)\s+(\d{2}[A-Z])\s*(?:\(([^)]*)\))?`
   - product links: `products/(wp|io|sh|ep|cp)(\d{2})(\d{2})web\.txt`

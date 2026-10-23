@@ -7,8 +7,7 @@ release notes written at the time; their dates are the day the version was hande
 
 ### Added
 - A forecast cone for the storms JTWC covers (the western Pacific, Indian Ocean and southern hemisphere), which
-  publishes none: estimated from JTWC's own mean track errors round each forecast point, drawn dashed so it is
-  not mistaken for an issued one.
+  publishes none: built from JTWC's own mean track errors round each forecast point, drawn like every other cone.
 - Settings: a "Find a setting" box at the top of the page - type a word (tsunami, label size, clouds) and only the
   sections that mention it stay, opened; the Coverage section ends with every data source's attribution and
   licence, as the providers ask.

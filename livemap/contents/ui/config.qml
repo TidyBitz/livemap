@@ -1612,7 +1612,7 @@ Kirigami.FormLayout {
     QQC2.CheckBox { visible: sec8.open; id: stormTrackColors; enabled: storms.checked && stormIntensityColors.checked; text: "Track and forecast in the intensity at each fix" }
     Note { visible: sec8.open; text: "Each piece of the track takes the colour of the wind the storm had reached there, so its history reads at a glance: a fix every 6 hours from NHC's best track in the Atlantic and eastern Pacific, and elsewhere the positions this wallpaper has itself seen since it first met the storm. Forecast points use the forecast wind." }
     QQC2.CheckBox { visible: sec8.open; id: stormOriginMark; enabled: storms.checked; text: "Mark where the storm was first fixed, with how long ago" }
-    QQC2.CheckBox { visible: sec8.open; id: stormCone; enabled: storms.checked; text: "Forecast cone (NHC's and GDACS's where they publish one; dashed where it is estimated from JTWC's mean track errors)" }
+    QQC2.CheckBox { visible: sec8.open; id: stormCone; enabled: storms.checked; text: "Forecast cone (the centre's where it publishes one; built from JTWC's mean track errors where it does not)" }
     RowLayout {
         visible: sec8.open
         Kirigami.FormData.label: "Storm labels:"
