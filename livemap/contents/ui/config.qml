@@ -32,6 +32,7 @@ RowLayout {
     id: form
     property alias formLayout: pageForm
     spacing: Kirigami.Units.largeSpacing
+    Layout.fillWidth: true
 
     // map
     property alias cfg_BaseImage: baseImage.text
@@ -487,7 +488,9 @@ RowLayout {
     // The sections, in the order they appear in the file; the sidebar lists them by group.
     property var sections: []
     readonly property var groupOrder: ["", "Map", "Natural events", "Civil, space and network", "Shared"]
-    readonly property var sideList: sections.slice().sort(function (a, b) { return form.groupOrder.indexOf(a.group) - form.groupOrder.indexOf(b.group); })
+    readonly property var sideList: sections.map(function (s, i) { return { s: s, i: i }; })   // a stable sort: by group, then file order
+        .sort(function (a, b) { return (form.groupOrder.indexOf(a.s.group) - form.groupOrder.indexOf(b.s.group)) || (a.i - b.i); })
+        .map(function (x) { return x.s; })
     property string page: "Essentials"
     // "Find a setting": the sidebar keeps only the sections whose title, summary or keywords contain the words
     property string filter: ""
@@ -919,10 +922,16 @@ RowLayout {
     // ---- the page: one section at a time. Always the two-column form; left to itself Kirigami switches to a
     // stacked layout in a narrow window, which moves every label; with the controls capped in width the page
     // simply gets narrower instead.
-    Kirigami.FormLayout {
-        id: pageForm
+    // Kirigami centres a form's grid inside the form, so the form is made exactly as wide as its content (never
+    // wider than the room there is): the labels then sit next to the sidebar instead of floating in the middle.
+    Item {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignTop
+        implicitHeight: pageForm.implicitHeight
+        Kirigami.FormLayout {
+        id: pageForm
+        anchors.left: parent.left
+        width: Math.min(parent.width, Math.max(implicitWidth, Kirigami.Units.gridUnit * 44))
         wideMode: true
 
         // ================================================================= Essentials
@@ -2450,6 +2459,7 @@ RowLayout {
             text: "The coverage panel could not be loaded. The settings above still work."
             color: Kirigami.Theme.negativeTextColor
         }
+    }
     }
 
     QQC2.Dialog {
