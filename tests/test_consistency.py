@@ -99,3 +99,16 @@ def test_data_files_shipped():
     assert (CONTENTS / "data" / "ukraine-regions.json").exists()
     for s in json.loads((CONTENTS / "data" / "sources.json").read_text(encoding="utf-8"))["sources"]:
         pass
+
+
+def test_every_widget_kind_is_a_known_layer():
+    """The wallpaper tells the widget which layers it shows through the helper's whitelist: a kind missing from it
+    never appears in the widget's grouped view (the tsunami group was missing for exactly this reason)."""
+    from livemap_helper.common import LAYER_NAMES
+    widget = (WIDGET / "contents" / "ui" / "main.qml").read_text(encoding="utf-8")
+    layer_of = dict(re.findall(r'(\w+): "(\w+)"', re.search(r"readonly property var layerOf: \(\{([^}]*)\}\)", widget).group(1)))
+    for kind, layer in layer_of.items():
+        assert layer in LAYER_NAMES, "widget kind %s maps to layer %s, which the helper's LAYER_NAMES does not know" % (kind, layer)
+    main_qml = (CONTENTS / "ui" / "main.qml").read_text(encoding="utf-8")
+    for layer in re.findall(r'cfg\.Show\w+ \? "(\w+)" : ""', main_qml):
+        assert layer in LAYER_NAMES, "main.qml reports layer %s, which LAYER_NAMES does not know" % layer

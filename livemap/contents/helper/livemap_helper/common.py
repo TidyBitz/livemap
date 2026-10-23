@@ -403,7 +403,7 @@ MODE = DATA / "mode.json"          # written by the companion widget: {"pause": 
 LAYERS = DATA / "layers.json"
 
 
-LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "alerts", "launches", "sats", "network")
+LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "tsunami", "alerts", "launches", "sats", "network")
 
 
 def read_layers():
