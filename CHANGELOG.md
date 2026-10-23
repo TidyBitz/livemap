@@ -6,6 +6,9 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Settings: a "Find a setting" box at the top of the page - type a word (tsunami, label size, clouds) and only the
+  sections that mention it stay, opened; the Coverage section ends with every data source's attribution and
+  licence, as the providers ask.
 - GeoNet's Volcanic Alert Levels for New Zealand beside USGS's: a raised level (1 and up) shows in its
   aviation colour the hour it is set, with the weekly report as the catalogue.
 - EMSC as a second earthquake source: the Euro-Mediterranean Seismological Centre's real-time catalogue (the

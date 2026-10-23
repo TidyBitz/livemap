@@ -121,4 +121,17 @@ ColumnLayout {
         }
     }
     QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; text: "The same table is docs/COVERAGE.md in the download; docs/SOURCES.md has each feed's format and handling. Edit contents/data/sources.json to change either." }
+
+    // ---- credits: every source's attribution and licence, as the data providers ask ---------------------------
+    QQC2.Label { text: "Data credits and licences"; font.bold: true; topPadding: Kirigami.Units.gridUnit }
+    Repeater {
+        model: panel.coverage ? panel.coverage.sources : []
+        QQC2.Label {
+            required property var modelData
+            Layout.fillWidth: true
+            textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: 0.8
+            font.pointSize: Math.max(7, Kirigami.Theme.defaultFont.pointSize - 1)
+            text: modelData.attribution + " \u2014 " + modelData.licence + " \u2014 " + modelData.url
+        }
+    }
 }

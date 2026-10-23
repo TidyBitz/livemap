@@ -471,10 +471,22 @@ Kirigami.FormLayout {
     // section is set to, and a chevron. Closed, the section is that one line; open, every row below it shows.
     property var sections: []
     function setAllOpen(o) { for (var i = 0; i < sections.length; i++) sections[i].open = o; }
+    // "Find a setting": sections whose title, summary or keywords do not contain the words are hidden, the rest open
+    property string filter: ""
+    readonly property int matching: filter === "" ? sections.length : sections.filter(function (s) { return s.matches; }).length
     component SectionHeader: RowLayout {
         id: sh
         property string title: ""
         property string summary: ""
+        property string keywords: ""                 // extra words the search should find this section by
+        readonly property bool matches: (function () {
+            var words = form.filter.toLowerCase().split(/\s+/).filter(function (w) { return w !== ""; });
+            if (words.length === 0) return true;
+            var hay = (title + " " + summary + " " + keywords + " " + sourceNames.join(" ")).toLowerCase();
+            return words.every(function (w) { return hay.indexOf(w) >= 0; });
+        })()
+        visible: matches
+        Connections { target: form; function onFilterChanged() { if (form.filter !== "") sh.open = sh.matches; } }
         property QtObject twin: null                 // the section's Show checkbox, when it has one
         property var sourceNames: []                 // the Source rows below: their worst state shows as the dot
         property bool open: false
@@ -860,6 +872,13 @@ Kirigami.FormLayout {
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
         RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
         RowLayout {
+            Kirigami.SearchField {
+                id: finder
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 16
+                placeholderText: "Find a setting (e.g. tsunami, label size, clouds)"
+                onTextChanged: form.filter = text
+            }
+            QQC2.Label { visible: form.filter !== ""; text: form.matching + " of " + form.sections.length + " sections"; opacity: 0.7 }
             QQC2.Button { text: "Expand all"; icon.name: "expand-all"; onClicked: form.setAllOpen(true) }
             QQC2.Button { text: "Collapse all"; icon.name: "collapse-all"; onClicked: form.setAllOpen(false) }
             QQC2.Label { text: "Each section below is one line saying what it is set to; the switch is its Show box."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
