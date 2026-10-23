@@ -357,6 +357,7 @@ PlasmoidItem {
             readonly property var facts: it.facts || []
             readonly property string picture: root.previewMode >= 2 ? (it.image || "") : ""
             width: Kirigami.Units.gridUnit * 22
+            height: implicitHeight                     // the dialog takes the item's size, and a layout does not size itself
             spacing: Kirigami.Units.smallSpacing
             RowLayout {
                 Layout.fillWidth: true
