@@ -90,13 +90,22 @@ Conventions that hold for every source:
 
 ## Events
 
-### Earthquakes - USGS Earthquake Hazards Program
-- **What:** the summary GeoJSON feeds `2.5_day`, `4.5_day` (default) or `significant_week`, chosen by `QuakeFeed`.
-- **Why:** the authoritative global catalogue, minutes after an event, no key.
-- **Format:** GeoJSON FeatureCollection; `properties.mag`, `place`, `time` (ms), `tsunami`, `alert`, `url`;
-  geometry `[lon, lat, depth]`.
-- **Processing:** magnitude to size and pulse; `time` to hours ago; the cached copy is used when USGS is down and
-  an empty cached file triggers a refetch. Feed items read `M4.7 · 147 km SSW of Kokopo, Papua New Guinea`.
+### Earthquakes - USGS Earthquake Hazards Program, with EMSC (`quakes.py`)
+- **What:** USGS's summary GeoJSON feeds `2.5_day`, `4.5_day` (default) or `significant_week` (`QuakeFeed`), plus
+  the EMSC-CSEM real-time catalogue through its FDSN event service
+  (`seismicportal.eu/fdsnws/event/1/query?format=json&minmag=<floor>&start=<window>`), the floor and window
+  taken from the USGS feed's name (`FEED_SPAN`).
+- **Why:** USGS is the authority for M4.5+ worldwide and everything in the US, minutes after an event; EMSC
+  collects the national networks' reports and lists the smaller quakes outside the US that USGS carries late
+  or not at all. `QuakeSources` is a mask (1 USGS, 2 EMSC, default both).
+- **Format:** USGS GeoJSON (`properties.mag`, `place`, `time` in ms, `url`); EMSC's FDSN JSON (`properties.mag`,
+  `magtype`, `time` ISO, `lat`, `lon`, `depth`, `flynn_region`, `unid`), reshaped into USGS's feature shape with
+  `source: "EMSC"` and a seismicportal link.
+- **Processing (`quakes_cached`, `merge`):** the two lists are merged - an EMSC event within 120 km and 90 s of
+  a USGS one is the same quake and USGS's record wins - sorted newest first and cached five minutes in
+  `quakes.json` (feed and mask recorded, so a change re-fetches). When one source fails its part comes from the
+  cache and the problem is reported; when both fail, the cached list is shown with its age. The quake layer and
+  the widget read the same command (`quakes --feed --sources`).
 
 ### Tropical storms - GDACS (worldwide)
 - **What:** the UN/EU Global Disaster Alert and Coordination System event list, `EVENTS4APP`, filtered to

@@ -8,11 +8,12 @@ import urllib.request
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .alerts import fetch_air_alerts, ua_regions
-from .common import DATA, EVENTS, HISTORY, HISTORY_DAYS, VERSION, _age, _http, area_text, emit, last_good, \
+from .common import DATA, EVENTS, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
     wind_text
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
+from .quakes import quakes_cached
 from .floods import official_floods, group_nws, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
@@ -26,29 +27,14 @@ def cmd_feed(args):
     from the caches the wallpaper already keeps, plus one small USGS request (cached 5 min)."""
     import time
     now, items, problems = time.time(), [], []
-    # earthquakes
+    # earthquakes (the merged USGS + EMSC list the layer reads; cached 5 min)
     try:
-        qf = DATA / "quakes.json"
-        cached_empty = False
-        try:                                       # an empty collection (USGS mid-outage) is not worth keeping for five minutes
-            cached_empty = qf.exists() and not json.loads(qf.read_text(encoding="utf-8")).get("features")
-        except (OSError, ValueError):
-            cached_empty = True
-        if not qf.exists() or cached_empty or now - qf.stat().st_mtime > 300:
-            try:
-                body = _http("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s.geojson" % args.feed, timeout=12)[2]
-                if not json.loads(body).get("features") and not cached_empty and qf.exists():
-                    raise ValueError("USGS returned an empty feed")
-                qf.parent.mkdir(parents=True, exist_ok=True)
-                qf.write_bytes(body)
-            except Exception as e:                 # USGS not answering this process: the last file still lists the quakes
-                if not qf.exists():
-                    raise
-                problems.append("quakes: USGS not answering (%s); showing the list from %s ago" % (e, _age(now - qf.stat().st_mtime)))
-        for f in json.loads(qf.read_text(encoding="utf-8")).get("features", []):
+        qfeatures, qproblems = quakes_cached(args.feed, read_layers_int("quake_sources", 3))
+        problems += qproblems
+        for f in qfeatures:
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
-                          "detail": "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
+                          "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
                           "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1]))})
     except Exception as e:
         problems.append("quakes: %s" % e)

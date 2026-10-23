@@ -236,3 +236,32 @@ def test_official_floods_mask_and_grouping(no_network, monkeypatch):
     assert len(it) == 2 and all(g["url"].startswith("https://www.meteoalarm.org") for g in it)
     only_us, _ = floods.official_floods(1)
     assert {a["source"] for a in only_us} == {"nws"}
+
+
+# ---- earthquakes: EMSC merged with USGS ---------------------------------------------------------------------
+def test_emsc_parse_and_merge():
+    from livemap_helper import quakes
+    from datetime import datetime, timezone
+    t = time.time() - 600
+    iso = datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.0Z")
+    emsc = quakes.parse_emsc(json.loads(fixture("emsc.json").replace("TIME1", iso).replace("TIME2", iso)))
+    assert len(emsc) == 2 and emsc[0]["properties"]["source"] == "EMSC" and emsc[0]["properties"]["place"] == "Near The Coast Of Panama"
+    assert emsc[0]["geometry"]["coordinates"][:2] == [-82.7, 8.1] and abs(emsc[0]["properties"]["time"] / 1000 - t) < 1
+    usgs = [{"type": "Feature", "id": "us7000abcd", "properties": {"mag": 4.7, "place": "Panama", "time": int((t + 30) * 1000), "source": "USGS"},
+             "geometry": {"type": "Point", "coordinates": [-82.5, 8.2, 12]}}]
+    merged = quakes.merge(usgs, emsc)
+    assert len(merged) == 2                                          # the Panama quake is one event; the Italian M3.1 is new
+    assert [f["properties"]["source"] for f in merged] == ["USGS", "EMSC"]
+
+
+def test_quakes_cache_survives_a_source_outage(no_network, data_dir):
+    from livemap_helper import quakes
+    from datetime import datetime, timezone
+    iso = datetime.fromtimestamp(time.time() - 60, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.0Z")
+    no_network("earthquake.usgs.gov", json.dumps({"type": "FeatureCollection", "features": []}))
+    no_network("seismicportal.eu", fixture("emsc.json").replace("TIME1", iso).replace("TIME2", iso))
+    features, problems = quakes.quakes_cached("4.5_day", 3, max_age=0)
+    assert len(features) == 2 and problems == []
+    no_network("earthquake.usgs.gov", "<html>down</html>")
+    features, problems = quakes.quakes_cached("4.5_day", 3, max_age=0)
+    assert len(features) == 2 and any("USGS" in p for p in problems)   # EMSC still answers, USGS's part comes from the cache

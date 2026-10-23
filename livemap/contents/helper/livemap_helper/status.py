@@ -16,6 +16,7 @@ from .common import DATA, GEOIP, NASA, VERSION, _age, _http, emit, have_hires
 from .feed import chk_power
 from .fetch import chk_frames
 from .fires import chk_cwfis, chk_effis, chk_fires, chk_hotspots, chk_nifc
+from .quakes import chk_emsc
 from .warnings import chk_meteoalarm, chk_eccc, chk_ea
 from .floods import chk_floods, chk_nws_floods
 from .infra import chk_borders, chk_infrastructure, chk_plates
@@ -146,7 +147,7 @@ def status_jobs(offline=False, feed="4.5_day"):
     if not offline:
         jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
-                 ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
+                 ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Earthquakes, secondary (EMSC)", chk_emsc), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
     return jobs
 

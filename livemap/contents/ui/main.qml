@@ -51,6 +51,7 @@ WallpaperItem {
             item.nwsEach = Qt.binding(function () { return cfg.FloodNwsEach });
             item.fireSources = Qt.binding(function () { return cfg.FireSources });
             item.floodSources = Qt.binding(function () { return (cfg.FloodNws ? 1 : 0) | cfg.FloodWarnSources });
+            item.quakeSources = Qt.binding(function () { return cfg.QuakeSources });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
@@ -649,7 +650,8 @@ WallpaperItem {
             anchors.fill: parent
             active: cfg.ShowQuakes && root.saving < 2 && !root.hidden("quakes")
             source: "QuakeLayer.qml"
-            onLoaded: { item.cfg = root.cfg; item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock }); }
+            onLoaded: { item.cfg = root.cfg; item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
+                        item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, ""); }
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: earthquake layer failed to load")
         }
         Loader {
@@ -710,6 +712,7 @@ WallpaperItem {
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",
             launchLoader.item && launchLoader.item.hint !== "" ? launchLoader.item.hint : "",
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",
+            quakeLoader.item && quakeLoader.item.hint !== "" ? quakeLoader.item.hint : "",
             netLoader.item && netLoader.item.hint !== "" ? "Network: " + netLoader.item.hint : "",
             root.saving > 0 && root.savingWhy !== "on battery" ? (root.saving === 2 ? "Live layers off: " : "Animations paused: ") + root.savingWhy : "",
             root.fullSpeed && root.saving === 0 && (root.guardLevel > 0 || (root.onBattery && cfg.OnBattery > 0))

@@ -1,10 +1,12 @@
 /*
- * Earthquakes from the USGS GeoJSON feed (no key needed).
+ * Earthquakes from USGS's GeoJSON feed, with EMSC's real-time catalogue merged in by the helper (`quakes`) for
+ * the smaller events outside the US; the same list the widget reads.
  * This file is also the template for any "fetch JSON, draw points" overlay:
  * copy it, change the URL and the parsing, add a Loader + checkbox.
  */
 import QtQuick
 import QtQuick.Window
+import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -12,8 +14,12 @@ Item {
 
     property var cfg: null
     readonly property var feeds: ["2.5_day", "4.5_day", "significant_week"]
-    readonly property string feedUrl: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/"
-        + feeds[cfg ? cfg.QuakeFeed : 1] + ".geojson"
+    readonly property string feedName: feeds[cfg ? cfg.QuakeFeed : 1] || "4.5_day"
+    readonly property int sources: cfg ? cfg.QuakeSources : 3                  // 1 USGS, 2 EMSC
+    property string helper: ""
+    property string note: ""
+    readonly property string hint: note
+    readonly property string feedUrl: feedName + "/" + sources                 // what a change of either re-asks for
     readonly property real unit: Math.max(1, Screen.width / 1920)   // screen pixels: a zoomed-in frame keeps marks the same size     // keeps sizes sane on 4K
     readonly property color ring: cfg ? cfg.QuakeColor : "#ffa640"
     readonly property color ringLight: Qt.lighter(ring, 1.35)
@@ -66,32 +72,37 @@ Item {
     readonly property bool pulseWanted: pulse && pulsingCount > 0
     property int reports: 0          // only the first few refreshes are written to the journal
 
-    function refresh() {
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return;
-            if (xhr.status !== 200) { console.warn("livemap quakes: request failed, HTTP status", xhr.status, overlay.feedUrl); return; }
+    P5Support.DataSource {
+        id: exec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => {
+            disconnectSource(source);
             try {
-                var f = JSON.parse(xhr.responseText).features, out = [], nowMs = Date.now();
+                var r = JSON.parse(data.stdout), f = r.features || [], out = [], nowMs = Date.now();
                 for (var i = 0; i < f.length; i++) {
                     var c = f[i].geometry.coordinates, p = f[i].properties;
                     out.push({ lon: c[0], lat: c[1], mag: p.mag || 0, place: Geo.quakePlace(p.place || ""),
-                               hours: (nowMs - p.time) / 3600000 });
+                               hours: (nowMs - p.time) / 3600000, source: p.source || "USGS" });
                 }
                 out.sort(function (a, b) { return b.mag - a.mag; });     // strongest first: they get their labels first
                 overlay.quakes = out;
                 overlay.pulsingCount = out.filter(overlay.pulses).length;
+                overlay.note = r.note || "";
                 if (overlay.reports++ < 3) console.warn("livemap quakes:", out.length, "events from the feed ->", rings.count, "drawn, layer is",
                              Math.round(overlay.width) + "x" + Math.round(overlay.height),
-                             out.length ? "- first at " + out[0].lat.toFixed(1) + "," + out[0].lon.toFixed(1) + " M" + out[0].mag : "");
-            } catch (e) { console.warn("livemap quakes:", e); }
-        };
-        xhr.open("GET", feedUrl);
-        xhr.send();
+                             out.length ? "- first at " + out[0].lat.toFixed(1) + "," + out[0].lon.toFixed(1) + " M" + out[0].mag : "", overlay.note);
+            } catch (e) { console.warn("livemap quakes:", e); overlay.note = "Earthquakes: the helper did not answer properly"; }
+        }
     }
+    function refresh() {
+        if (helper === "") return;
+        exec.connectSource("python3 '" + helper + "' quakes --feed " + feedName + " --sources " + sources + " # " + Date.now());
+    }
+    onHelperChanged: refresh()
 
     onFeedUrlChanged: if (poll.running) refresh()
-    Timer { id: poll; interval: 300000; running: true; repeat: true; triggeredOnStart: true
+    Timer { id: poll; interval: 300000; running: overlay.helper !== ""; repeat: true; triggeredOnStart: true
             onTriggered: overlay.refresh() }
 
     Repeater {

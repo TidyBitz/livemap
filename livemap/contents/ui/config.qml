@@ -210,6 +210,7 @@ Kirigami.FormLayout {
     // earthquakes
     property alias cfg_ShowQuakes: quakes.checked
     property alias cfg_QuakeFeed: quakeFeed.currentIndex
+    property int cfg_QuakeSources
     property alias cfg_QuakeColor: quakeColor.color
     property int cfg_QuakeSize
     property alias cfg_ShowPlates: plates.checked
@@ -1367,8 +1368,8 @@ Kirigami.FormLayout {
     Group { text: "Natural events" }
 
     // ============================================================ Earthquakes
-    SectionHeader { id: sec6; title: "Earthquakes"; sourceNames: ["Earthquake feed (USGS)"]; twin: quakes; summary: (quakes.checked ? quakeFeed.currentText + " · rings " + form.cfg_QuakeSize + " % · labels: " + quakeLabels.currentText.toLowerCase() + " · pulse: " + quakePulseMode.currentText.toLowerCase() : "Off") }
-    Source { visible: sec6.open; names: ["Earthquake feed (USGS)"] }
+    SectionHeader { id: sec6; title: "Earthquakes"; sourceNames: ["Earthquake feed (USGS)", "Earthquakes, secondary (EMSC)"]; twin: quakes; summary: (quakes.checked ? quakeFeed.currentText + " · rings " + form.cfg_QuakeSize + " % · labels: " + quakeLabels.currentText.toLowerCase() + " · pulse: " + quakePulseMode.currentText.toLowerCase() : "Off") }
+    Source { visible: sec6.open; names: ["Earthquake feed (USGS)", "Earthquakes, secondary (EMSC)"] }
 
     QQC2.CheckBox { visible: sec6.open; id: quakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes (USGS)" }
     Amount {
@@ -1386,6 +1387,21 @@ Kirigami.FormLayout {
         enabled: quakes.checked
         model: ["Magnitude 2.5+, past day", "Magnitude 4.5+, past day", "Significant, past week"]
     }
+    RowLayout {
+        visible: sec6.open
+        Kirigami.FormData.label: "Earthquake sources:"
+        enabled: quakes.checked
+        Repeater {
+            model: [[1, "USGS"], [2, "EMSC (Europe-Mediterranean Seismological Centre)"]]
+            QQC2.CheckBox {
+                required property var modelData
+                text: modelData[1]
+                checked: (form.cfg_QuakeSources & modelData[0]) !== 0
+                onToggled: form.cfg_QuakeSources = checked ? (form.cfg_QuakeSources | modelData[0]) : (form.cfg_QuakeSources & ~modelData[0])
+            }
+        }
+    }
+    Note { visible: sec6.open; text: "USGS lists every M4.5+ worldwide within minutes and is the authority for the US; EMSC collects the national networks' reports and lists the smaller quakes outside the US that USGS carries late or not at all (Europe, the Mediterranean, Latin America, Indonesia). The two are merged - the same quake within 120 km and 90 s is one - at the feed's magnitude floor, every 5 minutes." }
     KQuickControls.ColorButton { visible: sec6.open; id: quakeColor; Kirigami.FormData.label: "Earthquake ring colour:"; enabled: quakes.checked; showAlphaChannel: false; dialogTitle: "Earthquake ring colour" }
     Amount {
         visible: sec6.open

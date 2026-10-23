@@ -6,6 +6,11 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- EMSC as a second earthquake source: the Euro-Mediterranean Seismological Centre's real-time catalogue (the
+  national networks' reports) merged with USGS's feed - the same quake within 120 km and 90 s is one, USGS's
+  record wins - so the smaller quakes outside the US that USGS lists late or not at all appear within minutes.
+  Earthquake sources are a pair of boxes under Earthquakes; the quake layer and the widget now read one shared
+  list from the helper (`quakes`), one request instead of two.
 - Official flood warnings beyond the US: MeteoAlarm (the 38 European national weather services - flood, rain
   and coastal warnings by region, placed on Natural Earth's regions by name), Environment Canada's rainfall and
   flood alerts with their polygons, and the Environment Agency's flood alerts and warnings for England with each

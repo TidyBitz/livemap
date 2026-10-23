@@ -284,6 +284,7 @@
     <entry name="CloudOpacity" type="Int"><default>50</default></entry>
     <entry name="ShowQuakes" type="Bool"><default>true</default></entry>
     <entry name="QuakeFeed" type="Int"><default>1</default></entry>
+    <entry name="QuakeSources" type="Int"><default>3</default></entry>        <!-- 1 USGS, 2 EMSC (merged: the same quake within 120 km and 90 s is one) -->
     <entry name="QuakeColor" type="Color"><default>#ffa640</default></entry>
     <entry name="QuakeSize" type="Int"><default>100</default></entry>
     <!-- tectonic plate boundaries (PB2002), drawn under the political lines; shown with the Earthquakes settings -->

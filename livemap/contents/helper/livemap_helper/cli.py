@@ -38,6 +38,7 @@ import argparse
 from .alerts import cmd_air_alerts
 from .borders import cmd_borders, cmd_fetch_borders, cmd_zone_tint
 from .clouds import cmd_clouds
+from .quakes import cmd_quakes
 from .coverage import cmd_coverage
 from .feed import cmd_feed
 from .fetch import cmd_fetch_frame, cmd_fetch_geoip, cmd_fetch_maps, cmd_frame, cmd_make_lights
@@ -74,7 +75,7 @@ def main():
     sub.add_parser("make-lights").set_defaults(fn=cmd_make_lights)
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
-    pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int)
+    pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -99,6 +100,8 @@ def main():
     inc.add_argument("--stale", type=float, default=6); inc.add_argument("--table", action="store_true"); inc.set_defaults(fn=cmd_incidents)
     aa = sub.add_parser("air-alerts"); aa.add_argument("--token", default=""); aa.add_argument("--regions", action="store_true")
     aa.add_argument("--stale", type=float, default=1); aa.add_argument("--table", action="store_true"); aa.set_defaults(fn=cmd_air_alerts)
+    qk = sub.add_parser("quakes"); qk.add_argument("--feed", default="4.5_day"); qk.add_argument("--sources", type=int, default=3)
+    qk.add_argument("--max-age", dest="max_age", type=float, default=300); qk.add_argument("--table", action="store_true"); qk.set_defaults(fn=cmd_quakes)
     cv = sub.add_parser("coverage"); cv.add_argument("--markdown", action="store_true"); cv.add_argument("--home", default="")   # "lat,lon"
     cv.set_defaults(fn=cmd_coverage)
     ts = sub.add_parser("tsunami"); ts.add_argument("--table", action="store_true"); ts.add_argument("--stale", type=float, default=2)
