@@ -194,7 +194,9 @@ def fetch_launches(max_age_h=1):
                     "mission": mission, "orbit": (((L.get("mission") or {}).get("orbit") or {}).get("abbrev") or ""),
                     "provider": ((L.get("launch_service_provider") or {}).get("name") or ""),
                     "status": ((L.get("status") or {}).get("abbrev") or ""), "net": net,
-                    "pad": pad.get("name") or "", "site": ((pad.get("location") or {}).get("name") or ""), "lat": lat, "lon": lon})
+                    "pad": pad.get("name") or "", "site": ((pad.get("location") or {}).get("name") or ""), "lat": lat, "lon": lon,
+                    "status_name": ((L.get("status") or {}).get("name") or ""), "window_end": L.get("window_end") or "",
+                    "image": (L.get("image") if isinstance(L.get("image"), str) else (L.get("image") or {}).get("image_url")) or ""})
     try:
         LAUNCHES.parent.mkdir(parents=True, exist_ok=True)
         LAUNCHES.write_text(json.dumps({"at": time.time(), "launches": out}), encoding="utf-8")

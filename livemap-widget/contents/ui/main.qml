@@ -330,12 +330,86 @@ PlasmoidItem {
     Component.onCompleted: { refresh(); refreshMode(); }
     Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
-    onExpandedChanged: if (root.expanded) { refresh(); refreshMode(); markSeen(); }
+    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); }
 
     toolTipMainText: "Live World Map"
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
     switchWidth: Kirigami.Units.gridUnit * 18
     switchHeight: Kirigami.Units.gridUnit * 14
+
+    // ---- the preview bubble: what the feed knows about one event, beside the widget, after a short hover ----
+    // 0 off (the plain link tooltip instead), 1 details, 2 details and the source's picture where it has one
+    readonly property int previewMode: Plasmoid.configuration.Preview === undefined ? 2 : Plasmoid.configuration.Preview
+    property var bubbleItem: ({})
+    property Item bubbleRow: null
+    function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
+    function bubbleAway(row) { if (bubbleRow === row) { bubbleTimer.stop(); bubble.visible = false; bubbleRow = null; } }
+    Timer { id: bubbleTimer; interval: 550; onTriggered: if (root.bubbleRow) { bubble.visualParent = root.bubbleRow; bubble.visible = true; } }
+    PlasmaCore.Dialog {
+        id: bubble
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.LeftEdge        // beside the widget (Plasma flips it to the other side at a screen edge)
+        hideOnWindowDeactivate: false
+        visible: false
+        mainItem: ColumnLayout {
+            id: bubbleBody
+            readonly property var it: root.bubbleItem
+            readonly property var facts: it.facts || []
+            readonly property string picture: root.previewMode >= 2 ? (it.image || "") : ""
+            width: Kirigami.Units.gridUnit * 22
+            spacing: Kirigami.Units.smallSpacing
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                Rectangle {
+                    Layout.preferredWidth: 9; Layout.preferredHeight: 9; radius: 5
+                    color: bubbleBody.it.level >= 3 ? Kirigami.Theme.negativeTextColor : bubbleBody.it.level === 2 ? Kirigami.Theme.neutralTextColor : Kirigami.Theme.highlightColor
+                }
+                PC3.Label { Layout.fillWidth: true; text: bubbleBody.it.title || ""; textFormat: Text.PlainText; font.bold: true; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+            }
+            PC3.Label { Layout.fillWidth: true; text: (root.kindName[bubbleBody.it.kind] || "") + (bubbleBody.it.detail ? " \u00b7 " + bubbleBody.it.detail : ""); textFormat: Text.PlainText; opacity: 0.7; wrapMode: Text.Wrap; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+            Image {
+                id: picture
+                visible: bubbleBody.picture !== "" && status !== Image.Error
+                Layout.fillWidth: true
+                Layout.preferredHeight: status === Image.Ready ? Math.round(width * implicitHeight / Math.max(1, implicitWidth)) : Kirigami.Units.gridUnit * 4
+                source: bubbleBody.picture
+                fillMode: Image.PreserveAspectFit
+                asynchronous: true
+                cache: true
+                sourceSize.width: Kirigami.Units.gridUnit * 44
+                PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible }
+            }
+            PC3.Label { visible: bubbleBody.picture !== "" && picture.status === Image.Error; text: "The picture could not be loaded"; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                rowSpacing: 1; columnSpacing: Kirigami.Units.largeSpacing
+                Repeater {
+                    model: bubbleBody.facts
+                    delegate: PC3.Label {
+                        required property var modelData
+                        required property int index
+                        Layout.row: index; Layout.column: 0
+                        Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                        text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    }
+                }
+                Repeater {
+                    model: bubbleBody.facts
+                    delegate: PC3.Label {
+                        required property var modelData
+                        required property int index
+                        Layout.row: index; Layout.column: 1
+                        Layout.fillWidth: true
+                        text: modelData[1]; textFormat: Text.PlainText; wrapMode: Text.Wrap; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    }
+                }
+            }
+            PC3.Label { visible: bubbleBody.facts.length === 0; text: "Nothing more is known about this one."; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+            PC3.Label { visible: !!bubbleBody.it.url; Layout.fillWidth: true; text: "Click to open " + (root.webUrl(bubbleBody.it.url || "") || ""); textFormat: Text.PlainText; elide: Text.ElideMiddle; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+        }
+    }
 
     compactRepresentation: MouseArea {
         hoverEnabled: true
@@ -365,7 +439,7 @@ PlasmoidItem {
         readonly property bool fades: root.onDesktop && Plasmoid.configuration.FadeIdle && restOpacity < 1
         property bool idle: false
         onFadesChanged: if (!fades) idle = false
-        HoverHandler { id: hover; onHoveredChanged: if (hovered) full.idle = false }
+        HoverHandler { id: hover; onHoveredChanged: { if (hovered) full.idle = false; else root.bubbleAway(root.bubbleRow); } }
         Timer { interval: Math.max(1, Plasmoid.configuration.IdleSeconds || 3) * 1000; running: full.fades && !hover.hovered; onTriggered: full.idle = true }
         opacity: !root.onDesktop ? 1 : full.fades ? (full.idle ? full.restOpacity : 1) : full.restOpacity
         Behavior on opacity { NumberAnimation { duration: full.idle ? 600 : 150; easing.type: Easing.InOutQuad } }
@@ -458,6 +532,7 @@ PlasmoidItem {
                         model: root.rows
                         spacing: 2
                         clip: true
+                        onContentYChanged: root.bubbleAway(root.bubbleRow)       // the row under the pointer changed: no stale bubble
                         delegate: Loader {
                             required property var modelData
                             required property int index
@@ -512,8 +587,13 @@ PlasmoidItem {
                             }
                         }
                         onClicked: root.openWeb(modelData.url)
+                        // a plain tooltip with the link when previews are off; otherwise the preview bubble, after a short hover
                         PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
-                        PC3.ToolTip.visible: hovered
+                        PC3.ToolTip.visible: hovered && root.previewMode === 0
+                        onHoveredChanged: {
+                            if (hovered && root.previewMode > 0 && !modelData.pin) root.bubbleFor(row, modelData);
+                            else if (!hovered) root.bubbleAway(row);
+                        }
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
                             Kirigami.Icon {

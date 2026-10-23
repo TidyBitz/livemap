@@ -1,5 +1,6 @@
 """The Events widget's list: every layer's events, history, the newest-first bookkeeping."""
 import json
+import re
 import os
 import urllib.error
 import urllib.request
@@ -21,6 +22,121 @@ from .space import SATS, fetch_launches
 from .tsunami import tsunami_cached
 
 
+# ----------------------------------------------------------------- facts -----
+def _pos(lat, lon):
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return ""
+    return "%.1f\u00b0%s %.1f\u00b0%s" % (abs(lat), "N" if lat >= 0 else "S", abs(lon), "E" if lon >= 0 else "W")
+
+
+def _when(ts):
+    import time
+    try:
+        return time.strftime("%a %d %b %H:%M", time.localtime(float(ts)))
+    except (TypeError, ValueError, OverflowError):
+        return ""
+
+
+def _hours(h):
+    try:
+        h = float(h)
+    except (TypeError, ValueError):
+        return ""
+    return "%d min" % round(h * 60) if h < 1 else "%.0f h" % h if h < 48 else "%.0f d" % (h / 24)
+
+
+def storm_image(it):
+    """The centre's own graphic for a storm, where it publishes one at a fixed address: NHC's five-day cone
+    (Atlantic, eastern and central Pacific), JTWC's warning graphic (everywhere else). GDACS has none."""
+    sid, src = str(it.get("id") or ""), it.get("source") or ""
+    if src == "NHC" and re.match(r"^(al|ep|cp)\d{6}$", sid, re.I):
+        basin = {"al": "AT", "ep": "EP", "cp": "CP"}[sid[:2].lower()]
+        return "https://www.nhc.noaa.gov/storm_graphics/%s%s/refresh/%s_5day_cone_with_line_and_wind_sm2+png/" % (basin, sid[2:4], sid.upper())
+    if src == "JTWC" and re.match(r"^(wp|io|sh)\d{4}$", sid, re.I):
+        return "https://www.metoc.navy.mil/jtwc/products/%s.gif" % sid.lower()
+    return ""
+
+
+def facts_for(kind, it, extra=None):
+    """What the widget's preview bubble says for one event: [label, value] rows (a value may be ""; the widget
+    skips those) and a picture where the source publishes one. `it` is the source's own record; `extra` carries
+    what the caller computed (units, people)."""
+    extra = extra or {}
+    rows, image = [], ""
+    if kind == "quake":
+        p, c = it.get("properties") or {}, (it.get("geometry") or {}).get("coordinates") or [0, 0, 0]
+        rows = [["Magnitude", "%s %.1f" % ((p.get("magType") or "M").replace("ml", "ML").replace("mb", "mb"), float(p.get("mag") or 0))],
+                ["Depth", "%.0f km" % float(c[2]) if len(c) > 2 and c[2] is not None else ""],
+                ["When", _when((p.get("time") or 0) / 1000)],
+                ["Where", _pos(c[1], c[0])],
+                ["Felt", "%d reports" % p["felt"] if p.get("felt") else ""],
+                ["Intensity", ("%.1f (reported)" % p["cdi"] if p.get("cdi") else "") + (" \u00b7 %.1f (modelled)" % p["mmi"] if p.get("mmi") else "")],
+                ["PAGER alert", (p.get("alert") or "").title() if p.get("alert") else ""],
+                ["Tsunami", "flagged by the source" if p.get("tsunami") else ""],
+                ["Source", (p.get("source") or "USGS") + (" \u00b7 " + p["status"] if p.get("status") else "")]]
+    elif kind == "storm":
+        rows = [["Class", "%s%s" % (it.get("kind") or "", " \u00b7 category %d" % it["cat"] if it.get("cat") else "")],
+                ["Wind", extra.get("wind") or ""],
+                ["Position", _pos(it.get("lat"), it.get("lon"))],
+                ["Last fix", _hours(it.get("hours")) + " ago" if it.get("hours") is not None else ""],
+                ["Centre", (it.get("source") or "GDACS") + (" \u00b7 cone from JTWC's mean errors" if it.get("cone_estimated") else "")],
+                ["Was named", str(it.get("was_named") or "").title() if it.get("was_named") else ""],
+                ["In its path", extra.get("ahead") or ""],
+                ["Crossed", extra.get("crossed") or ""]]
+        image = storm_image(it)
+    elif kind == "volcano":
+        rows = [["Alert level", "%s%s" % (it.get("level") or "", " (%s)" % it["alert"] if it.get("alert") else "")],
+                ["Observatory", it.get("observatory") or "USGS / Smithsonian"],
+                ["Ash", ("to FL%s" % it["ash_top_fl"] if it.get("ash_top_fl") else "advisory in force") + (" \u00b7 %s ago" % _hours(it["ash_hours"]) if it.get("ash_hours") is not None else "") if it.get("ash_hours") is not None or it.get("ash_top_fl") else ""],
+                ["Status", it.get("status") or ""],
+                ["Position", _pos(it.get("lat"), it.get("lon"))]]
+    elif kind == "fire":
+        rows = [["Alert", (it.get("alert") or "").title() if it.get("alert") else ""],
+                ["Area", extra.get("area") or ""],
+                ["Contained", "%d %%" % it["contained"] if it.get("contained") is not None else ""],
+                ["Stage", it.get("stage") or ""],
+                ["Personnel", str(it["personnel"]) if it.get("personnel") else ""],
+                ["Region", it.get("region") or ""],
+                ["Detections", extra.get("detections") or ""],
+                ["Fire power", extra.get("frp") or ""],
+                ["Position", _pos(it.get("lat"), it.get("lon"))]]
+    elif kind == "flood":
+        rows = [["Level", (it.get("alert") or "").title() if it.get("alert") else ""],
+                ["Event", it.get("event") or ""],
+                ["Area", it.get("name") or ""],
+                ["Issued by", extra.get("by") or ""],
+                ["From", _when(it["onset"]) if it.get("onset") else ""],
+                ["Until", _when(it["until"]) if it.get("until") else ""],
+                ["People exposed", extra.get("people") or ""],
+                ["Headline", it.get("headline") or ""]]
+    elif kind == "tsunami":
+        rows = [["Bulletin", it.get("event") or ""],
+                ["Severity", (it.get("severity") or "").title() if it.get("severity") else ""],
+                ["Centre", it.get("centre") or ""],
+                ["Earthquake", "M%.1f %s" % (it["mag"], it.get("location") or "") if it.get("mag") else ""],
+                ["Areas", ", ".join(it.get("areas") or [])],
+                ["Sent", _when(it["sent"]) if it.get("sent") else ""]]
+    elif kind == "alert":
+        rows = [["Alert", ", ".join(it.get("types") or ["air raid"]).capitalize()],
+                ["Region", extra.get("region") or ""],
+                ["Places", ", ".join(it.get("places") or [])],
+                ["Since", _when(it["since"]) if it.get("since") else ""],
+                ["Ended", _when(it["ended"]) if it.get("ended") else ""]]
+    elif kind == "launch":
+        rows = [["Rocket", it.get("rocket") or ""],
+                ["Mission", it.get("mission") or it.get("name") or ""],
+                ["Orbit", it.get("orbit") or ""],
+                ["Provider", it.get("provider") or ""],
+                ["Pad", ", ".join(x for x in (it.get("pad"), it.get("site")) if x)],
+                ["Launch", _when(it["net"]) + " (local time)" if it.get("net") else ""],
+                ["Status", it.get("status_name") or it.get("status") or ""],
+                ["Webcast", "live now" if it.get("webcast_live") else ""]]
+        image = it.get("image") or ""
+    return {"facts": [[k, v] for k, v in rows if v], "image": image}
+
+
 # ------------------------------------------------------------------ feed -----
 def cmd_feed(args):
     """The newest events across every source, with a link each, for the companion widget. Everything comes
@@ -35,7 +151,7 @@ def cmd_feed(args):
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
                           "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
-                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1]))})
+                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f)})
     except Exception as e:
         problems.append("quakes: %s" % e)
     # remembered events: storms, volcanoes, fires (first seen / changed)
@@ -75,6 +191,16 @@ def cmd_feed(args):
                 continue                                   # the wallpaper's flood filter (green floods are a basin's seasonal high water)
             if kind == "storm" and it.get("impact"):   # the facilities it crossed and those in its path, for the widget
                 ev["facilities"] = {"crossed": it["impact"].get("crossed") or [], "ahead": it["impact"].get("ahead") or []}
+            ex = {}
+            if kind == "storm":
+                ex = {"wind": wind_text(float(it.get("wind") or 0), units[1]) + (" (peak)" if it.get("wind_is_peak") else " sustained"),
+                      "ahead": ", ".join(str(x.get("name") or x) for x in ((it.get("impact") or {}).get("ahead") or [])[:6]),
+                      "crossed": ", ".join(str(x.get("name") or x) for x in ((it.get("impact") or {}).get("crossed") or [])[:6])}
+            elif kind == "fire":
+                ex = {"area": area_text(float(it.get("area_ha") or 0), units[0])}
+            elif kind == "flood":
+                ex = {"by": "GDACS", "people": people_text(it["people"]) if it.get("people") else ""}
+            ev.update(facts_for(kind, it, ex))
             items.append(ev)
     # named fire incidents (NIFC, CWFIS, EFFIS: the sources the wallpaper has on; cached half an hour)
     try:
@@ -98,7 +224,8 @@ def cmd_feed(args):
                 items.append({"kind": "fire", "when": now - (it.get("hours") or 0) * 3600, "title": " \u00b7 ".join(parts),
                               "detail": "%s%s" % (src.upper(), " \u00b7 " + it["region"] if it.get("region") else ""), "url": it.get("url", ""),
                               "lat": it["lat"], "lon": it["lon"], "key": it["id"],
-                              "level": 3 if active and it["area_ha"] >= 10000 else 2 if active and big else 1})
+                              "level": 3 if active and it["area_ha"] >= 10000 else 2 if active and big else 1,
+                              **facts_for("fire", it, {"area": area_text(float(it["area_ha"]), units[0])})})
     except Exception as e:
         problems.append("incidents: %s" % e)
     # air raid alerts: the wallpaper's minute-by-minute cache when fresh (it carries the token's detail), else the mirror
@@ -127,7 +254,8 @@ def cmd_feed(args):
             items.append({"kind": "alert", "when": a.get("since") or now, "title": "%s \u00b7 %s%s" % (", ".join(kinds).capitalize(), r["name"], " (part)" if a.get("status") == "P" else ""),
                           "detail": ("alerts.in.ua" if (aa or {}).get("source") != "mirror" else "mirror, oblast level") + (" \u00b7 " + ", ".join(a["places"]) if a.get("places") else "") + ("" if a.get("since") else " \u00b7 on since before the first look"),
                           "nonew": not a.get("since"), "url": "https://alerts.in.ua/en",
-                          "lat": r["lat"], "lon": r["lon"], "level": 3 if severe else 2, "key": "alert:%s:%d" % (code, int(a.get("since") or now))})
+                          "lat": r["lat"], "lon": r["lon"], "level": 3 if severe else 2, "key": "alert:%s:%d" % (code, int(a.get("since") or now)),
+                          **facts_for("alert", a, {"region": r["name"]})})
     except Exception as e:
         problems.append("air alerts: %s" % e)
     # NWS flood alerts (the wallpaper's cache; fetched when it is more than 10 minutes old)
@@ -141,7 +269,8 @@ def cmd_feed(args):
             items.append({"kind": "flood", "when": a.get("onset") or now, "title": "%s \u00b7 %s" % (a["event"], a["name"]),
                           "detail": "%s%s%s" % ({"meteoalarm": "MeteoAlarm", "eccc": "Environment Canada", "ea": "Environment Agency"}.get(a.get("source"), "NWS"), "" if a.get("count") or a.get("source") not in (None, "nws") else " " + a["office"],
                                                  " \u00b7 until " + time.strftime("%a %H:%M", time.localtime(a["until"])) if a.get("until") else ""),
-                          "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
+                          "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"],
+                          **facts_for("flood", a, {"by": {"meteoalarm": "MeteoAlarm", "eccc": "Environment Canada", "ea": "Environment Agency"}.get(a.get("source"), "NWS" + (" " + a["office"] if a.get("office") else ""))})})
     except Exception as e:
         problems.append("nws floods: %s" % e)
     # tsunami bulletins (the wallpaper's cache; fetched when it is more than 5 minutes old)
@@ -152,7 +281,7 @@ def cmd_feed(args):
             items.append({"kind": "tsunami", "when": e["sent"], "title": "%s · %s%s" % (what, "M%.1f " % e["mag"] if e.get("mag") else "", e.get("location") or ""),
                           "detail": "%s · %s" % (e["centre"], (", ".join(e["areas"][:4]) + (", +%d" % (len(e["areas"]) - 4) if len(e["areas"]) > 4 else "")) if e.get("areas") else ("bulletin %s" % (e.get("severity") or "").lower() if e["level"] <= 0 else e["event"])),
                           "url": e["url"], "lat": e["lat"], "lon": e["lon"], "level": 3 if e["level"] >= 2 and e["active"] else 2 if e["level"] > 0 and e["active"] else 1,
-                          "nonew": e["level"] <= 0 and not e.get("ended"), "key": "tsunami:%s:%s" % (e["centre"], e["incident"])})
+                          "nonew": e["level"] <= 0 and not e.get("ended"), "key": "tsunami:%s:%s" % (e["centre"], e["incident"]), **facts_for("tsunami", e)})
     except Exception as e:
         problems.append("tsunami: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
@@ -163,7 +292,8 @@ def cmd_feed(args):
                 continue
             items.append({"kind": "fire", "when": now - c["hours"] * 3600, "title": "Fire hotspots \u00b7 %s \u00b7 %s" % (c["why"], "%.1f GW" % (c["frp"] / 1000) if c["frp"] >= 1000 else "%d MW" % c["frp"]),
                           "detail": "NASA FIRMS %s \u00b7 %d detections" % (hotspot_source(), c.get("raw", c["n"])), "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@%.2f,%.2f,7z" % (c["lon"], c["lat"]),
-                          "lat": c["lat"], "lon": c["lon"], "level": 2, "key": "hot:%d,%d" % (int(c["lat"] // 0.5), int(c["lon"] // 0.5))})
+                          "lat": c["lat"], "lon": c["lon"], "level": 2, "key": "hot:%d,%d" % (int(c["lat"] // 0.5), int(c["lon"] // 0.5)),
+                          **facts_for("fire", c, {"detections": "%d, %s" % (c.get("raw", c["n"]), c["why"]), "frp": "%.1f GW" % (c["frp"] / 1000) if c["frp"] >= 1000 else "%d MW" % c["frp"]})})
     except Exception as e:
         problems.append("hotspots: %s" % e)
     # launches
@@ -174,7 +304,7 @@ def cmd_feed(args):
                               "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": (L.get("videos") or [{}])[0].get("url") or "https://ll.thespacedevs.com/2.2.0/launch/%s/" % L["id"],
                               "lat": L["lat"], "lon": L["lon"], "level": 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": True,
                               "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", ""),
-                              "key": "launch:%s" % L["id"]})
+                              "key": "launch:%s" % L["id"], **facts_for("launch", L)})
     except Exception as e:
         problems.append("launches: %s" % e)
     # satellites

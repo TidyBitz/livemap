@@ -24,6 +24,13 @@ release notes written at the time; their dates are the day the version was hande
   compares the two.
 
 ### Added
+- Widget: a preview bubble. Rest the pointer on an event and a bubble beside the widget says what the feed knows:
+  a storm's class, wind, position, last fix, centre and what lies in its path; a quake's depth, felt reports,
+  intensity and PAGER alert; a flood's level, area, issuer and when it ends; a volcano's level, observatory and
+  ash height; a launch's rocket, orbit, pad and status - and a picture where the centre publishes one at a fixed
+  address (NHC's five-day cone, JTWC's warning chart, the launch's picture). Settings: Off / Details / Details
+  and pictures (the default). The feed carries the facts (`facts`, `image` per item), so the widget draws no
+  conclusions of its own.
 - Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame
   included, to an opacity of your choice, so the map shows through - and come back as the pointer arrives; or
   hold a fixed opacity. Settings, "On the desktop". It draws its own (Plasma's usual) frame there for that.

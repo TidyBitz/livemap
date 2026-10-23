@@ -37,6 +37,7 @@ Kirigami.FormLayout {
     property int cfg_IdleOpacity
     property alias cfg_FadeIdle: fadeIdle.checked
     property alias cfg_IdleSeconds: idleSeconds.value
+    property alias cfg_Preview: preview.currentIndex
     property alias cfg_LiveUrl: liveUrl.text
     property alias cfg_LiveEmbed: liveEmbed.checked
     property alias cfg_LiveExtra: liveExtra.text
@@ -99,6 +100,17 @@ Kirigami.FormLayout {
         wrapMode: Text.Wrap
         opacity: 0.7
         text: "As a desktop widget, the whole thing - frame included - fades to this opacity once the pointer has been away for that long, so the map shows through, and comes back as the pointer arrives. Untick Fade for a fixed opacity at the slider's value (100 % is the plain Plasma look). In a panel the popup is never faded."
+    }
+    QQC2.ComboBox {
+        id: preview
+        Kirigami.FormData.label: "Preview on hover:"
+        model: ["Off", "Details", "Details and pictures"]
+    }
+    QQC2.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        opacity: 0.7
+        text: "Rest the pointer on an event and a bubble beside the widget says what the feed knows: for a storm its class, wind, position and what lies in its path; for a quake its depth, felt reports and intensity; for a flood the full warning and when it ends; for a launch the pad, orbit and status. Pictures are the centre's own graphic where it publishes one at a fixed address - NHC's five-day cone, JTWC's warning chart, the launch's picture - fetched when the bubble opens. Off shows the plain link tooltip instead."
     }
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Notification sound" }
     RowLayout {
