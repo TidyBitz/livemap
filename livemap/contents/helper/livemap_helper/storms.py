@@ -346,7 +346,7 @@ def jtwc_warning(text, now):
     if not fixes:
         raise ValueError("no position in the warning")
     lon, lat, wind, issued = fixes[0]
-    return lon, lat, wind, issued, [[f[0], f[1], f[2]] for f in fixes[1:]]
+    return lon, lat, wind, issued, [[f[0], f[1], f[2]] for f in fixes[1:]], [round((f[3] - issued) / 3600) for f in fixes[1:]]
 
 
 # NCAR/UCAR's real-time tropical cyclone guidance site mirrors the ATCF decks of every basin during the season;
@@ -394,6 +394,46 @@ def _parse_bdeck(body):
     return out
 
 
+# JTWC publishes no cone of uncertainty. Its own 5-year mean track errors (nautical miles at each forecast hour,
+# western Pacific; the other basins are close) give one: a circle of that radius round each forecast point,
+# the circles joined into one outline - the way NHC's cone is built from its errors.
+JTWC_ERROR_NM = {0: 0, 12: 38, 24: 60, 36: 85, 48: 110, 72: 160, 96: 220, 120: 290}
+
+
+def estimated_cone(lon, lat, dots, hours):
+    """A cone polygon as a flat [lon, lat, ...] ring from the forecast points `dots` ([lon, lat, wind], ...) at
+    the forecast `hours` ([12, 24, ...]); empty with fewer than one forecast point."""
+    import math
+    if not dots:
+        return []
+    pts = [(lon, lat, 0)] + [(d[0], d[1], h) for d, h in zip(dots, hours)]
+    left, right = [], []
+    for i, (x, y, h) in enumerate(pts):
+        keys = sorted(JTWC_ERROR_NM)
+        lo = max([k for k in keys if k <= h] or [0]); hi = min([k for k in keys if k >= h] or [keys[-1]])
+        r_nm = JTWC_ERROR_NM[lo] if hi == lo else JTWC_ERROR_NM[lo] + (JTWC_ERROR_NM[hi] - JTWC_ERROR_NM[lo]) * (h - lo) / (hi - lo)
+        r = r_nm * 1.852 / 111.0                                   # degrees of latitude
+        if i == 0:
+            r = max(r, 0.15)
+        nx, ny = pts[min(i + 1, len(pts) - 1)][:2]
+        px, py = pts[max(i - 1, 0)][:2]
+        dx, dy = (nx - px) * math.cos(math.radians(y)), ny - py       # the track's direction here, in km-ish units
+        L = math.hypot(dx, dy) or 1
+        ox, oy = -dy / L * r / math.cos(math.radians(y)), dx / L * r   # the perpendicular, back in degrees
+        left.append((x + ox, y + oy)); right.append((x - ox, y - oy))
+    # a rounded end at the last point
+    x, y, h = pts[-1]
+    r_nm = JTWC_ERROR_NM.get(h) or JTWC_ERROR_NM[max(k for k in JTWC_ERROR_NM if k <= h)]
+    r = r_nm * 1.852 / 111.0
+    ox, oy = left[-1][0] - x, left[-1][1] - y
+    a0 = math.atan2(oy, ox / math.cos(math.radians(y)))
+    cap = [(x + r * math.cos(a0 - math.pi * k / 8) / math.cos(math.radians(y)), y + r * math.sin(a0 - math.pi * k / 8)) for k in range(1, 8)]
+    ring = left + cap + right[::-1]
+    ring.append(ring[0])
+    return [round(v, 2) for pt in ring for v in pt]
+
+
+
 def fetch_storms_jtwc():
     """The active storms in JTWC's basins (western Pacific, Indian Ocean, southern hemisphere) in the same shape
     as fetch_storms_nhc(): wind now, forecast points with winds, the best track. The eastern/central Pacific
@@ -418,14 +458,18 @@ def fetch_storms_jtwc():
         sid = "%s%s20%s" % (basin, num, yy)
         try:
             text = _http(JTWC_PRODUCTS + "%s%s%sweb.txt" % (basin, num, yy), timeout=15)[2].decode("ascii", "replace")
-            lon, lat, wind, issued, dots = jtwc_warning(text, now)
+            lon, lat, wind, issued, dots, hours = jtwc_warning(text, now)
         except Exception as e:
             storms.append({"_problems": ["JTWC %s - %s" % (head.group(2), e)]})
             continue
         kind, cat = storm_kind(wind, lat, lon)
         rec = {"id": sid, "name": name, "number": head.group(2), "kind": kind, "cat": cat, "wind": wind, "lat": lat, "lon": lon,
                "alert": "", "hours": round((now - issued) / 3600, 1), "source": "JTWC", "past": [], "cone": [], "dots": dots,
-               "forecast": _split([(lon, lat)] + [(d[0], d[1]) for d in dots]) if dots else []}
+               "forecast": _split([(lon, lat)] + [(d[0], d[1]) for d in dots]) if dots else [], "cone_estimated": bool(dots)}
+        try:
+            rec["cone"] = _split([(cone[i], cone[i + 1]) for i in range(0, len(cone), 2)]) if (cone := estimated_cone(lon, lat, dots, hours)) else []
+        except Exception:
+            rec["cone"] = []
         try:
             rec["track"] = jtwc_best_track(sid)
         except Exception as e:
@@ -495,6 +539,8 @@ def fetch_storms_merged(debug=False):
                 st[k] = n[k]
         if n.get("dots") and n.get("source") == "JTWC":   # JTWC's forecast points carry winds; GDACS's do not
             st["dots"], st["forecast"] = n["dots"], n["forecast"]
+            if not st.get("cone") or n.get("cone"):
+                st["cone"], st["cone_estimated"] = n.get("cone", []), True
     if errors:
         storms.append({"_problems": errors})      # carried to the caller, stripped below
     return storms

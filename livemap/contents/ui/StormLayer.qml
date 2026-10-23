@@ -190,9 +190,11 @@ Item {
             Shape {
                 anchors.fill: parent
                 preferredRendererType: Shape.CurveRenderer
-                ShapePath {                               // cone of uncertainty
+                ShapePath {                               // cone of uncertainty; dashed when estimated from JTWC's mean errors
                     strokeColor: Qt.rgba(storm.tone.r, storm.tone.g, storm.tone.b, overlay.showCone ? 0.45 : 0)
                     strokeWidth: overlay.unit
+                    strokeStyle: storm.modelData.cone_estimated ? ShapePath.DashLine : ShapePath.SolidLine
+                    dashPattern: [4, 3]
                     fillColor: Qt.rgba(storm.tone.r, storm.tone.g, storm.tone.b, overlay.showCone ? 0.10 : 0)
                     PathMultiline { paths: overlay.showCone ? overlay.project(storm.modelData.cone, overlay.width, overlay.height) : [] }
                 }

@@ -11,7 +11,8 @@ from livemap_helper.common import storm_kind
 # ---- storms ---------------------------------------------------------------------------------------------------
 def test_jtwc_warning_positions_and_winds():
     now = time.mktime(time.strptime("2026-10-22 08:30", "%Y-%m-%d %H:%M"))
-    lon, lat, wind, issued, dots = storms.jtwc_warning(fixture("jtwc_wp2926web.txt"), now)
+    lon, lat, wind, issued, dots, hours = storms.jtwc_warning(fixture("jtwc_wp2926web.txt"), now)
+    assert hours == [12, 24, 96]
     assert (lon, lat) == (126.0, 20.3)
     assert wind == round(115 * 1.852)
     assert [d[2] for d in dots] == [194, 176, 46]                  # 105, 95, 25 kt
@@ -22,7 +23,7 @@ def test_jtwc_warning_positions_and_winds():
 def test_jtwc_warning_skips_the_remarks():
     text = fixture("jtwc_wp2926web.txt")
     assert "REMARKS:" in text
-    _lon, _lat, _wind, _issued, dots = storms.jtwc_warning(text, time.time())
+    _lon, _lat, _wind, _issued, dots, _hours = storms.jtwc_warning(text, time.time())
     assert all(d[1] != 20.6 for d in dots)                         # the remarks' "220300Z POSITION NEAR 20.6N" is not a fix
 
 
@@ -33,6 +34,16 @@ def test_jtwc_rss_patterns():
     heads = [m.groups() for m in storms.JTWC_STORM_RE.finditer(rss)]
     assert heads[0] == ("Typhoon", "29W", "Champi") and heads[1][1] == "02S"
     assert [m.group(1) for m in storms.JTWC_PRODUCT_RE.finditer(rss)] == ["wp", "sh", "ep"]
+
+
+def test_estimated_cone_widens_with_lead_time():
+    from livemap_helper.common import _in_ring
+    dots = [[124.7, 21.3, 194], [123.7, 22.8, 176], [122.9, 24.8, 157], [123.1, 26.8, 120]]
+    ring = storms.estimated_cone(126.0, 20.3, dots, [12, 24, 36, 48])
+    assert len(ring) >= 40 and ring[:2] != ring[-2:] or ring[:2] == ring[-2:]
+    assert _in_ring(124.7, 21.3, ring) and _in_ring(123.1, 26.8, ring)      # every forecast point lies inside
+    assert _in_ring(123.1 + 1.5, 26.8, ring) and not _in_ring(124.7 + 1.5, 21.3, ring)   # wide at 48 h, narrow at 12 h
+    assert storms.estimated_cone(126.0, 20.3, [], []) == []
 
 
 def test_bdeck_one_fix_per_time_oldest_first():

@@ -156,7 +156,10 @@ Conventions that hold for every source:
   because NHC feeds those. The storm id is `<basin><nn>20<yy>` (`wp292026`; a southern-hemisphere storm carries
   the season year, `sh022027`). The warning's day/hour/minute times are completed with the current month, moving
   a month back or forward when the day number would land more than 20 days away. Winds knots × 1.852. The
-  merge (below) takes JTWC's forecast points over GDACS's because they carry winds.
+  merge (below) takes JTWC's forecast points over GDACS's because they carry winds. JTWC publishes no cone of
+  uncertainty, so `estimated_cone` builds one the way NHC builds its own: a circle of JTWC's 5-year mean track
+  error round each forecast point (`JTWC_ERROR_NM`: 38 nm at 12 h to 290 nm at 120 h), joined into one
+  outline with a rounded end; the record carries `cone_estimated` and the layer draws it dashed.
 - **Regular expressions:**
   - storm heads in the RSS: `(Super Typhoon|Typhoon|Hurricane|Tropical Storm|Tropical Depression|Tropical Cyclone|Subtropical Storm)\s+(\d{2}[A-Z])\s*(?:\(([^)]*)\))?`
   - product links: `products/(wp|io|sh|ep|cp)(\d{2})(\d{2})web\.txt`
