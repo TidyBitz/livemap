@@ -544,14 +544,18 @@ MAX_BODY = 64 * 1024 * 1024        # no feed we read is anywhere near this; a re
 MAX_DOWNLOAD = 300 * 1024 * 1024   # the NASA maps are the largest download (about 35 MB in all)
 
 
-def _http(url, method="GET", timeout=6, limit=MAX_BODY):
-    """GET/HEAD with the plugin's user agent, TLS verified by the system store (urllib's default), the body
-    capped at `limit` bytes so a broken or hostile server cannot fill memory."""
+def _http(url, method="GET", timeout=6, limit=MAX_BODY, headers=None):
+    """GET/HEAD with the plugin's user agent (plus `headers`, for the sources that want an Accept or a key), TLS
+    verified by the system store (urllib's default), the body capped at `limit` bytes so a broken or hostile
+    server cannot fill memory."""
     import time
     t0 = time.time()
     if not str(url).startswith("https://"):
         raise ValueError("refusing a non-https URL: %s" % str(url)[:80])
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA, method=method), timeout=timeout) as r:
+    h = dict(UA)
+    if headers:
+        h.update(headers)
+    with urllib.request.urlopen(urllib.request.Request(url, headers=h, method=method), timeout=timeout) as r:
         body = r.read(limit + 1) if method == "GET" else b""
         if len(body) > limit:
             raise ValueError("response larger than %d MB" % (limit // 1048576))

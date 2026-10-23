@@ -112,3 +112,13 @@ def test_every_widget_kind_is_a_known_layer():
     main_qml = (CONTENTS / "ui" / "main.qml").read_text(encoding="utf-8")
     for layer in re.findall(r'cfg\.Show\w+ \? "(\w+)" : ""', main_qml):
         assert layer in LAYER_NAMES, "main.qml reports layer %s, which LAYER_NAMES does not know" % layer
+
+
+def test_fake_http_matches_the_real_signature():
+    """The tests feed the helper through a stand-in `_http`; a keyword the stand-in takes and the real one does
+    not (headers=, once) passes every test and fails on the desktop."""
+    import inspect
+    from livemap_helper import common
+    real = set(inspect.signature(common._http).parameters)
+    for p in ("url", "method", "timeout", "limit", "headers"):
+        assert p in real, "the real _http lacks %s" % p

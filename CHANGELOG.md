@@ -17,6 +17,12 @@ release notes written at the time; their dates are the day the version was hande
   plasmashell's scripting interface; helper `widget --add`), the Store link when it is not installed, a tick
   when it is already there.
 
+### Fixed
+- The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
+  keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
+  not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test
+  compares the two.
+
 ### Added
 - Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame
   included, to an opacity of your choice, so the map shows through - and come back as the pointer arrives; or
