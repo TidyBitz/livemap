@@ -1605,6 +1605,133 @@ def chk_storms_nhc():
     return "ok", "%d active in the Atlantic / eastern Pacific%s" % (len(storms), ": " + ", ".join("%s (%s)" % (s["name"], s["kind"].lower()) for s in storms) if storms else "")
 
 
+# JTWC (Joint Typhoon Warning Center, Pearl Harbor): the US Navy's warnings for the western Pacific, the Indian
+# Ocean and the southern hemisphere - the basins NHC does not cover. Its RSS lists the active storms with their
+# warning products; the warning text carries the position and 1-minute wind now and the forecast positions with
+# winds; the best track (one fix every 6 hours with wind) is the ATCF b-deck, relayed through NHC's public ATCF
+# directory like the Atlantic ones (JTWC's own copy is the fallback). All public domain (US government).
+JTWC_RSS = "https://www.metoc.navy.mil/jtwc/rss/jtwc.rss"
+JTWC_PRODUCTS = "https://www.metoc.navy.mil/jtwc/products/"
+JTWC_BASINS = {"wp": "W", "io": "B", "sh": "S"}           # the b-deck basin letter and the storm number's letter
+# the RSS: "Typhoon 29W (Champi) Warning #31" ... "products/wp2926web.txt"
+JTWC_STORM_RE = re.compile(r"(Super Typhoon|Typhoon|Hurricane|Tropical Storm|Tropical Depression|Tropical Cyclone|Subtropical Storm)\s+"
+                           r"(\d{2}[A-Z])\s*(?:\(([^)]*)\))?", re.I)
+JTWC_PRODUCT_RE = re.compile(r"products/(wp|io|sh|ep|cp)(\d{2})(\d{2})web\.txt", re.I)
+# the warning text: "220000Z --- NEAR 20.3N 126.0E" (position now), "221200Z --- 21.3N 124.7E" (a forecast),
+# "MAX SUSTAINED WINDS - 115 KT" after each
+JTWC_POSIT_RE = re.compile(r"(\d{2})(\d{2})(\d{2})Z\s*-+\s*(?:NEAR\s+)?(\d{1,2}\.\d)([NS])\s+(\d{1,3}\.\d)([EW])", re.I)
+JTWC_WIND_RE = re.compile(r"MAX SUSTAINED WINDS\s*-\s*(\d{2,3})\s*KT", re.I)
+
+
+def jtwc_warning(text, now):
+    """The position and wind now and the forecast points from a JTWC warning: (lon, lat, wind_kmh, issued_epoch,
+    [[lon, lat, wind_kmh], ...]). The text's times are day/hour/minute of the current month."""
+    from datetime import datetime, timedelta, timezone
+    fixes = []
+    text = text.split("REMARKS:")[0]                              # the remarks repeat the position without dashes
+    for m in JTWC_POSIT_RE.finditer(text):
+        w = JTWC_WIND_RE.search(text, m.end())
+        if not w:
+            continue
+        day, hour, minute = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        lat = float(m.group(4)) * (1 if m.group(5).upper() == "N" else -1)
+        lon = float(m.group(6)) * (1 if m.group(7).upper() == "E" else -1)
+        t = datetime.fromtimestamp(now, timezone.utc)
+        try:
+            when = t.replace(day=day, hour=hour, minute=minute, second=0, microsecond=0)
+        except ValueError:
+            continue
+        if when.timestamp() - now > 20 * 86400:                   # a day number from last month
+            when = (when.replace(day=1) - timedelta(days=1)).replace(day=day)
+        elif now - when.timestamp() > 20 * 86400:                 # ... or next month
+            when = (when.replace(day=28) + timedelta(days=4)).replace(day=day)
+        fixes.append((round(lon, 2), round(lat, 2), round(int(w.group(1)) * 1.852), round(when.timestamp())))
+        if len(fixes) > 12:
+            break
+    if not fixes:
+        raise ValueError("no position in the warning")
+    lon, lat, wind, issued = fixes[0]
+    return lon, lat, wind, issued, [[f[0], f[1], f[2]] for f in fixes[1:]]
+
+
+def jtwc_best_track(sid):
+    """The b-deck for a JTWC storm id like wp292026: NHC's ATCF relay first, JTWC's own directory second."""
+    try:
+        return nhc_best_track(sid)
+    except Exception:
+        year = sid[-4:]
+        body = _http("%sbest-tracks/%s/%ss-b%s/b%s.dat" % (JTWC_PRODUCTS, year, year, sid[:2], sid), timeout=15)[2].decode("ascii", "replace")
+        return _parse_bdeck(body)
+
+
+def _parse_bdeck(body):
+    from datetime import datetime, timezone
+    seen, out = set(), []
+    for line in body.splitlines():
+        f = [x.strip() for x in line.split(",")]
+        if len(f) < 11 or f[4] != "BEST" or f[2] in seen:
+            continue
+        try:
+            t = datetime.strptime(f[2], "%Y%m%d%H").replace(tzinfo=timezone.utc).timestamp()
+            lat = int(f[6][:-1]) / 10 * (1 if f[6][-1] == "N" else -1)
+            lon = int(f[7][:-1]) / 10 * (1 if f[7][-1] == "E" else -1)
+            wind = round(int(f[8]) * 1.852)
+        except (ValueError, IndexError):
+            continue
+        seen.add(f[2])
+        out.append([round(lon, 2), round(lat, 2), wind, round(t), 1 if f[10] in TROPICAL_TYPES else 0])
+    out.sort(key=lambda p: p[3])
+    return out
+
+
+def fetch_storms_jtwc():
+    """The active storms in JTWC's basins (western Pacific, Indian Ocean, southern hemisphere) in the same shape
+    as fetch_storms_nhc(): wind now, forecast points with winds, the best track. The eastern/central Pacific
+    items are skipped: NHC and CPHC are the authority there and already feed in."""
+    import time
+    now, storms, seen = time.time(), [], set()
+    rss = _http(JTWC_RSS, timeout=15)[2].decode("utf-8", "replace")
+    # every product link belongs to the storm last named before it in the text
+    heads = [(m.start(), m) for m in JTWC_STORM_RE.finditer(rss)]
+    for pm in JTWC_PRODUCT_RE.finditer(rss):
+        basin, num, yy = pm.group(1).lower(), pm.group(2), pm.group(3)
+        if basin not in JTWC_BASINS or (basin, num, yy) in seen:
+            continue
+        seen.add((basin, num, yy))
+        head = None
+        for pos, m in heads:
+            if pos < pm.start():
+                head = m
+        if head is None or head.group(2)[:2] != num:
+            continue
+        name = (head.group(3) or "").strip().title() or head.group(2)
+        sid = "%s%s20%s" % (basin, num, yy)
+        try:
+            text = _http(JTWC_PRODUCTS + "%s%s%sweb.txt" % (basin, num, yy), timeout=15)[2].decode("ascii", "replace")
+            lon, lat, wind, issued, dots = jtwc_warning(text, now)
+        except Exception as e:
+            storms.append({"_problems": ["JTWC %s - %s" % (head.group(2), e)]})
+            continue
+        kind, cat = storm_kind(wind, lat, lon)
+        rec = {"id": sid, "name": name, "number": head.group(2), "kind": kind, "cat": cat, "wind": wind, "lat": lat, "lon": lon,
+               "alert": "", "hours": round((now - issued) / 3600, 1), "source": "JTWC", "past": [], "cone": [], "dots": dots,
+               "forecast": _split([(lon, lat)] + [(d[0], d[1]) for d in dots]) if dots else []}
+        try:
+            rec["track"] = jtwc_best_track(sid)
+        except Exception as e:
+            rec["track"] = []
+            rec["problem"] = "best track: %s" % e
+        storms.append(rec)
+    return storms
+
+
+def chk_storms_jtwc():
+    storms = [s for s in fetch_storms_jtwc() if "_problems" not in s]
+    return "ok", "%d active in the western Pacific / Indian Ocean / southern hemisphere%s" % (
+        len(storms), ": " + ", ".join("%s (%s%s)" % (s["name"], s["kind"].lower(), "" if s.get("track") else ", no best track") for s in storms) if storms else "")
+
+
+
 def fetch_storms_merged(debug=False):
     """GDACS worldwide, with NHC's current intensity (and its track when GDACS has none) merged in where the
     two describe the same storm; NHC alone when GDACS is down. Raises only when neither answers."""
@@ -1618,12 +1745,18 @@ def fetch_storms_merged(debug=False):
     except Exception as e:
         nhc = []
         errors.append("NHC - %s" % e)
+    try:                                                # JTWC for the basins NHC does not cover; a storm it could not
+        jt = fetch_storms_jtwc()                        # read is a problem, not a failure of the feed
+        errors += [p for st in jt if "_problems" in st for p in st["_problems"]]
+        nhc += [st for st in jt if "_problems" not in st]
+    except Exception as e:
+        errors.append("JTWC - %s" % e)
     if not storms and not nhc:
         raise RuntimeError("; ".join(errors))
     for st in storms:
         st["ids"] = ["gdacs:%s" % st["id"]] if st.get("id") else []
     for n in nhc:
-        n["ids"] = ["nhc:%s" % n["id"]] if n.get("id") else []
+        n["ids"] = ["%s:%s" % (n.get("source", "nhc").lower(), n["id"])] if n.get("id") else []
     by_name = {st["name"].lower(): st for st in storms}
     matched = set()
     for n in nhc:
@@ -1631,7 +1764,7 @@ def fetch_storms_merged(debug=False):
         if st is None:                                  # the two feeds rename a storm at different moments ("Twenty-E" ->
             best, best_km = None, 250                   # "Rachel"): the same storm is the one within 250 km that no name matched
             for cand in storms:
-                if id(cand) in matched or cand.get("source", "").endswith("NHC"):
+                if id(cand) in matched or cand.get("source", "").endswith(("NHC", "JTWC")):
                     continue
                 km = haversine_km(cand["lat"], cand["lon"], n["lat"], n["lon"])
                 if km < best_km:
@@ -1643,14 +1776,16 @@ def fetch_storms_merged(debug=False):
         matched.add(id(st))
         st["ids"] = list(dict.fromkeys((st.get("ids") or []) + (n.get("ids") or [])))
         if st["name"].lower() != n["name"].lower():
-            st["was_named"] = st["name"]                # the NHC name is the official one
+            st["was_named"] = st["name"]                # the centre's name is the official one
             st["name"] = n["name"]
-        st.update(wind=n["wind"], kind=n["kind"], cat=n["cat"], wind_is_peak=False, source=(st.get("source") or "GDACS") + "+NHC")
+        st.update(wind=n["wind"], kind=n["kind"], cat=n["cat"], wind_is_peak=False, source=(st.get("source") or "GDACS") + "+" + n.get("source", "NHC"))
         if n.get("hours") is not None and (st.get("hours") is None or n["hours"] < st["hours"]):
             st["hours"] = n["hours"]
         for k in ("forecast", "cone", "dots", "track"):
             if not st.get(k) and n.get(k):
                 st[k] = n[k]
+        if n.get("dots") and n.get("source") == "JTWC":   # JTWC's forecast points carry winds; GDACS's do not
+            st["dots"], st["forecast"] = n["dots"], n["forecast"]
     if errors:
         storms.append({"_problems": errors})      # carried to the caller, stripped below
     return storms
@@ -4245,7 +4380,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]

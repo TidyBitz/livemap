@@ -6,6 +6,13 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.47 - unreleased
 
 ### Added
+- Storms in the western Pacific, the Indian Ocean and the southern hemisphere get what the Atlantic ones had:
+  the wind now instead of GDACS's episode peak, the forecast points with their winds, and the best track with
+  a wind at every fix - so the track and forecast are coloured by intensity in every basin. Source: the Joint
+  Typhoon Warning Center (its RSS, warning texts and ATCF best tracks), merged with GDACS like NHC is, listed as
+  a secondary storm source on the Status tab.
+- `docs/SOURCES.md`: every data source - what it provides, why it is used, the format ingested, how the helper
+  reshapes it, the regular expressions involved, caching and caveats.
 - Lakes: outlines in the river colour at the river detail level (the 24 great lakes, or 412 lakes and
   reservoirs), with a fill opacity (0 % for outlines only). Lake names (the great lakes, or every named
   lake) and sea names (the oceans; and the seas; and the gulfs and bays; or everything down to the straits),

@@ -1522,8 +1522,8 @@ Kirigami.FormLayout {
     Note { visible: sec7.open; text: "Newly reported = it appeared, or its level changed, less than the 'Newly reported' hours ago: the default, so a volcano pulses when there is news and then sits steady. Significant = orange and red, if you want those to keep pulsing. A volcano ages once it drops out of the report." }
 
     // ================================================================= Storms
-    SectionHeader { id: sec8; title: "Storms"; sourceNames: ["Storms (GDACS)", "Storms, secondary (NHC)"]; twin: storms; summary: storms.checked ? stormMarkerStyle.currentText + (stormIntensityColors.checked ? " · colour by intensity" : "") + (stormCone.checked ? " · cone" : "") + " · labels: " + stormLabels.currentText.toLowerCase() : "Off" }
-    Source { visible: sec8.open; names: ["Storms (GDACS)", "Storms, secondary (NHC)"] }
+    SectionHeader { id: sec8; title: "Storms"; sourceNames: ["Storms (GDACS)", "Storms, secondary (NHC)", "Storms, secondary (JTWC)"]; twin: storms; summary: storms.checked ? stormMarkerStyle.currentText + (stormIntensityColors.checked ? " · colour by intensity" : "") + (stormCone.checked ? " · cone" : "") + " · labels: " + stormLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec8.open; names: ["Storms (GDACS)", "Storms, secondary (NHC)", "Storms, secondary (JTWC)"] }
 
     QQC2.CheckBox { visible: sec8.open; id: storms; Kirigami.FormData.label: "Show:"; text: "Tropical storms with forecast track" }
     Amount {
