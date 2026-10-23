@@ -1,0 +1,560 @@
+{
+"_about": "Japan's 111 active volcanoes as the JMA lists them (Japanese name, English name, summit position), for JMA's volcano warnings. Source: JMA, Map of Active Volcanoes in Japan.",
+"volcanoes": {
+"知床硫黄山": {
+"en": "Shiretoko-Iozan",
+"lat": 44.1333,
+"lon": 145.1614
+},
+"羅臼岳": {
+"en": "Rausudake",
+"lat": 44.0758,
+"lon": 145.1222
+},
+"天頂山": {
+"en": "Tenchozan",
+"lat": 44.0444,
+"lon": 145.0858
+},
+"摩周": {
+"en": "Mashu",
+"lat": 43.5722,
+"lon": 144.5594
+},
+"アトサヌプリ": {
+"en": "Atosanupuri",
+"lat": 43.6103,
+"lon": 144.4386
+},
+"雄阿寒岳": {
+"en": "Oakandake",
+"lat": 43.4542,
+"lon": 144.1647
+},
+"雌阿寒岳": {
+"en": "Meakandake",
+"lat": 43.3864,
+"lon": 144.0086
+},
+"丸山": {
+"en": "Maruyama",
+"lat": 43.4175,
+"lon": 143.0206
+},
+"大雪山": {
+"en": "Taisetsuzan",
+"lat": 43.6636,
+"lon": 142.8542
+},
+"十勝岳": {
+"en": "Tokachidake",
+"lat": 43.4178,
+"lon": 142.6864
+},
+"利尻山": {
+"en": "Rishirizan",
+"lat": 45.1786,
+"lon": 141.2419
+},
+"樽前山": {
+"en": "Tarumaesan",
+"lat": 42.6906,
+"lon": 141.3767
+},
+"恵庭岳": {
+"en": "Eniwadake",
+"lat": 42.7933,
+"lon": 141.2853
+},
+"倶多楽": {
+"en": "Kuttara",
+"lat": 42.5053,
+"lon": 141.1444
+},
+"有珠山": {
+"en": "Usuzan",
+"lat": 42.5439,
+"lon": 140.8392
+},
+"羊蹄山": {
+"en": "Yoteizan",
+"lat": 42.8267,
+"lon": 140.8114
+},
+"ニセコ": {
+"en": "Niseko",
+"lat": 42.8853,
+"lon": 140.6406
+},
+"北海道駒ヶ岳": {
+"en": "Hokkaido-Komagatake",
+"lat": 42.0633,
+"lon": 140.6772
+},
+"恵山": {
+"en": "Esan",
+"lat": 41.8047,
+"lon": 141.1661
+},
+"渡島大島": {
+"en": "Oshima-Oshima",
+"lat": 41.51,
+"lon": 139.3672
+},
+"恐山": {
+"en": "Osorezan",
+"lat": 41.2786,
+"lon": 141.12
+},
+"岩木山": {
+"en": "Iwakisan",
+"lat": 40.6558,
+"lon": 140.3031
+},
+"八甲田山": {
+"en": "Hakkodasan",
+"lat": 40.6589,
+"lon": 140.8772
+},
+"十和田": {
+"en": "Towada",
+"lat": 40.4594,
+"lon": 140.91
+},
+"秋田焼山": {
+"en": "Akita-Yakeyama",
+"lat": 39.9639,
+"lon": 140.7569
+},
+"八幡平": {
+"en": "Hachimantai",
+"lat": 39.9578,
+"lon": 140.8542
+},
+"岩手山": {
+"en": "Iwatesan",
+"lat": 39.8525,
+"lon": 141.0011
+},
+"秋田駒ヶ岳": {
+"en": "Akita-Komagatake",
+"lat": 39.7611,
+"lon": 140.7894
+},
+"鳥海山": {
+"en": "Chokaisan",
+"lat": 39.0992,
+"lon": 140.0411
+},
+"栗駒山": {
+"en": "Kurikomayama",
+"lat": 38.9608,
+"lon": 140.7883
+},
+"鳴子": {
+"en": "Naruko",
+"lat": 38.7289,
+"lon": 140.7344
+},
+"肘折": {
+"en": "Hijiori",
+"lat": 38.5992,
+"lon": 140.1617
+},
+"蔵王山": {
+"en": "Zaozan",
+"lat": 38.1436,
+"lon": 140.44
+},
+"吾妻山": {
+"en": "Azumayama",
+"lat": 37.7353,
+"lon": 140.2444
+},
+"安達太良山": {
+"en": "Adatarayama",
+"lat": 37.6331,
+"lon": 140.2831
+},
+"磐梯山": {
+"en": "Bandaisan",
+"lat": 37.6011,
+"lon": 140.0722
+},
+"沼沢": {
+"en": "Numazawa",
+"lat": 37.4444,
+"lon": 139.5661
+},
+"燧ヶ岳": {
+"en": "Hiuchigatake",
+"lat": 36.955,
+"lon": 139.2853
+},
+"那須岳": {
+"en": "Nasudake",
+"lat": 37.1247,
+"lon": 139.9628
+},
+"高原山": {
+"en": "Takaharayama",
+"lat": 36.9,
+"lon": 139.7767
+},
+"男体山": {
+"en": "Nantaisan",
+"lat": 36.765,
+"lon": 139.4908
+},
+"日光白根山": {
+"en": "Nikko-Shiranesan",
+"lat": 36.7986,
+"lon": 139.3758
+},
+"赤城山": {
+"en": "Akagisan",
+"lat": 36.5603,
+"lon": 139.1933
+},
+"榛名山": {
+"en": "Harunasan",
+"lat": 36.4772,
+"lon": 138.8508
+},
+"草津白根山": {
+"en": "Kusatsu-Shiranesan",
+"lat": 36.6439,
+"lon": 138.5278
+},
+"浅間山": {
+"en": "Asamayama",
+"lat": 36.4064,
+"lon": 138.5231
+},
+"横岳": {
+"en": "Yokodake",
+"lat": 36.0872,
+"lon": 138.3203
+},
+"新潟焼山": {
+"en": "Niigata-Yakeyama",
+"lat": 36.9208,
+"lon": 138.0358
+},
+"妙高山": {
+"en": "Myokosan",
+"lat": 36.8914,
+"lon": 138.1136
+},
+"弥陀ヶ原": {
+"en": "Midagahara",
+"lat": 36.5711,
+"lon": 137.5897
+},
+"焼岳": {
+"en": "Yakedake",
+"lat": 36.2269,
+"lon": 137.5869
+},
+"アカンダナ山": {
+"en": "Akandanayama",
+"lat": 36.2003,
+"lon": 137.5728
+},
+"乗鞍岳": {
+"en": "Norikuradake",
+"lat": 36.1064,
+"lon": 137.5536
+},
+"御嶽山": {
+"en": "Ontakesan",
+"lat": 35.8928,
+"lon": 137.4803
+},
+"白山": {
+"en": "Hakusan",
+"lat": 36.155,
+"lon": 136.7714
+},
+"富士山": {
+"en": "Fujisan",
+"lat": 35.3608,
+"lon": 138.7275
+},
+"箱根山": {
+"en": "Hakoneyama",
+"lat": 35.2333,
+"lon": 139.0208
+},
+"伊豆東部火山群": {
+"en": "Izu-Tobu Volcanoes",
+"lat": 34.9031,
+"lon": 139.0947
+},
+"伊豆大島": {
+"en": "Izu-Oshima",
+"lat": 34.7244,
+"lon": 139.3944
+},
+"利島": {
+"en": "Toshima",
+"lat": 34.5203,
+"lon": 139.2792
+},
+"新島": {
+"en": "Niijima",
+"lat": 34.3969,
+"lon": 139.2703
+},
+"神津島": {
+"en": "Kozushima",
+"lat": 34.2194,
+"lon": 139.1531
+},
+"三宅島": {
+"en": "Miyakejima",
+"lat": 34.0936,
+"lon": 139.5261
+},
+"御蔵島": {
+"en": "Mikurajima",
+"lat": 33.8744,
+"lon": 139.6019
+},
+"八丈島": {
+"en": "Hachijojima",
+"lat": 33.1369,
+"lon": 139.7661
+},
+"青ヶ島": {
+"en": "Aogashima",
+"lat": 32.4583,
+"lon": 139.7592
+},
+"ベヨネース列岩": {
+"en": "Beyonesu Rocks",
+"lat": 31.9183,
+"lon": 140.0217
+},
+"須美寿島": {
+"en": "Sumisujima",
+"lat": 31.4397,
+"lon": 140.0506
+},
+"伊豆鳥島": {
+"en": "Izu-Torishima",
+"lat": 30.4839,
+"lon": 140.3031
+},
+"孀婦岩": {
+"en": "Sofugan",
+"lat": 29.7942,
+"lon": 140.3419
+},
+"西之島": {
+"en": "Nishinoshima",
+"lat": 27.2469,
+"lon": 140.8744
+},
+"海形海山": {
+"en": "Kaikata Seamount",
+"lat": 26.7092,
+"lon": 141.0742
+},
+"海徳海山": {
+"en": "Kaitoku Seamount",
+"lat": 26.1267,
+"lon": 141.1017
+},
+"噴火浅根": {
+"en": "Funka Asane",
+"lat": 25.455,
+"lon": 141.2383
+},
+"硫黄島": {
+"en": "Ioto",
+"lat": 24.7506,
+"lon": 141.2892
+},
+"北福徳堆": {
+"en": "Kita-Fukutokutai",
+"lat": 24.4167,
+"lon": 141.4167
+},
+"福徳岡ノ場": {
+"en": "Fukutoku-Oka-no-Ba",
+"lat": 24.2847,
+"lon": 141.4811
+},
+"南日吉海山": {
+"en": "Minami-Hiyoshi Seamount",
+"lat": 23.5,
+"lon": 141.935
+},
+"日光海山": {
+"en": "Nikko Seamount",
+"lat": 23.0784,
+"lon": 142.3256
+},
+"三瓶山": {
+"en": "Sanbesan",
+"lat": 35.1406,
+"lon": 132.6217
+},
+"阿武火山群": {
+"en": "Abu Volcanoes",
+"lat": 34.4494,
+"lon": 131.4019
+},
+"鶴見岳・伽藍岳": {
+"en": "Tsurumidake and Garandake",
+"lat": 33.2867,
+"lon": 131.4297
+},
+"由布岳": {
+"en": "Yufudake",
+"lat": 33.2822,
+"lon": 131.3903
+},
+"九重山": {
+"en": "Kujusan",
+"lat": 33.0858,
+"lon": 131.2378
+},
+"阿蘇山": {
+"en": "Asosan",
+"lat": 32.8844,
+"lon": 131.1039
+},
+"雲仙岳": {
+"en": "Unzendake",
+"lat": 32.7614,
+"lon": 130.2889
+},
+"福江火山群": {
+"en": "Fukue Volcanoes",
+"lat": 32.6567,
+"lon": 128.8489
+},
+"霧島山": {
+"en": "Kirishimayama",
+"lat": 31.9342,
+"lon": 130.8617
+},
+"米丸・住吉池": {
+"en": "Yonemaru and Sumiyoshiike",
+"lat": 31.7761,
+"lon": 130.5653
+},
+"若尊": {
+"en": "Wakamiko",
+"lat": 31.6633,
+"lon": 130.7983
+},
+"桜島": {
+"en": "Sakurajima",
+"lat": 31.5925,
+"lon": 130.6567
+},
+"池田・山川": {
+"en": "Ikeda and Yamagawa",
+"lat": 31.2133,
+"lon": 130.5672
+},
+"開聞岳": {
+"en": "Kaimondake",
+"lat": 31.18,
+"lon": 130.5284
+},
+"薩摩硫黄島": {
+"en": "Satsuma-Iojima",
+"lat": 30.7931,
+"lon": 130.3053
+},
+"口永良部島": {
+"en": "Kuchinoerabujima",
+"lat": 30.4433,
+"lon": 130.2172
+},
+"口之島": {
+"en": "Kuchinoshima",
+"lat": 29.9681,
+"lon": 129.9256
+},
+"中之島": {
+"en": "Nakanoshima",
+"lat": 29.8592,
+"lon": 129.8569
+},
+"諏訪之瀬島": {
+"en": "Suwanosejima",
+"lat": 29.6383,
+"lon": 129.7139
+},
+"硫黄鳥島": {
+"en": "Io-Torishima",
+"lat": 27.8811,
+"lon": 128.2225
+},
+"西表島北北東海底火山": {
+"en": "Submarine Volcano NNE of Iriomotejima",
+"lat": 24.5667,
+"lon": 123.9333
+},
+"茂世路岳": {
+"en": "Moyorodake",
+"lat": 45.3889,
+"lon": 148.8375
+},
+"散布山": {
+"en": "Chirippusan",
+"lat": 45.3375,
+"lon": 147.9203
+},
+"指臼岳": {
+"en": "Sashiusudake",
+"lat": 45.0997,
+"lon": 148.0197
+},
+"小田萌山": {
+"en": "Odamoisan",
+"lat": 45.0284,
+"lon": 147.9175
+},
+"択捉焼山": {
+"en": "Etorofu-Yakeyama",
+"lat": 45.0119,
+"lon": 147.8711
+},
+"択捉阿登佐岳": {
+"en": "Etorofu-Atosanupuri",
+"lat": 44.8075,
+"lon": 147.1308
+},
+"ベルタルベ山": {
+"en": "Berutarubesan",
+"lat": 44.4617,
+"lon": 146.9319
+},
+"ルルイ岳": {
+"en": "Ruruidake",
+"lat": 44.4544,
+"lon": 146.1394
+},
+"爺爺岳": {
+"en": "Chachadake",
+"lat": 44.3533,
+"lon": 146.2522
+},
+"羅臼山": {
+"en": "Raususan",
+"lat": 43.9789,
+"lon": 145.7325
+},
+"泊山": {
+"en": "Tomariyama",
+"lat": 43.8439,
+"lon": 145.5044
+}
+}
+}

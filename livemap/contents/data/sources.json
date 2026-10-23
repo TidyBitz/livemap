@@ -506,6 +506,45 @@
       "status": "Volcano alert levels (GeoNet)"
     },
     {
+      "id": "jma-volcano",
+      "name": "JMA volcanic warnings",
+      "hazard": "volcano",
+      "regions": [
+        "eap"
+      ],
+      "countries": [
+        "JP"
+      ],
+      "gives": "official alert level (1-5) of every Japanese volcano under warning",
+      "lead": "minutes",
+      "cadence": "hourly",
+      "official": true,
+      "licence": "JMA site terms (undocumented JSON; may change without notice)",
+      "attribution": "Japan Meteorological Agency",
+      "url": "https://www.jma.go.jp/bosai/map.html#contents=volcano",
+      "status": "Volcano alert levels (JMA)",
+      "note": "Matched to JMA's list of 111 active volcanoes shipped with the package"
+    },
+    {
+      "id": "vaac-washington",
+      "name": "Washington VAAC ash advisories",
+      "hazard": "volcano",
+      "regions": [
+        "na",
+        "la",
+        "pol"
+      ],
+      "gives": "volcanic ash advisories within the hour of an eruption: the ash cloud's outline, height and forecast",
+      "lead": "minutes",
+      "cadence": "every 20 min",
+      "official": true,
+      "licence": "US public domain",
+      "attribution": "NOAA / NESDIS Washington Volcanic Ash Advisory Center",
+      "url": "https://www.ospo.noaa.gov/products/atmosphere/vaac/",
+      "status": "Ash advisories (Washington VAAC)",
+      "note": "The Americas and the eastern Pacific; the other eight VAACs publish no comparable index"
+    },
+    {
       "id": "alerts-ua",
       "name": "Ukraine air raid alerts (alerts.in.ua / mirror)",
       "hazard": "alert",

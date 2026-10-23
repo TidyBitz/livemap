@@ -1,5 +1,6 @@
 """Volcanoes: Smithsonian weekly report and eruption database, USGS alert levels."""
 import json
+import time
 import os
 import re
 import urllib.error
@@ -9,7 +10,7 @@ from collections import Counter
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import DATA, EVENTS, MAX_BODY, UA, VERSION, _http, _plain, emit, last_good, remember_events, safe_xml, \
+from .common import DATA, EVENTS, MAX_BODY, PKG, UA, VERSION, _http, _plain, emit, last_good, remember_events, safe_xml, \
     stale_note
 
 
@@ -211,6 +212,59 @@ def chk_geonet():
     return "ok", "%d New Zealand volcanoes at a raised level%s" % (len(alerts), ": " + ", ".join("%s %s" % (a["name"], a["level"].lower()) for a in alerts) if alerts else "")
 
 
+# JMA (Japan): the volcanic warnings in force, one entry per volcano with its alert level (1-5) as a two-digit
+# code "1<level>" in the first group of volcanoInfos. The file is undocumented and in Japanese; the volcano is
+# named in Japanese and matched to contents/data/japan-volcanoes.json (JMA's own list of 111 active volcanoes
+# with English names and positions). Levels 2 and up are drawn: 2 yellow, 3 orange, 4-5 red.
+JMA_WARNINGS = "https://www.jma.go.jp/bosai/volcano/data/warning.json"
+JP_VOLCANOES = PKG / "data" / "japan-volcanoes.json"
+JMA_LEVEL_COLOUR = {2: "yellow", 3: "orange", 4: "red", 5: "red"}
+
+
+def parse_jma(body, table=None):
+    if table is None:
+        try:
+            table = json.loads(JP_VOLCANOES.read_text(encoding="utf-8"))["volcanoes"]
+        except (OSError, ValueError, KeyError):
+            table = {}
+    out = []
+    for entry in body if isinstance(body, list) else []:
+        level, jp = 0, ""
+        for group in entry.get("volcanoInfos") or []:
+            for item in group.get("items") or []:
+                code = str(item.get("code") or "")
+                if len(code) == 2 and code[0] == "1" and code[1].isdigit():
+                    level = max(level, int(code[1]))
+                    for a in item.get("areas") or []:
+                        jp = jp or str(a.get("name") or "")
+        if level < 2 or not jp:
+            continue
+        v = table.get(jp) or next((t for k, t in table.items() if k in jp or jp in k), None)
+        if not v:
+            continue
+        issued = None
+        try:
+            from datetime import datetime
+            issued = datetime.fromisoformat(str(entry.get("reportDatetime"))).timestamp()
+        except (ValueError, TypeError):
+            pass
+        out.append({"name": v["en"], "vnum": "jma:" + str(entry.get("eventId") or jp), "lat": v["lat"], "lon": v["lon"],
+                    "alert": JMA_LEVEL_COLOUR.get(level, "red"), "level": "Level %d" % level,
+                    "issued_hours": round((time.time() - issued) / 3600, 1) if issued else None, "elevated_since": "", "elevated_hours": None,
+                    "observatory": "JMA", "notice": "https://www.jma.go.jp/bosai/map.html#contents=volcano", "japanese": jp})
+    return out
+
+
+def fetch_jma_alerts():
+    body = json.loads(_http(JMA_WARNINGS, timeout=12)[2].decode("utf-8", "replace"))
+    return parse_jma(body)
+
+
+def chk_jma():
+    alerts = fetch_jma_alerts()
+    return "ok", "%d Japanese volcanoes at level 2 or above%s" % (len(alerts), ": " + ", ".join("%s %s" % (a["name"], a["level"].lower()) for a in alerts[:8]) if alerts else "")
+
+
 def merge_usgs_alerts(rows, alerts):
     """Attach alert levels to the weekly report's volcanoes (matched by name, accents ignored) and append the
     elevated US volcanoes the report does not mention, so a raised level shows up the day it happens."""
@@ -221,7 +275,7 @@ def merge_usgs_alerts(rows, alerts):
         if r is None:
             if a["lat"] is None:
                 continue
-            r = {"name": a["name"], "country": "New Zealand" if a.get("observatory") == "GeoNet" else "United States", "lat": a["lat"], "lon": a["lon"], "new": False,
+            r = {"name": a["name"], "country": {"GeoNet": "New Zealand", "JMA": "Japan"}.get(a.get("observatory"), "United States"), "lat": a["lat"], "lon": a["lon"], "new": False,
                  "reported": None, "since": "", "status": "alert"}
             rows.append(r)
             by_name[key] = r
@@ -402,9 +456,17 @@ def cmd_volcanoes(args):
         url = GVP_FEEDS[0]
     alerts_note = ""
     adata, astale, aerr = last_good("usgs-alerts", fetch_usgs_alerts)
-    gdata, _gstale, _gerr = last_good("geonet-alerts", fetch_geonet_alerts)
-    if gdata:
-        rows = merge_usgs_alerts(rows, gdata)
+    for cache, fetch in (("geonet-alerts", fetch_geonet_alerts), ("jma-alerts", fetch_jma_alerts)):
+        more, _s, _e = last_good(cache, fetch)
+        if more:
+            rows = merge_usgs_alerts(rows, more)
+    try:                                                              # ash advisories: an eruption in progress, within the hour
+        from .vaac import vaac_cached, merge_vaac
+        vdata, _vs, _ve = vaac_cached()
+        if vdata and vdata.get("advisories"):
+            rows = merge_vaac(rows, vdata["advisories"])
+    except Exception:
+        pass
     if adata:
         rows = merge_usgs_alerts(rows, adata)
     if aerr:

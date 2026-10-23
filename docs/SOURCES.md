@@ -302,6 +302,27 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   report's entries by plain name like the USGS levels, or added on their own with country "New Zealand".
   Cached by `last_good("geonet-alerts")`, read with the volcanoes (hourly).
 
+### Volcano alert levels - JMA (Japan)
+- **What:** `jma.go.jp/bosai/volcano/data/warning.json` (undocumented): one entry per volcano under warning,
+  `volcanoInfos[].items[].code` "1<level>" (`"12"` = level 2) with the volcano named in Japanese in `areas[].name`.
+- **Processing (`parse_jma`):** levels 2 and up (2 yellow, 3 orange, 4-5 red); the Japanese name is looked up
+  in `contents/data/japan-volcanoes.json` (JMA's own list of 111 active volcanoes: English name, summit
+  position) and joined to the weekly report like the USGS levels. Cached by `last_good("jma-alerts")`.
+
+### Volcanic ash advisories - Washington VAAC (`vaac.py`)
+- **What:** `ospo.noaa.gov/products/atmosphere/vaac/messages.html` lists the advisories of the past 24 hours;
+  each is an IWXXM XML at `.../xml_files/FVXX<nn>_<YYYYMMDD>_<HHMM>.xml` with the volcano (`name` as
+  "REVENTADOR 352010"), its `gml:pos` (lat lon), `issueTime`, `stateOrRegion`, `advisoryNumber`,
+  `eruptionDetails`, the observed ash cloud (`upperLimit` in flight levels, `gml:posList` lat-lon ring) and the
+  forecast clouds, `remarks`, `nextAdvisoryTime`.
+- **Why:** an advisory within the hour is the fastest public sign of an eruption in the Americas and the eastern
+  Pacific; the weekly report lags by days.
+- **Processing:** file names from the index (`xml_files/(FVXX\d{2}_\d{8}_\d{4})\.xml`, once each, at most 12 new
+  per refresh), each advisory fetched once and remembered in `vaac.json` for 24 h; one record per volcano (its
+  latest advisory, how many in the day). `merge_vaac` attaches it to the weekly report's volcano of that name or
+  adds the volcano ("ash advisory"). The layer draws the observed outline and the forecast ones fainter for
+  12 hours, the label says "ash to FL150 · 2 h". Cached 20 minutes.
+
 ### Air raid alerts - alerts.in.ua (with a token) or the ubilling.net.ua mirror
 - **What:** Ukraine's civil alert status per oblast (and raion / hromada with the API): alert type, start time.
 - **Why:** the API gives minute-by-minute data with types and partial alerts but needs a personal token; the

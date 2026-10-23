@@ -9,8 +9,11 @@ release notes written at the time; their dates are the day the version was hande
 - Settings: a "Find a setting" box at the top of the page - type a word (tsunami, label size, clouds) and only the
   sections that mention it stay, opened; the Coverage section ends with every data source's attribution and
   licence, as the providers ask.
-- GeoNet's Volcanic Alert Levels for New Zealand beside USGS's: a raised level (1 and up) shows in its
-  aviation colour the hour it is set, with the weekly report as the catalogue.
+- Volcanoes in hours, not days: the Washington VAAC's ash advisories (the Americas and the eastern Pacific -
+  an advisory within the hour of an eruption, with the ash cloud's outline, height and forecast drawn on the
+  map and "ash to FL150 · 2 h" in the label), JMA's alert levels for Japan's volcanoes (matched to JMA's list
+  of 111, shipped with the package) and GeoNet's for New Zealand, all beside USGS's, with the weekly report as
+  the catalogue.
 - EMSC as a second earthquake source: the Euro-Mediterranean Seismological Centre's real-time catalogue (the
   national networks' reports) merged with USGS's feed - the same quake within 120 km and 90 s is one, USGS's
   record wins - so the smaller quakes outside the US that USGS lists late or not at all appear within minutes.

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MeteorologicalBulletin xmlns="http://def.wmo.int/collect/2014" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:iwxxm="http://icao.int/iwxxm/3.0">
+ <meteorologicalInformation>
+  <iwxxm:VolcanicAshAdvisory permissibleUsage="OPERATIONAL" reportStatus="NORMAL">
+   <iwxxm:issueTime><gml:TimeInstant><gml:timePosition>ISSUED</gml:timePosition></gml:TimeInstant></iwxxm:issueTime>
+   <iwxxm:issuingVolcanicAshAdvisoryCentre>WASHINGTON</iwxxm:issuingVolcanicAshAdvisoryCentre>
+   <iwxxm:volcano><iwxxm:EruptingVolcano><iwxxm:name>REVENTADOR 352010</iwxxm:name>
+     <iwxxm:position><gml:Point><gml:pos>-0.0772 -77.6558</gml:pos></gml:Point></iwxxm:position>
+     <iwxxm:eruptionDate>2026-10-23T09:10:00Z</iwxxm:eruptionDate></iwxxm:EruptingVolcano></iwxxm:volcano>
+   <iwxxm:stateOrRegion>ECUADOR</iwxxm:stateOrRegion>
+   <iwxxm:summitElevation uom="[ft_i]">11686</iwxxm:summitElevation>
+   <iwxxm:advisoryNumber>2026/1113</iwxxm:advisoryNumber>
+   <iwxxm:eruptionDetails>CONTINUOUS EMS TO FL150</iwxxm:eruptionDetails>
+   <iwxxm:observation><iwxxm:VolcanicAshObservedOrEstimatedConditions isEstimated="false" status="IDENTIFIABLE">
+     <iwxxm:phenomenonTime><gml:TimeInstant><gml:timePosition>2026-10-23T09:10:00Z</gml:timePosition></gml:TimeInstant></iwxxm:phenomenonTime>
+     <iwxxm:ashCloud><iwxxm:ashCloudExtent><iwxxm:upperLimit uom="FL">150</iwxxm:upperLimit><iwxxm:lowerLimit>GND</iwxxm:lowerLimit>
+       <iwxxm:horizontalProjection><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList count="5">-0.07 -77.66 -0.10 -77.90 -0.30 -77.95 -0.25 -77.70 -0.07 -77.66</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></iwxxm:horizontalProjection>
+     </iwxxm:ashCloudExtent><iwxxm:directionOfMotion uom="deg">250</iwxxm:directionOfMotion><iwxxm:speedOfMotion uom="[kn_i]">10</iwxxm:speedOfMotion></iwxxm:ashCloud>
+   </iwxxm:VolcanicAshObservedOrEstimatedConditions></iwxxm:observation>
+   <iwxxm:forecast><iwxxm:VolcanicAshForecastConditions status="PROVIDED">
+     <iwxxm:phenomenonTime><gml:TimeInstant><gml:timePosition>2026-10-23T15:10:00Z</gml:timePosition></gml:TimeInstant></iwxxm:phenomenonTime>
+     <iwxxm:ashCloud><iwxxm:ashCloudExtent><iwxxm:upperLimit uom="FL">180</iwxxm:upperLimit>
+       <iwxxm:horizontalProjection><gml:Polygon><gml:exterior><gml:LinearRing><gml:posList count="5">-0.07 -77.66 -0.20 -78.20 -0.50 -78.30 -0.40 -77.80 -0.07 -77.66</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></iwxxm:horizontalProjection>
+     </iwxxm:ashCloudExtent></iwxxm:ashCloud></iwxxm:VolcanicAshForecastConditions></iwxxm:forecast>
+   <iwxxm:remarks>ONGOING EMISSIONS.</iwxxm:remarks>
+   <iwxxm:nextAdvisoryTime><gml:TimeInstant><gml:timePosition>2026-10-23T15:51:00Z</gml:timePosition></gml:TimeInstant></iwxxm:nextAdvisoryTime>
+  </iwxxm:VolcanicAshAdvisory>
+ </meteorologicalInformation>
+ <bulletinIdentifier>FVXX21_20261023_0951.xml</bulletinIdentifier>
+</MeteorologicalBulletin>

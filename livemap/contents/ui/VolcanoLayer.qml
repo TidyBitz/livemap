@@ -10,6 +10,7 @@
  */
 import QtQuick
 import QtQuick.Window
+import QtQuick.Shapes
 import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
@@ -65,7 +66,8 @@ Item {
     }
     function describe(v) {
         var h = elevatedOf(v);
-        return v.name + (detail && h >= 0 ? " \u00b7 " + Geo.spanText(h) : "");
+        var ash = v.ashHours >= 0 ? " \u00b7 ash" + (v.ashTop ? " to FL" + v.ashTop : "") + " \u00b7 " + Geo.spanText(v.ashHours) : "";
+        return v.name + (detail && h >= 0 ? " \u00b7 " + Geo.spanText(h) : "") + (detail ? ash : "");
     }
     property string note: ""
     readonly property string hint: note
@@ -79,7 +81,9 @@ Item {
                      sinceHours: v.since_hours === undefined || v.since_hours === null ? -1 : v.since_hours,
                      changedFrom: v.changed_from ? (was[0] !== "" ? was[0] : was[1] === "new" ? "new eruption" : was[1] || "") : "",
                      changedHours: v.changed_hours === undefined || v.changed_hours === null ? 9999 : v.changed_hours,
-                     firstHours: v.first_hours === undefined || v.first_hours === null ? -1 : v.first_hours, gone: !!v.gone, hours: v.hours || 0 };
+                     firstHours: v.first_hours === undefined || v.first_hours === null ? -1 : v.first_hours, gone: !!v.gone, hours: v.hours || 0,
+                     ashHours: v.ash_hours === undefined || v.ash_hours === null ? -1 : v.ash_hours, ashTop: v.ash_top_fl || 0,
+                     ashRings: v.ash_rings || [], ashForecast: v.ash_forecast || [] };
         }).map(function (v) { v.fresh = isNew(v); return v; })
         .sort(function (a, b) { return ((b.fresh ? 2 : 0) + (significant(b) ? 1 : 0)) - ((a.fresh ? 2 : 0) + (significant(a) ? 1 : 0)); })
     // What this layer wants labelled; main.qml's LabelPass draws these above everything.
@@ -116,6 +120,28 @@ Item {
         onTriggered: exec.connectSource("python3 '" + overlay.helper + "' volcanoes --keep " + overlay.ageEnd + " --stale " + overlay.staleHours + " # " + Date.now())
     }
 
+    // the ash clouds under advisory: the observed outline, and the forecast ones fainter (Washington VAAC)
+    function ashPaths(forecast) {
+        var out = [];
+        for (var i = 0; i < placed.length; i++) {
+            var rings = forecast ? placed[i].ashForecast : placed[i].ashRings;
+            if (placed[i].ashHours < 0 || placed[i].ashHours > 12) continue;
+            for (var j = 0; j < rings.length; j++) {
+                var r = rings[j], pts = [];
+                for (var k = 0; k + 1 < r.length; k += 2) pts.push(Qt.point((r[k] + 180) / 360 * width, (90 - r[k + 1]) / 180 * height));
+                if (pts.length >= 3) out.push(pts);
+            }
+        }
+        return out;
+    }
+    Shape {
+        anchors.fill: parent
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath { strokeColor: Qt.rgba(0.75, 0.72, 0.68, 0.25); strokeWidth: Math.max(1, 0.8 * overlay.unit); fillColor: Qt.rgba(0.75, 0.72, 0.68, 0.06)
+                    PathMultiline { paths: overlay.ashPaths(true) } }
+        ShapePath { strokeColor: Qt.rgba(0.8, 0.76, 0.7, 0.7); strokeWidth: Math.max(1, 1.2 * overlay.unit); fillColor: Qt.rgba(0.8, 0.76, 0.7, 0.18)
+                    PathMultiline { paths: overlay.ashPaths(false) } }
+    }
     Repeater {
         model: overlay.placed
         Item {

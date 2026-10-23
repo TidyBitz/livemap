@@ -52,7 +52,8 @@ def cmd_feed(args):
                                                            " \u00b7 was %s" % str(it["was_named"]).title() if it.get("was_named") else "",
                                                            " \u00b7 " + impact_text(it["impact"]) if it.get("impact") else "")),
             ("volcano", lambda it: "https://volcano.si.edu/search_volcano.cfm?keyword=%s" % urllib.request.quote(it.get("name", "")),
-             lambda it: "%s \u00b7 %s" % (it.get("name", "?"), (it.get("level") + " (" + it.get("alert", "") + ")") if it.get("alert") else "new eruption" if it.get("status") == "new" else "active")),
+             lambda it: "%s \u00b7 %s%s" % (it.get("name", "?"), (it.get("level") + " (" + it.get("alert", "") + ")") if it.get("alert") else "new eruption" if it.get("status") == "new" else "active",
+                                            " \u00b7 ash to FL%s" % it["ash_top_fl"] if it.get("ash_top_fl") else " \u00b7 ash advisory" if it.get("ash_hours") is not None else "")),
             ("fire", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=WF" % it.get("id", ""),
              lambda it: "%s \u00b7 %s \u00b7 %s" % (it.get("name", "?"), it.get("alert", ""), area_text(float(it.get("area_ha") or 0), units[0]))),
             ("flood", lambda it: "https://www.gdacs.org/report.aspx?eventid=%s&eventtype=FL" % it.get("id", ""),
@@ -65,7 +66,7 @@ def cmd_feed(args):
             if when is None:
                 continue
             title = title_of(it) + (" \u00b7 was %s" % e.get("was") if e.get("changed") and e.get("was") else " \u00b7 new")
-            ev = {"kind": kind, "when": when, "title": title, "detail": "GDACS" if kind != "volcano" else "Smithsonian / USGS",
+            ev = {"kind": kind, "when": when, "title": title, "detail": "GDACS" if kind != "volcano" else ("Smithsonian / " + ({"GeoNet": "GeoNet", "JMA": "JMA"}.get(it.get("observatory"), "USGS")) + (" / VAAC" if it.get("ash_hours") is not None else "")),
                   "url": url_of(it), "lat": it.get("lat"), "lon": it.get("lon"), "key": "%s:%s:%s" % (kind, key, int(when)),
                   "level": 3 if it.get("alert") in ("red",) or it.get("cat", 0) >= 3 else 2 if it.get("alert") == "orange" or it.get("cat", 0) >= 1 or it.get("status") == "new" else 1}
             if kind == "fire" and fire_focus >= 1 and it.get("alert") not in ("orange", "red"):

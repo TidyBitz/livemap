@@ -276,3 +276,44 @@ def test_geonet_raised_levels_only_and_merge_into_the_report():
     merged = volcanoes.merge_usgs_alerts(rows, alerts)
     wi = next(r for r in merged if r["name"].startswith("Whakaari"))
     assert wi["country"] == "New Zealand" and wi["alert"] == "yellow" and wi["lat"] == -37.521
+
+
+# ---- volcanoes: JMA levels and VAAC ash advisories ------------------------------------------------------------
+def test_jma_levels_by_japanese_name():
+    from livemap_helper import volcanoes
+    alerts = volcanoes.parse_jma(json.loads(fixture("jma_warning.json")))
+    by = {a["name"]: a for a in alerts}
+    assert set(by) == {"Meakandake", "Sakurajima"}                 # Fuji at level 1 is not raised
+    assert by["Meakandake"]["alert"] == "yellow" and by["Meakandake"]["level"] == "Level 2" and by["Meakandake"]["lat"] == 43.3864
+    assert by["Sakurajima"]["alert"] == "orange" and by["Sakurajima"]["observatory"] == "JMA"
+    rows, _ = volcanoes.parse_volcano_feed(fixture("gvp_weekly.rss"))
+    merged = volcanoes.merge_usgs_alerts(rows, alerts)
+    assert next(r for r in merged if r["name"] == "Sakurajima")["country"] == "Japan"
+
+
+def test_vaac_index_and_advisory(no_network, data_dir):
+    from livemap_helper import vaac, volcanoes
+    from datetime import datetime, timezone
+    names = vaac.parse_vaac_index(fixture("vaac_index.html"))
+    assert names == ["FVXX21_20261023_0951", "FVXX21_20261023_0345", "FVXX22_20261023_0220"]   # once each, case-folded
+    issued = datetime.fromtimestamp(time.time() - 1800, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rec = vaac.parse_vaac_xml(fixture("vaac_advisory.xml").replace("ISSUED", issued), "FVXX21_20261023_0951")
+    assert rec["name"] == "Reventador" and rec["number"] == "352010" and rec["country"] == "Ecuador"
+    assert (rec["lat"], rec["lon"]) == (-0.0772, -77.6558) and rec["top_fl"] == 150
+    assert len(rec["observed"]) == 1 and len(rec["forecast"]) == 1 and rec["observed"][0][:2] == [-77.66, -0.07]   # lon, lat
+    # the whole fetch: index, then each advisory once, remembered
+    no_network("vaac/messages.html", fixture("vaac_index.html"))
+    no_network("FVXX21_20261023_0951.xml", fixture("vaac_advisory.xml").replace("ISSUED", issued))
+    no_network("FVXX21_20261023_0345.xml", fixture("vaac_advisory.xml").replace("ISSUED", issued).replace("2026/1113", "2026/1112"))
+    no_network("FVXX22_20261023_0220.xml", "<broken")
+    d = vaac.fetch_vaac()
+    assert [a["name"] for a in d["advisories"]] == ["Reventador"] and d["advisories"][0]["count"] == 2
+    assert d["advisories"][0]["advisory"] == "2026/1113"            # the latest of the two
+    assert (data_dir / "vaac.json").exists()
+    no_network("FVXX21_20261023_0951.xml", "must not be fetched again")
+    d2 = vaac.fetch_vaac()
+    assert d2["advisories"][0]["advisory"] == "2026/1113"
+    rows, _ = volcanoes.parse_volcano_feed(fixture("gvp_weekly.rss"))
+    merged = vaac.merge_vaac(rows, d2["advisories"])
+    rev = next(r for r in merged if r["name"] == "Reventador")
+    assert rev["ash_top_fl"] == 150 and rev["ash"] is True and rev["status"] == "ash advisory"
