@@ -29,6 +29,7 @@ Kirigami.FormLayout {
     property alias cfg_ShowStorms: showStorms.checked
     property alias cfg_ShowFires: showFires.checked
     property alias cfg_ShowFloods: showFloods.checked
+    property alias cfg_ShowTsunami: showTsunami.checked
     property alias cfg_ShowAlerts: showAlerts.checked
     property alias cfg_ShowLaunches: showLaunches.checked
     property alias cfg_ShowSats: showSats.checked
@@ -58,6 +59,7 @@ Kirigami.FormLayout {
     QQC2.CheckBox { id: showStorms; text: "Storms" }
     QQC2.CheckBox { id: showFires; text: "Wildfires" }
     QQC2.CheckBox { id: showFloods; text: "Floods" }
+    QQC2.CheckBox { id: showTsunami; text: "Tsunami bulletins" }
     QQC2.CheckBox { id: showAlerts; text: "Air raid alerts" }
     QQC2.CheckBox { id: showLaunches; text: "Launches" }
     QQC2.CheckBox { id: showSats; text: "Satellites" }

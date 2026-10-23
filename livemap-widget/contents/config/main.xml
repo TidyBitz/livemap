@@ -11,6 +11,7 @@
     <entry name="ShowStorms" type="Bool"><default>true</default></entry>
     <entry name="ShowFires" type="Bool"><default>true</default></entry>
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
+    <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAlerts" type="Bool"><default>true</default></entry>
     <entry name="ShowLaunches" type="Bool"><default>true</default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>

@@ -289,6 +289,27 @@ Kirigami.FormLayout {
     property alias cfg_FireTextFollows: fireFollows.checked
     property alias cfg_FireTextColor: fireTextColor.color
     property alias cfg_FirePulseMode: firePulseMode.currentIndex
+    // tsunami
+    property alias cfg_ShowTsunami: tsunami.checked
+    property int cfg_TsunamiLayerOpacity
+    property alias cfg_TsunamiShowInfo: tsunamiShowInfo.checked
+    property alias cfg_TsunamiInfoHours: tsunamiInfoHours.value
+    property alias cfg_TsunamiCoast: tsunamiCoast.checked
+    property alias cfg_TsunamiColor: tsunamiColor.color
+    property alias cfg_TsunamiAdvisoryColor: tsunamiAdvisoryColor.color
+    property alias cfg_TsunamiWatchColor: tsunamiWatchColor.color
+    property alias cfg_TsunamiInfoColor: tsunamiInfoColor.color
+    property alias cfg_TsunamiLabels: tsunamiLabels.currentIndex
+    property alias cfg_TsunamiLabelSize: tsunamiLabelSize.value
+    property alias cfg_TsunamiLabelPlate: tsunamiPlate.checked
+    property alias cfg_TsunamiTextFollows: tsunamiFollows.checked
+    property alias cfg_TsunamiTextColor: tsunamiTextColor.color
+    property alias cfg_TsunamiPulse: tsunamiPulse.checked
+    property alias cfg_TsunamiLabelBold: tsunamiStyle.bold
+    property alias cfg_TsunamiLabelCaps: tsunamiStyle.caps
+    property alias cfg_TsunamiLabelSpacing: tsunamiStyle.letterSpacing
+    property alias cfg_TsunamiLabelOpacity: tsunamiStyle.textOpacity
+    property alias cfg_TsunamiLabelHalo: tsunamiStyle.halo
     // floods
     property alias cfg_ShowFloods: floods.checked
     property alias cfg_FloodColor: floodColor.color
@@ -766,7 +787,7 @@ Kirigami.FormLayout {
     property var widgetMode: ({})
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -832,7 +853,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: "Layers:"
         spacing: 0
         RowLayout { Mirror { twin: quakes; text: "Earthquakes" } Mirror { twin: volcanoes; text: "Volcanoes" } Mirror { twin: storms; text: "Storms" } }
-        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: airAlerts; text: "Air raid alerts" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
+        RowLayout { Mirror { twin: fires; text: "Wildfires" } Mirror { twin: floods; text: "Floods" } Mirror { twin: tsunami; text: "Tsunami" } Mirror { twin: airAlerts; text: "Air raid alerts" } Mirror { twin: sats; text: "Satellites" } Mirror { twin: launches; text: "Launches" } }
         RowLayout { Mirror { twin: network; text: "Network" } Mirror { twin: timeZones; text: "Time zones" } Mirror { twin: countryNames; text: "Country names" } }
         RowLayout { Mirror { twin: rivers; text: "Rivers" } Mirror { twin: stateNames; text: "State names" } Mirror { twin: capitals; text: "Capitals" } Mirror { twin: cities; text: "Cities" } }
         RowLayout { Mirror { twin: clouds; text: "Clouds" } Mirror { twin: plates; text: "Tectonic plates" } Mirror { twin: infra; text: "Oil and gas" } }
@@ -1754,6 +1775,59 @@ Kirigami.FormLayout {
     }
     Note { visible: sec9f.open; text: "Label: place, what happened to people (dead, evacuated, displaced - GDACS's Sendai figures, where it has them), how long the flood has run. Newly reported = listed, or level changed, less than the 'Newly reported' hours ago; significant = orange or red. A flood ages out once GDACS drops it." }
 
+    // ================================================================= Tsunami
+    SectionHeader { id: sec9t; title: "Tsunami bulletins"; sourceNames: ["Tsunami bulletins (PTWC / NTWC)"]; twin: tsunami; summary: tsunami.checked ? (tsunamiShowInfo.checked ? "threats and evaluations" : "threats only") + (tsunamiCoast.checked ? " · threatened coast" : "") + " · labels: " + tsunamiLabels.currentText.toLowerCase() : "Off" }
+    Source { visible: sec9t.open; names: ["Tsunami bulletins (PTWC / NTWC)"] }
+    QQC2.CheckBox { visible: sec9t.open; id: tsunami; Kirigami.FormData.label: "Show:"; text: "Tsunami bulletins" }
+    Amount {
+        visible: sec9t.open
+        Kirigami.FormData.label: "Tsunami layer opacity:"
+        enabled: tsunami.checked
+        from: 10; to: 100
+        value: form.cfg_TsunamiLayerOpacity
+        onValueChanged: form.cfg_TsunamiLayerOpacity = value
+    }
+    Note { visible: sec9t.open; text: "The Pacific Tsunami Warning Center (the Pacific, the Caribbean, and threat messages for the Indian Ocean and the rest of the world) and the National Tsunami Warning Center (US and Canadian coasts) evaluate every large undersea earthquake within minutes. Each evaluation is a ringed mark at the epicentre: blue-grey when no threat was found, yellow for a watch, orange for an advisory, red for a warning or threat message, with rings running out while the threat stands. A threat stood down by a later message fades over three hours. Looked at every 5 minutes." }
+    RowLayout {
+        visible: sec9t.open
+        Kirigami.FormData.label: "No-threat evaluations:"
+        enabled: tsunami.checked
+        QQC2.CheckBox { id: tsunamiShowInfo; text: "Show, for" }
+        QQC2.SpinBox { id: tsunamiInfoHours; enabled: tsunamiShowInfo.checked; from: 1; to: 48; textFromValue: function (v) { return v + " h" }; valueFromText: function (t) { return parseInt(t) || 6 } }
+    }
+    QQC2.CheckBox { visible: sec9t.open; id: tsunamiCoast; Kirigami.FormData.label: "Threatened coast:"; enabled: tsunami.checked; text: "Draw the coast under threat between the centre's breakpoints" }
+    RowLayout {
+        visible: sec9t.open
+        Kirigami.FormData.label: "Tsunami colours:"
+        enabled: tsunami.checked
+        QQC2.Label { text: "Warning"; opacity: 0.8 }
+        KQuickControls.ColorButton { id: tsunamiColor; showAlphaChannel: false; dialogTitle: "Tsunami warning / threat colour" }
+        QQC2.Label { text: "Advisory"; opacity: 0.8 }
+        KQuickControls.ColorButton { id: tsunamiAdvisoryColor; showAlphaChannel: false; dialogTitle: "Tsunami advisory colour" }
+        QQC2.Label { text: "Watch"; opacity: 0.8 }
+        KQuickControls.ColorButton { id: tsunamiWatchColor; showAlphaChannel: false; dialogTitle: "Tsunami watch colour" }
+        QQC2.Label { text: "No threat"; opacity: 0.8 }
+        KQuickControls.ColorButton { id: tsunamiInfoColor; showAlphaChannel: false; dialogTitle: "No-threat evaluation colour" }
+    }
+    RowLayout {
+        visible: sec9t.open
+        Kirigami.FormData.label: "Tsunami labels:"
+        enabled: tsunami.checked
+        QQC2.ComboBox { id: tsunamiLabels; model: ["None", "Threats only", "All"] }
+        Px { id: tsunamiLabelSize; from: 4; to: 24 }
+    }
+    RowLayout {
+        visible: sec9t.open
+        Kirigami.FormData.label: "Tsunami label text:"
+        enabled: tsunami.checked && tsunamiLabels.currentIndex > 0
+        QQC2.CheckBox { id: tsunamiPlate; text: "Plate" }
+        QQC2.CheckBox { id: tsunamiFollows; text: "Text follows the level colour" }
+        KQuickControls.ColorButton { id: tsunamiTextColor; enabled: !tsunamiFollows.checked; showAlphaChannel: false; dialogTitle: "Tsunami label colour" }
+    }
+    LabelStyle { visible: sec9t.open; id: tsunamiStyle; label: "Tsunami label style:"; enabled: tsunami.checked && tsunamiLabels.currentIndex > 0; plated: tsunamiPlate.checked }
+    QQC2.CheckBox { visible: sec9t.open; id: tsunamiPulse; Kirigami.FormData.label: "Tsunami pulse:"; enabled: tsunami.checked; text: "Rings run out from the epicentre while a threat stands" }
+    Note { visible: sec9t.open; text: "Label: the level, the earthquake (magnitude and place as the centre names it), how long ago the bulletin was issued. tsunami.gov publishes only each centre's latest message, so the helper remembers every bulletin by event for 36 hours and stands a threat down when a later message does. Public domain (US government)." }
+
     // #################################################################### Space
     // #################################################################### Civil alerts
     Group { text: "Civil alerts" }
@@ -2211,6 +2285,8 @@ Kirigami.FormLayout {
         onLoaded: {
             item.quakeFeed = Qt.binding(function () { return ["2.5_day", "4.5_day", "significant_week"][quakeFeed.currentIndex] || "4.5_day" });
             item.oceanFrom = Qt.binding(function () { return baseImage.text });
+            item.homeLat = Qt.binding(function () { return homeLat.text });
+            item.homeLon = Qt.binding(function () { return homeLon.text });
         }
     }
     QQC2.Label {

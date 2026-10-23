@@ -187,6 +187,26 @@ best track or, failing that, from the trail; `storm_impacts` works out what each
   group id is `nws:` + office and event with `[^A-Za-z0-9]+` collapsed to `-`.
 - **Cache:** `last-nws-floods.json`, 10 minutes.
 
+### Tsunami bulletins - tsunami.gov (PTWC, NTWC)
+- **What:** the Pacific Tsunami Warning Center (the Pacific, the Caribbean, and threat messages for the Indian
+  Ocean and the rest of the world) and the National Tsunami Warning Center (US and Canadian coasts) evaluate
+  every large undersea earthquake within minutes: an information statement when no threat is found, else a
+  watch, advisory, warning or threat message with the threatened coast.
+- **Why:** the one gap no other feed closes - GDACS opens no event for a tsunami threat, and USGS only flags
+  that a quake *may* have one.
+- **Format:** CAP 1.2 XML at `tsunami.gov/events/xml/PHEBCAP.xml` (PTWC) and `PAAQCAP.xml` (NTWC). **Each file
+  holds one message - the centre's latest product of any kind** - so an information statement two hours later
+  overwrites a threat message. `info/event` names the level, `parameter`s carry `EventLocationName`,
+  `EventPreliminaryMagnitude(Type)`, `EventOriginTime`, `EventDepth`, `EventLatLon`; `area/circle` the epicentre;
+  a `resource` links the bulletin's JSON (`segments[]` with breakpoint start/end lat/lon and `category`,
+  `alerts.areaList`). The files are XMLDSig-signed (DSA-SHA1); the signature is not verified - TLS is the trust boundary.
+- **Processing (`parse_tsunami_cap`, `tsunami_segments`, `fetch_tsunami`):** every message is remembered by
+  centre and incident in `tsunami.json` for 36 h; a newer message for the same event replaces the older, and
+  one whose level is "information" or a `Cancel` after a threat marks the threat `ended`. Levels: warning /
+  threat 3, advisory 2, watch 1, information 0 (`TSUNAMI_LEVELS`, matched as words in the event name). A
+  message stays `TSUNAMI_KEEP_HOURS` past its own `expires` (6 h for an information statement, 24 h for a
+  threat). Cached 5 minutes (`last-tsunami.json`); the layer asks every 5 minutes.
+
 ### Wildfires - GDACS (worldwide events)
 - As for floods with `eventtype == "WF"`; the name has `^(forest )?fires? in ` stripped.
 
@@ -212,13 +232,20 @@ best track or, failing that, from the trail; `storm_impacts` works out what each
   `<Filter>` in the URL).
 - **Format:** GeoJSON with country, province, commune, hectares, fire date.
 
-### Wildfire hotspots - NASA FIRMS (MODIS, optional)
-- **What:** `MODIS_C6_1_Global_24h.csv`, every active-fire detection of the last 24 h.
-- **Format:** CSV (`latitude, longitude, brightness, confidence, frp, acq_date, acq_time, daynight`).
-- **Processing (`cluster_hotspots`):** detections with confidence ≥ 50 are binned into 0.5° cells; each cell's
-  count and summed FRP, the nearest populated place (Natural Earth, ≥ 50 000 people) and the cell's recent
-  history (`hotspot-days.json`: which of the last 30 days it burned) rate it into tiers so a burning season does
-  not cover the map. Cached 3 h.
+### Wildfire hotspots - NASA FIRMS (VIIRS, optional)
+- **What:** every active-fire detection of the last 24 h as one CSV: VIIRS on NOAA-21 (`noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_24h.csv`,
+  375 m, NOAA's primary) first, NOAA-20 (`J1_VIIRS_C2_...`) second, MODIS Terra/Aqua (`MODIS_C6_1_Global_24h.csv`)
+  last. Each is tried on both FIRMS hosts (`firms.` and `firms2.modaps.eosdis.nasa.gov`). Suomi NPP's delivery
+  ends on 2 November 2026 and MODIS collection in 2027, so the order is the order of survival; the Status tab
+  warns when only MODIS could be read.
+- **Format:** CSV (`latitude, longitude, bright_ti4 / brightness, confidence, frp, acq_date, acq_time, satellite,
+  instrument, daynight`); VIIRS rates confidence `l / n / h`, MODIS 0-100.
+- **Processing (`cluster_hotspots`):** confidence letters map to 30 / 60 / 90 and detections under 50 are
+  ignored; a VIIRS detection counts 0.4 (375 m sees about three where MODIS's 1 km saw one) so the cell tiers
+  calibrated on MODIS hold; detections are binned into 0.5° cells with count, summed FRP, the nearest populated
+  place (Natural Earth, ≥ 50 000 people) and the cell's recent history (`hotspot-days.json`: which of the last
+  30 days it burned) rating each into tiers so a burning season does not cover the map. Cached 3 h; the source
+  file's name is kept in `hotspots-source.txt`.
 
 ### Volcanoes - Smithsonian Global Volcanism Program
 - **What:** three things: the Weekly Volcanic Activity Report feeds (RSS and CAP), the eruption database

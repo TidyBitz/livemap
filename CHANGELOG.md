@@ -3,6 +3,34 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.48 - unreleased
+
+### Added
+- Tsunami bulletins: every large undersea earthquake the Pacific and National Tsunami Warning Centers evaluate
+  (tsunami.gov), as a ringed mark at the epicentre coloured by the level - no threat found (quiet blue-grey),
+  watch, advisory, warning or threat message - with rings running out while a threat stands and the threatened
+  coast drawn between the centres' breakpoints; a threat stood down by a later message fades over three hours,
+  an evaluation leaves after six. tsunami.gov publishes only each centre's latest message, so the helper
+  remembers every bulletin by event. The widget lists tsunami bulletins first; new "Tsunami bulletins" section.
+- Coverage: what covers where, and how fast. One file (`contents/data/sources.json`) lists every source with
+  its hazard, regions or country, lead time, cadence, licence and attribution; the Status tab shows it as a
+  matrix (hazards by world region, each cell the best source, green within minutes, amber hours, grey a weekly
+  report) with the details on click, and a "Where you are" summary for the home city - which says plainly
+  that official flood warnings are US only, fire incidents by name US / Canada / EFFIS, volcano alert levels US
+  only. `docs/COVERAGE.md` is generated from the same file (`livemap-helper coverage --markdown`).
+- The Events widget says how old each kind's data is: an empty kind reads "none right now · as of 3 min ago"
+  when the source was reached, "no data yet" when it never was - so nothing happening and a source down are
+  told apart.
+
+### Changed
+- NASA FIRMS hotspots come from VIIRS on NOAA-21 (375 m), NOAA-20 as the fallback and MODIS last: Suomi NPP's
+  data delivery ends on 2 November 2026 and MODIS collection in 2027. VIIRS confidence letters are mapped and a
+  VIIRS detection weighs 0.4 so the cell tiers calibrated on MODIS hold; the Status tab warns when only MODIS
+  could be read. Each file is tried on both FIRMS hosts.
+- Every request carries an identifiable user agent (`livemap-wallpaper/<version> (github.com/TidyBitz/livemap)`),
+  as the APIs ask.
+- Wallpaper and widget 0.48.
+
 ## 0.47 - unreleased
 
 ### Added

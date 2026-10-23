@@ -68,6 +68,7 @@
     <entry name="FireIncidentMark" type="Int"><default>0</default></entry>    <!-- 0 flame and perimeter, 1 perimeter only (the flame where none is mapped), 2 flame only -->
     <entry name="FirePerimeterOpacity" type="Int"><default>25</default></entry>
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
+    <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAirAlerts" type="Bool"><default>false</default></entry>   <!-- off until the user opts in -->
     <entry name="AirAlertColor" type="Color"><default>#ff3b3b</default></entry>
     <entry name="AirAlertNewColor" type="Color"><default>#ffb347</default></entry>       <!-- the first minutes of an alert -->
@@ -227,6 +228,19 @@
     <entry name="FireTextFollows" type="Bool"><default>true</default></entry>
     <entry name="FireTextColor" type="Color"><default>#ff9a60</default></entry>
     <entry name="FirePulseMode" type="Int"><default>1</default></entry>
+    <entry name="TsunamiShowInfo" type="Bool"><default>true</default></entry>   <!-- evaluations that found no threat, quietly -->
+    <entry name="TsunamiInfoHours" type="Int"><default>6</default></entry>
+    <entry name="TsunamiCoast" type="Bool"><default>true</default></entry>      <!-- the threatened coast between the centre's breakpoints -->
+    <entry name="TsunamiColor" type="Color"><default>#ff3b3b</default></entry>
+    <entry name="TsunamiAdvisoryColor" type="Color"><default>#ff8c00</default></entry>
+    <entry name="TsunamiWatchColor" type="Color"><default>#ffd23f</default></entry>
+    <entry name="TsunamiInfoColor" type="Color"><default>#8fb6d6</default></entry>
+    <entry name="TsunamiLabels" type="Int"><default>2</default></entry>        <!-- 0 none, 1 threats only, 2 all -->
+    <entry name="TsunamiLabelSize" type="Int"><default>10</default></entry>
+    <entry name="TsunamiLabelPlate" type="Bool"><default>true</default></entry>
+    <entry name="TsunamiTextFollows" type="Bool"><default>true</default></entry>
+    <entry name="TsunamiTextColor" type="Color"><default>#ffb0b0</default></entry>
+    <entry name="TsunamiPulse" type="Bool"><default>true</default></entry>
     <entry name="FloodLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 orange and red, 2 all, 3 red only -->
     <entry name="FloodLabelSize" type="Int"><default>10</default></entry>
     <entry name="FloodLabelPlate" type="Bool"><default>true</default></entry>
@@ -317,6 +331,7 @@
     <entry name="StormLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="FireLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="FloodLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="TsunamiLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="SatLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="LaunchLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="NetLayerOpacity" type="Int"><default>100</default></entry>
@@ -364,6 +379,11 @@
     <entry name="FireLabelSpacing" type="Int"><default>100</default></entry>
     <entry name="FireLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="FireLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="TsunamiLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="TsunamiLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="TsunamiLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="TsunamiLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="TsunamiLabelHalo" type="Int"><default>100</default></entry>
     <entry name="FloodLabelBold" type="Bool"><default>false</default></entry>
     <entry name="FloodLabelCaps" type="Bool"><default>false</default></entry>
     <entry name="FloodLabelSpacing" type="Int"><default>100</default></entry>

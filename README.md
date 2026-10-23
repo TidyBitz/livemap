@@ -59,6 +59,7 @@ where the storm was first fixed.*
 | **Volcanoes** | Hollow triangles coloured by alert level (yellow / orange / red), pulse on first report or level change, label with how long above normal | Smithsonian GVP eruption database and weekly report, USGS HANS, hourly |
 | **Tropical storms** | NHC-style cyclone icon with category number, past track and forecast coloured by intensity at each fix (depression to category 5), forecast cone, first-fix marker; storms keep their identity across sources and age out instead of vanishing. Storm labels: name / name and wind / name, type and wind, with the facilities it threatens on a line of their own (Storm label facilities); Storm layer opacity for the icon, track and cone as a whole | GDACS worldwide; NOAA NHC best track and forecast for the Atlantic and eastern Pacific, JTWC for the western Pacific, Indian Ocean and southern hemisphere, every 30 min |
 | **Wildfires** | The fires the agencies are fighting, by name, with size, containment or stage of control, personnel, and the mapped perimeter as a faint fill: NIFC interagency perimeters (US), CWFIS active fires with satellite perimeter estimates (Canada), EFFIS burnt areas (Europe, Middle East, North Africa); GDACS events for the rest of the world as flames by alert level; NASA FIRMS hotspots optional (off by default, clustered and rated so a burning season does not cover the map). Sources are a set; size and "not yet contained" filters | NIFC, CWFIS, EFFIS every 30 min; GDACS, FIRMS hourly |
+| **Tsunami bulletins** | Every large undersea earthquake the Pacific and National Tsunami Warning Centers evaluate, as a ringed mark at the epicentre coloured by the level - no threat found, watch, advisory, warning or threat message - with rings running out while a threat stands and the threatened coast drawn between the centres' breakpoints; a threat stood down by a later message fades out. The widget lists them first | tsunami.gov CAP (PTWC, NTWC), every 5 min |
 | **Floods** | GDACS flood events as a wave mark coloured by alert level, the affected districts as a faint fill, labelled with what happened to people (dead, evacuated, displaced) and how long the flood has run; orange and red only by default, since GDACS always lists a dozen green basins at seasonal high water. US flood alerts from the National Weather Service join the same layer minutes after issue: flash flood warnings (red), flood warnings (orange), watches (green), with the counties, the end time and the warning polygon or forecast zones as the area | GDACS, hourly; NWS, every 10 min |
 | **Air raid alerts** | Ukraine's civil air-raid alerts by oblast: the region fills in the alert colour while an alert is on, breathing slowly, lower opacity for part of an oblast, every oblast outlined faintly; labelled with the alert type and how long it has been on. Without a token: a public mirror, air raid only; with a free personal token from alerts.in.ua: alert types, partial alerts, start times | alerts.in.ua / mirror, every minute |
 | **Spacecraft** | ISS, Hubble and Tiangong as pictures or symbols moving once a second along a fading ground track (30 min, one or two orbits ahead), altitude in km, mi or nmi | CelesTrak elements, propagated locally (Kepler + J2) |
@@ -152,13 +153,17 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | Volcanoes | Smithsonian Global Volcanism Program (eruption database, weekly report), USGS alert levels (HANS) | hourly |
 | Storms | GDACS worldwide; NOAA NHC (Atlantic, eastern Pacific) and JTWC (western Pacific, Indian Ocean, southern hemisphere) for current intensity and forecast winds; best tracks from the ATCF decks (NHC; UCAR's real-time mirror for the JTWC basins) | every 30 min |
 | Wildfires | NIFC WFIGS perimeters, CWFIS active fires + M3 perimeters, EFFIS burnt areas | every 30 min |
-| Wildfires, world | GDACS events, NASA FIRMS hotspots (MODIS) | hourly |
+| Wildfires, world | GDACS events, NASA FIRMS hotspots (VIIRS on NOAA-21, NOAA-20 as fallback; MODIS last) | hourly |
 | Floods | GDACS events, their Sendai figures and affected-area polygons | hourly |
 | US flood alerts | NWS api.weather.gov active alerts; forecast-zone polygons cached in `nws-zones/` | every 10 min |
+| Tsunami bulletins | tsunami.gov CAP, the latest message of each centre (PTWC, NTWC), remembered by event for 36 h | every 5 min |
 | Air raid alerts | alerts.in.ua (token) or ubilling.net.ua mirror; oblast polygons shipped in `contents/data/` (Natural Earth) | every minute |
 | ISS, Hubble, Tiangong | CelesTrak orbital elements, propagated locally (Kepler + J2) | position every second |
 | Launches | The Space Devs, Launch Library 2 | hourly |
 | Network (off by default) | this machine's sockets, DB-IP Lite geolocation, all local | every 10 s |
+
+What covers where, and how fast, is in [docs/COVERAGE.md](docs/COVERAGE.md) (also on the Status tab, with a
+"where you are" summary for the home city); each feed's format and handling in [docs/SOURCES.md](docs/SOURCES.md).
 
 Every source is fetched over HTTPS only, capped in size, parsed as data and never executed; strings that end
 up on the desktop are filtered and rendered as plain text. The data folder is `~/.local/share/livemap`.
@@ -228,7 +233,7 @@ NASA Earth Observatory (Blue Marble Next Generation, Black Marble 2016) · Made 
 Peter Bird (2003), GeoJSON by Hugo Ahlenius / Nordpil (github.com/fraxen/tectonicplates, ODC-By) ·
 USGS Earthquake Hazards Program · Smithsonian Institution Global Volcanism Program · USGS Volcano Hazards
 Program (HANS) · Global Disaster Alert and Coordination System (GDACS) · NOAA National Hurricane Center · Joint Typhoon Warning Center ·
-NASA FIRMS (MODIS, LANCE/EOSDIS) · CelesTrak · The Space Devs (Launch Library 2) · Matt Eason's
+NASA FIRMS (VIIRS and MODIS, LANCE/EOSDIS) · CelesTrak · The Space Devs (Launch Library 2) · Matt Eason's
 live-cloud-maps (EUMETSAT data) · NASA GIBS (GOES, Himawari) · EUMETSAT EUMETView (Meteosat) ·
 IP Geolocation by DB-IP (https://db-ip.com, CC BY 4.0) · issinfo.net (who is in space) · BSEE / BOEM platform
 structures · (c) OpenStreetMap contributors, ODbL (offshore platforms, refineries).

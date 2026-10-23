@@ -65,8 +65,8 @@ NASA = "https://assets.science.nasa.gov/content/dam/science/esd/eo/images"
 MONTHS = ["january", "february", "march", "april", "may", "june", "july",
           "august", "september", "october", "november", "december"]
 NIGHT_URL = NASA + "/imagerecords/144000/144898/BlackMarble_2016_3km.jpg"
-VERSION = "0.47"
-UA = {"User-Agent": "livemap-wallpaper/" + VERSION}
+VERSION = "0.48"
+UA = {"User-Agent": "livemap-wallpaper/" + VERSION + " (github.com/TidyBitz/livemap)"}   # identifiable, as the APIs ask
 NE = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/"
 BORDERS = DATA / "borders"
 NE_FILES = ["ne_110m_coastline", "ne_110m_admin_0_boundary_lines_land", "ne_110m_admin_0_countries", "ne_50m_admin_0_countries",
@@ -1920,7 +1920,14 @@ def cmd_fires(args):
         emit({"fires": fires, "note": note})
 
 
-FIRMS = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_24h.csv"
+# NASA FIRMS: the world's active-fire detections of the last 24 hours as one CSV, no key for the 24 h files.
+# VIIRS on NOAA-21 (375 m, NOAA's primary) first, NOAA-20 second; MODIS on Terra/Aqua last - Suomi NPP's delivery
+# ends on 2 November 2026 and MODIS collection in 2027, so the list is the order of preference and each file is
+# tried on both FIRMS hosts (NASA has moved between them to get around delivery delays).
+FIRMS_FILES = ["noaa-21-viirs-c2/csv/J2_VIIRS_C2_Global_24h.csv", "noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_24h.csv", "modis-c6.1/csv/MODIS_C6_1_Global_24h.csv"]
+FIRMS_HOSTS = ["https://firms.modaps.eosdis.nasa.gov/data/active_fire/", "https://firms2.modaps.eosdis.nasa.gov/data/active_fire/"]
+FIRMS = FIRMS_HOSTS[0] + FIRMS_FILES[2]          # the legacy name, kept for the status page
+HOTSPOT_SOURCE = DATA / "hotspots-source.txt"     # which file the current hotspots.csv came from
 HOTSPOTS = DATA / "hotspots.csv"
 HOTSPOT_MEMORY = DATA / "hotspot-days.json"    # per half-degree cell: which of the last 30 days it burned, and how hard
 
@@ -2051,19 +2058,45 @@ def rate_hotspots(cells, fires=None, now=None):
 
 
 def fetch_hotspots(max_age_h=3):
-    """NASA FIRMS active fire detections (MODIS, last 24 h, no key needed; a few MB), cached for three hours."""
+    """NASA FIRMS active fire detections (VIIRS NOAA-21, else NOAA-20, else MODIS; last 24 h; no key; a few to
+    twenty MB), cached for three hours. Returns the CSV text; the source file's name is kept beside it."""
     import time
     if not HOTSPOTS.exists() or time.time() - HOTSPOTS.stat().st_mtime > max_age_h * 3600:
-        req = urllib.request.Request(FIRMS, headers=UA)
-        tmp = HOTSPOTS.with_suffix(".part")
-        HOTSPOTS.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
-            data = r.read(MAX_BODY + 1)
-            if len(data) > MAX_BODY:
-                raise ValueError("FIRMS file larger than expected")
-            f.write(data)
-        tmp.replace(HOTSPOTS)
+        errors = []
+        for name in FIRMS_FILES:
+            for host in FIRMS_HOSTS:
+                try:
+                    req = urllib.request.Request(host + name, headers=UA)
+                    tmp = HOTSPOTS.with_suffix(".part")
+                    HOTSPOTS.parent.mkdir(parents=True, exist_ok=True)
+                    with urllib.request.urlopen(req, timeout=90) as r, open(tmp, "wb") as f:
+                        data = r.read(MAX_BODY + 1)
+                        if len(data) > MAX_BODY:
+                            raise ValueError("FIRMS file larger than expected")
+                        if b"latitude" not in data[:200]:
+                            raise ValueError("not a FIRMS CSV")
+                        f.write(data)
+                    tmp.replace(HOTSPOTS)
+                    try:
+                        HOTSPOT_SOURCE.write_text(name, encoding="utf-8")
+                    except OSError:
+                        pass
+                    errors = []
+                    break
+                except Exception as e:
+                    errors.append("%s: %s" % (name.split("/")[0], str(e)[:60]))
+            if not errors:
+                break
+        if errors and not HOTSPOTS.exists():
+            raise RuntimeError("; ".join(errors[-3:]))
     return HOTSPOTS.read_text(encoding="utf-8", errors="replace")
+
+
+def hotspot_source():
+    try:
+        return HOTSPOT_SOURCE.read_text(encoding="utf-8").split("/")[0].replace("-c2", "").replace("-c6.1", "").upper().replace("-VIIRS", " VIIRS")
+    except OSError:
+        return "MODIS"
 
 
 def cluster_hotspots(csv_text, cell=0.5, min_conf=50, now=None):
@@ -2073,20 +2106,25 @@ def cluster_hotspots(csv_text, cell=0.5, min_conf=50, now=None):
     from datetime import datetime, timezone
     now = now or time.time()
     cells = {}
+    # VIIRS (375 m) sees about three detections where MODIS (1 km) saw one, and rates confidence as l / n / h
+    # rather than 0-100: a VIIRS detection counts 0.4 so the cell tiers calibrated on MODIS still hold
     for row in csv.DictReader(io.StringIO(csv_text)):
         try:
-            if float(row.get("confidence") or 0) < min_conf:
+            conf = row.get("confidence") or "0"
+            conf = {"l": 30.0, "n": 60.0, "h": 90.0}.get(conf.strip().lower(), None) if not conf.strip().replace(".", "").isdigit() else float(conf)
+            if conf is None or conf < min_conf:
                 continue
+            weight = 0.4 if "viirs" in (row.get("instrument") or "").lower() or "bright_ti4" in row else 1.0
             lat, lon, frp = float(row["latitude"]), float(row["longitude"]), float(row.get("frp") or 0)
             t = datetime.strptime(row["acq_date"] + row["acq_time"].zfill(4), "%Y-%m-%d%H%M").replace(tzinfo=timezone.utc).timestamp()
         except (KeyError, ValueError):
             continue
         k = (int(lat // cell), int(lon // cell))
         c = cells.setdefault(k, {"lat": 0.0, "lon": 0.0, "n": 0, "frp": 0.0, "t": 0})
-        c["n"] += 1; c["frp"] += frp; c["lat"] += lat; c["lon"] += lon; c["t"] = max(c["t"], t)
+        c["n"] += weight; c["raw"] = c.get("raw", 0) + 1; c["frp"] += frp; c["lat"] += lat * weight; c["lon"] += lon * weight; c["t"] = max(c["t"], t)
     out = []
     for c in cells.values():
-        out.append({"lat": round(c["lat"] / c["n"], 2), "lon": round(c["lon"] / c["n"], 2), "n": c["n"],
+        out.append({"lat": round(c["lat"] / c["n"], 2), "lon": round(c["lon"] / c["n"], 2), "n": int(round(c["n"])), "raw": c["raw"],
                     "frp": round(c["frp"]), "hours": round((now - c["t"]) / 3600, 1)})
     out.sort(key=lambda c: -c["frp"])
     return out
@@ -2106,7 +2144,7 @@ def cmd_hotspots(args):
     except Exception as e:
         note = "Fire hotspots: %s" % e
     if args.table:
-        print(note or "%d hotspot clusters (0.5 degree cells, tier %d and up, NASA FIRMS MODIS 24 h)" % (len(spots), args.min_tier))
+        print(note or "%d hotspot clusters (0.5 degree cells, tier %d and up, NASA FIRMS %s 24 h)" % (len(spots), args.min_tier, hotspot_source()))
         for c in spots[:60]:
             print("  %7.2f, %7.2f  %4d detections  %6d MW  newest %.0f h ago  %s  %s" % (
                 c["lat"], c["lon"], c["n"], c["frp"], c["hours"], ["background", "notable", "ATTENTION"][c["tier"]], c["why"]))
@@ -2117,8 +2155,9 @@ def cmd_hotspots(args):
 def chk_hotspots():
     spots = cluster_hotspots(fetch_hotspots())
     big = [c for c in spots if c["n"] >= 25]
-    return "ok", "%d detections in %d cells (MODIS, last 24 h), %d cells with 25+ detections; strongest %s MW at %.1f, %.1f" % (
-        sum(c["n"] for c in spots), len(spots), len(big), spots[0]["frp"] if spots else 0, spots[0]["lat"] if spots else 0, spots[0]["lon"] if spots else 0)
+    return ("ok" if "VIIRS" in hotspot_source() else "warn"), "%d detections in %d cells (%s, last 24 h%s), %d cells with 25+ (MODIS-equivalent) detections; strongest %s MW at %.1f, %.1f" % (
+        sum(c.get("raw", c["n"]) for c in spots), len(spots), hotspot_source(), "" if "VIIRS" in hotspot_source() else "; VIIRS not reachable, MODIS ends in 2027",
+        len(big), spots[0]["frp"] if spots else 0, spots[0]["lat"] if spots else 0, spots[0]["lon"] if spots else 0)
 
 
 def chk_fires():
@@ -2818,6 +2857,329 @@ def chk_air_alerts():
     names = {r["code"]: r["name"] for r in ua_regions()}
     return "ok", "%d of 27 oblasts under alert (%s%s)%s" % (len(on), d["source"], "" if token else ": no token, oblast level only",
                                                              ": " + ", ".join(names.get(c, c) for c in on[:8]) if on else "")
+
+
+# -------------------------------------------------------------- tsunami -----
+# Tsunami bulletins from the two US centres that watch the world's oceans: the Pacific Tsunami Warning Center
+# (PTWC: the Pacific, the Caribbean, and threat messages for the Indian Ocean and the rest of the world) and the
+# National Tsunami Warning Center (NTWC: the US and Canadian coasts). tsunami.gov publishes each centre's latest
+# message as one CAP 1.2 file - one file, one message, overwritten by the next product of any kind (an
+# information statement two hours later replaces a threat message), so this is not a feed to read as a list:
+# every message is remembered here by event, and a threat stays on the map until it expires or a later message
+# for the same event stands it down. Public domain (US government).
+TSUNAMI_CAP = [("PTWC", "https://www.tsunami.gov/events/xml/PHEBCAP.xml"), ("NTWC", "https://www.tsunami.gov/events/xml/PAAQCAP.xml")]
+TSUNAMI_STATE = DATA / "tsunami.json"
+# the message's event name -> level: 0 an evaluation with no threat, 1 watch, 2 advisory, 3 warning / threat
+TSUNAMI_LEVELS = (("warning", 3), ("threat", 3), ("advisory", 2), ("watch", 1), ("information", 0), ("cancel", -1))
+TSUNAMI_KEEP_HOURS = {0: 6, 1: 24, 2: 24, 3: 24, -1: 3}                  # how long a message stays, past its own expiry
+TSUNAMI_HOURS = 36                                                         # events older than this leave the memory
+
+
+def tsunami_level(event):
+    e = (event or "").lower()
+    for word, level in TSUNAMI_LEVELS:
+        if word in e:
+            return level
+    return 0
+
+
+def parse_tsunami_cap(xml_text, centre):
+    """One tsunami.gov CAP message -> a record, or None when it is not a tsunami product."""
+    import xml.etree.ElementTree as ET
+    from datetime import datetime, timezone
+    root = ET.fromstring(safe_xml(xml_text))
+    local = lambda el: el.tag.rsplit("}", 1)[-1]
+    text = {}
+    params = {}
+    area, circle = "", None
+    for el in root.iter():
+        name = local(el)
+        if name in ("identifier", "sent", "status", "msgType", "incidents", "event", "severity", "urgency", "certainty",
+                    "onset", "expires", "headline", "description", "instruction", "web") and name not in text:
+            text[name] = (el.text or "").strip()
+        elif name == "parameter":
+            k = v = ""
+            for c in el:
+                if local(c) == "valueName":
+                    k = (c.text or "").strip()
+                elif local(c) == "value":
+                    v = (c.text or "").strip()
+            if k:
+                params[k] = v
+        elif name == "areaDesc" and not area:
+            area = (el.text or "").strip()
+        elif name == "circle" and circle is None:
+            circle = (el.text or "").strip()
+        elif name == "uri" and (el.text or "").endswith(".json"):
+            text.setdefault("json", (el.text or "").strip())
+    if text.get("status", "Actual") != "Actual" or "tsunami" not in (text.get("event", "") + " " + text.get("headline", "")).lower():
+        return None
+
+    def epoch(t):
+        try:
+            return datetime.strptime(t[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+        except (ValueError, TypeError):
+            return None
+    lat = lon = None
+    ll = params.get("EventLatLon") or (circle or "").split(" ")[0]
+    try:
+        lat, lon = (float(x) for x in ll.replace(" ", ",").split(",")[:2])
+    except (ValueError, TypeError):
+        pass
+    try:
+        mag = float(params.get("EventPreliminaryMagnitude") or 0) or None
+    except ValueError:
+        mag = None
+    level = tsunami_level(text.get("event"))
+    if text.get("msgType") == "Cancel":
+        level = -1
+    desc = " ".join(text.get("description", "").split())
+    return {"id": text.get("identifier", ""), "centre": centre, "incident": text.get("incidents") or text.get("identifier", "").rsplit("-", 1)[-1],
+            "event": text.get("event", "Tsunami"), "level": level, "severity": text.get("severity", ""), "sent": epoch(text.get("sent", "")),
+            "expires": epoch(text.get("expires", "")), "mag": mag, "magtype": params.get("EventPreliminaryMagnitudeType", ""),
+            "origin": epoch(params.get("EventOriginTime", "")), "lat": lat, "lon": lon, "depth": params.get("EventDepth", ""),
+            "location": (params.get("EventLocationName") or area or "").title(), "area": area, "headline": " ".join(text.get("headline", "").split()),
+            "description": desc[:600], "url": text.get("web", "").replace("http://", "https://") or "https://www.tsunami.gov/", "json": text.get("json", "")}
+
+
+def tsunami_segments(json_url):
+    """The threatened coast from the bulletin's own JSON: [[name, lat, lon, lat2, lon2, category], ...] from the
+    breakpoint segments, and the named areas. Empty for an information statement."""
+    try:
+        d = json.loads(_http(json_url.replace("http://", "https://"), timeout=12)[2].decode("utf-8", "replace"))
+    except Exception:
+        return [], []
+    segs, areas = [], []
+    for sg in d.get("segments") or []:
+        try:
+            cat = str(sg.get("category") or "")
+            if tsunami_level(cat) <= 0:
+                continue
+            segs.append([str(sg.get("bkp_start_location") or ""), float(sg["bkp_start_lat"]), float(sg["bkp_start_lon"]),
+                         float(sg["bkp_end_lat"]), float(sg["bkp_end_lon"]), cat])
+        except (KeyError, TypeError, ValueError):
+            continue
+    for lst in (d.get("alerts") or {}).get("areaList") or []:
+        for a in (lst if isinstance(lst, list) else [lst]):
+            if isinstance(a, str) and a.strip():
+                areas.append(a.strip().title())
+            elif isinstance(a, dict):
+                areas.append(str(a.get("name") or a.get("area") or "").title())
+    return segs, [a for a in areas if a]
+
+
+def fetch_tsunami():
+    """Read both centres' latest messages and fold them into the memory; return the live events."""
+    import time
+    now = time.time()
+    try:
+        state = json.loads(TSUNAMI_STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        state = {}
+    events = state.get("events") or {}
+    failed = []
+    for centre, url in TSUNAMI_CAP:
+        try:
+            rec = parse_tsunami_cap(_http(url, timeout=15)[2].decode("utf-8", "replace"), centre)
+        except Exception as e:
+            failed.append("%s - %s" % (centre, e))
+            continue
+        if rec is None or not rec.get("sent"):
+            continue
+        key = "%s:%s" % (centre, rec["incident"])
+        old = events.get(key)
+        if old and old.get("id") == rec["id"]:
+            continue                                              # the same message as last time
+        if old and (old.get("sent") or 0) > rec["sent"]:
+            continue
+        rec["first_seen"] = old.get("first_seen", now) if old else now
+        rec["peak"] = max(rec["level"], old.get("peak", 0) if old else 0)
+        if old and old.get("level", 0) > 0 and rec["level"] <= 0:
+            rec["ended"] = now                                    # a threat stood down by an information statement or a cancellation
+        elif old and old.get("ended"):
+            rec["ended"] = old["ended"] if rec["level"] <= 0 else None
+        rec["segments"], rec["areas"] = tsunami_segments(rec["json"]) if rec["level"] > 0 and rec.get("json") else ([], [])
+        events[key] = rec
+    cutoff = now - TSUNAMI_HOURS * 3600
+    events = {k: v for k, v in events.items() if (v.get("sent") or 0) >= cutoff}
+    try:
+        TSUNAMI_STATE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = TSUNAMI_STATE.with_suffix(".tmp%d" % os.getpid())
+        tmp.write_text(json.dumps({"events": events}, separators=(",", ":")), encoding="utf-8")
+        tmp.replace(TSUNAMI_STATE)
+    except OSError:
+        pass
+    if failed and len(failed) == len(TSUNAMI_CAP):
+        raise RuntimeError("; ".join(failed))
+    out = []
+    for v in events.values():
+        keep = TSUNAMI_KEEP_HOURS.get(v.get("level", 0), 6) * 3600
+        until = max(v.get("expires") or 0, (v.get("sent") or 0) + keep)
+        if until < now:
+            continue
+        it = dict(v)
+        it["hours"] = round((now - v["sent"]) / 3600, 2)
+        it["first_hours"] = round((now - v.get("first_seen", v["sent"])) / 3600, 2)
+        it["active"] = v.get("level", 0) > 0 and not v.get("ended") and (v.get("expires") or now + 1) > now
+        out.append(it)
+    out.sort(key=lambda it: (-(it["level"] if it["active"] else -1), -it["sent"]))
+    return {"events": out, "problems": failed}
+
+
+def tsunami_cached(max_age_min=5):
+    import time
+    f = DATA / "last-tsunami.json"
+    try:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        if time.time() - c.get("at", 0) < max_age_min * 60:
+            return c["data"], 0.0, ""
+    except (OSError, ValueError, KeyError):
+        pass
+    return last_good("tsunami", fetch_tsunami)
+
+
+def cmd_tsunami(args):
+    data, stale_h, err = tsunami_cached(args.max_age)
+    note = stale_note("Tsunami bulletins", stale_h, err, args.stale) if err else ""
+    events = (data or {}).get("events", [])
+    if args.table:
+        import time
+        print(note or "%d tsunami bulletins remembered, %d threats active" % (len(events), sum(1 for e in events if e["active"])))
+        for e in events:
+            print("  %-5s %-22s L%d %-6s M%s %-28s %s  %s%s" % (e["centre"], e["event"][:22], e["level"], "active" if e["active"] else ("ended" if e.get("ended") else "info"),
+                                                             e.get("mag") or "?", e.get("location", "")[:28], "%.1f h ago" % e["hours"],
+                                                             "%d coast segments" % len(e.get("segments") or []), ", " + ", ".join(e.get("areas") or [])[:60] if e.get("areas") else ""))
+    else:
+        emit({"events": events, "note": note, "problems": (data or {}).get("problems", [])})
+
+
+def chk_tsunami():
+    d = fetch_tsunami()
+    act = [e for e in d["events"] if e["active"]]
+    latest = d["events"][0] if d["events"] else None
+    return ("warn" if d["problems"] else "ok"), "%d threat%s active%s; latest message %s" % (
+        len(act), "" if len(act) == 1 else "s", ": " + ", ".join("%s (%s)" % (e["location"], e["event"]) for e in act) if act else "",
+        "%s %s, M%s %s, %.1f h ago" % (latest["centre"], latest["event"].lower(), latest.get("mag") or "?", latest.get("location", ""), latest["hours"]) if latest else "none remembered")
+
+
+# ------------------------------------------------------------- coverage -----
+# What covers where: contents/data/sources.json is the one list of sources (hazard, regions or countries,
+# what it gives, lead time, licence). `coverage` turns it into the matrix the Status tab shows, the "where you
+# are" lines for the home city, and docs/COVERAGE.md (`--markdown`).
+SOURCES_FILE = Path(__file__).resolve().parent.parent / "data" / "sources.json"
+LEAD_RANK = {"minutes": 0, "hours": 1, "days": 2, "static": 3}
+
+
+def read_sources():
+    return json.loads(SOURCES_FILE.read_text(encoding="utf-8"))
+
+
+def country_at(lon, lat):
+    """(ISO 3166-1 alpha-2, name) of the country under a point, from the Natural Earth 1:110m countries; (None, None) at sea."""
+    f = BORDERS / "ne_110m_admin_0_countries.geojson"
+    try:
+        feats = json.loads(f.read_text(encoding="utf-8"))["features"]
+    except (OSError, ValueError, KeyError):
+        return None, None
+    for feat in feats:
+        g = feat.get("geometry") or {}
+        polys = [g["coordinates"]] if g.get("type") == "Polygon" else g.get("coordinates") or [] if g.get("type") == "MultiPolygon" else []
+        for poly in polys:
+            if poly and _in_ring(lon, lat, [v for pt in poly[0] for v in pt[:2]]):
+                p = feat.get("properties") or {}
+                code = p.get("ISO_A2_EH") or p.get("ISO_A2") or ""
+                return (code if code and code != "-99" else None), (p.get("NAME") or p.get("ADMIN"))
+    return None, None
+
+
+def region_at(regions, lon, lat):
+    best = None
+    for r in regions:
+        b = r.get("box")
+        if b and b[0] <= lon <= b[2] and b[1] <= lat <= b[3]:
+            if best is None or (b[2] - b[0]) * (b[3] - b[1]) < (best["box"][2] - best["box"][0]) * (best["box"][3] - best["box"][1]):
+                best = r                                      # the smallest box that holds the point
+    return best or next((r for r in regions if not r.get("box")), None)
+
+
+def coverage(home=None):
+    """{regions, hazards, matrix: {hazard: {region: [cells]}}, here: {...}}; a cell is the source, its lead,
+    what it gives and whether it is national ('US only')."""
+    src = read_sources()
+    regions, hazards = src["regions"], src["hazards"]
+    matrix = {}
+    for h in hazards:
+        row = {}
+        for r in regions:
+            cells = []
+            for so in src["sources"]:
+                if so["hazard"] != h["id"]:
+                    continue
+                if "world" in so["regions"] or r["id"] in so["regions"]:
+                    cells.append({"id": so["id"], "name": so["name"], "lead": so["lead"], "gives": so["gives"], "official": so.get("official", False),
+                                  "countries": so.get("countries", []), "cadence": so["cadence"], "note": so.get("note", ""), "licence": so["licence"], "attribution": so["attribution"], "url": so["url"], "status": so.get("status", "")})
+            cells.sort(key=lambda c: (LEAD_RANK.get(c["lead"], 9), 0 if c["official"] else 1, 1 if c["countries"] else 0))
+            row[r["id"]] = cells
+        matrix[h["id"]] = row
+    here = None
+    if home and home[0] is not None:
+        lon, lat = home
+        code, cname = country_at(lon, lat)
+        reg = region_at(regions, lon, lat)
+        lines = []
+        for h in hazards:
+            if h["id"] in ("weather", "map"):
+                continue
+            cells = [c for c in (matrix[h["id"]].get(reg["id"], []) if reg else []) if not c["countries"] or code in c["countries"]]
+            if not cells:
+                lines.append({"hazard": h["name"], "text": "no source covers this area", "lead": ""})
+                continue
+            best = cells[0]
+            lines.append({"hazard": h["name"], "text": "%s (%s)%s" % (best["name"], best["cadence"], "; also " + ", ".join(c["name"] for c in cells[1:3]) if len(cells) > 1 else ""),
+                          "lead": best["lead"], "official": best["official"]})
+        here = {"country": cname, "code": code, "region": reg["name"] if reg else "", "lines": lines}
+    return {"regions": regions, "hazards": hazards, "leads": src["leads"], "matrix": matrix, "here": here, "sources": src["sources"]}
+
+
+def coverage_markdown(cov):
+    out = ["# Coverage", "", "What covers where, and how fast: generated from `livemap/contents/data/sources.json` by `livemap-helper coverage --markdown`",
+           "(`docs/SOURCES.md` has the per-feed detail). Lead: **minutes** = minutes after the event or the official warning,",
+           "hours = episodic or rated reporting, days = a weekly report, static = downloaded once. *National* sources name the country.", ""]
+    regs = cov["regions"]
+    out.append("| Hazard | " + " | ".join(r["name"] for r in regs) + " |")
+    out.append("|---|" + "---|" * len(regs))
+    for h in cov["hazards"]:
+        cells = []
+        for r in regs:
+            cs = cov["matrix"][h["id"]].get(r["id"], [])
+            cells.append("<br>".join("%s%s (%s)" % ("**" if c["lead"] == "minutes" else "", c["name"].split(" (")[0] + ("**" if c["lead"] == "minutes" else ""), c["lead"] + (", " + "/".join(c["countries"]) + " only" if c["countries"] else "")) for c in cs) or "-")
+        out.append("| %s | %s |" % (h["name"], " | ".join(cells)))
+    out += ["", "## Sources", "", "| Source | Hazard | Covers | Gives | Lead | Cadence | Official | Licence / attribution |", "|---|---|---|---|---|---|---|---|"]
+    names = {r["id"]: r["name"] for r in regs}
+    for so in cov["sources"]:
+        where = "worldwide" if "world" in so["regions"] else ", ".join(names.get(x, x) for x in so["regions"])
+        if so.get("countries"):
+            where += " (" + "/".join(so["countries"]) + " only)"
+        out.append("| [%s](%s) | %s | %s | %s | %s | %s | %s | %s |" % (so["name"], so["url"], so["hazard"], where, so["gives"], so["lead"], so["cadence"], "yes" if so.get("official") else "community", so["licence"] + " - " + so["attribution"]))
+    out += ["", "Blind spots this table makes visible: official flood warnings are US only (GDACS's rated events elsewhere, hours);",
+            "fire incidents by name are US, Canada and the EFFIS area (satellite hotspots and GDACS events elsewhere);",
+            "volcano alert levels are US only and the global report is weekly; civil alerts are Ukraine only.", ""]
+    return "\n".join(out)
+
+
+def cmd_coverage(args):
+    home = None
+    if args.home:
+        try:
+            lat, lon = (float(x) for x in args.home.split(",")[:2])
+            home = (lon, lat)
+        except ValueError:
+            pass
+    cov = coverage(home)
+    if args.markdown:
+        print(coverage_markdown(cov))
+    else:
+        emit(cov)
 
 
 # ---------------------------------------------------------------- space -----
@@ -4082,6 +4444,17 @@ def cmd_feed(args):
                           "url": a["url"], "lat": a["lat"], "lon": a["lon"], "level": 3 if a["alert"] == "red" else 2 if a["alert"] == "orange" else 1, "key": a["id"]})
     except Exception as e:
         problems.append("nws floods: %s" % e)
+    # tsunami bulletins (the wallpaper's cache; fetched when it is more than 5 minutes old)
+    try:
+        ts, _h, _e = tsunami_cached(5)
+        for e in (ts or {}).get("events", []):
+            what = ("Threat ended" if e.get("ended") else e["event"].replace("Message", "").strip()) if e["level"] > 0 or e.get("ended") else "Tsunami evaluated, no threat"
+            items.append({"kind": "tsunami", "when": e["sent"], "title": "%s · %s%s" % (what, "M%.1f " % e["mag"] if e.get("mag") else "", e.get("location") or ""),
+                          "detail": "%s · %s" % (e["centre"], (", ".join(e["areas"][:4]) + (", +%d" % (len(e["areas"]) - 4) if len(e["areas"]) > 4 else "")) if e.get("areas") else ("bulletin %s" % (e.get("severity") or "").lower() if e["level"] <= 0 else e["event"])),
+                          "url": e["url"], "lat": e["lat"], "lon": e["lon"], "level": 3 if e["level"] >= 2 and e["active"] else 2 if e["level"] > 0 and e["active"] else 1,
+                          "nonew": e["level"] <= 0 and not e.get("ended"), "key": "tsunami:%s:%s" % (e["centre"], e["incident"])})
+    except Exception as e:
+        problems.append("tsunami: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
@@ -4089,7 +4462,7 @@ def cmd_feed(args):
             if c["tier"] < 2 or (fire_focus == 1 and not c.get("people")):
                 continue
             items.append({"kind": "fire", "when": now - c["hours"] * 3600, "title": "Fire hotspots \u00b7 %s \u00b7 %s" % (c["why"], "%.1f GW" % (c["frp"] / 1000) if c["frp"] >= 1000 else "%d MW" % c["frp"]),
-                          "detail": "NASA FIRMS \u00b7 %d detections" % c["n"], "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@%.2f,%.2f,7z" % (c["lon"], c["lat"]),
+                          "detail": "NASA FIRMS %s \u00b7 %d detections" % (hotspot_source(), c.get("raw", c["n"])), "url": "https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@%.2f,%.2f,7z" % (c["lon"], c["lat"]),
                           "lat": c["lat"], "lon": c["lon"], "level": 2, "key": "hot:%d,%d" % (int(c["lat"] // 0.5), int(c["lon"] // 0.5))})
     except Exception as e:
         problems.append("hotspots: %s" % e)
@@ -4134,12 +4507,12 @@ def cmd_feed(args):
     # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
     # sorts behind every quake of the day); they are already filtered to the ones that matter.
     def kept(it):
-        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert", "tsunami") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
     # the kept kinds are exempt from the cap, not counted against it: 60 fire incidents must not push out every quake
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
     items = sorted(keep + rest, key=lambda it: (1 if it.get("pin") else 0, -(it.get("updated") or it["when"])))
-    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers()})
+    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now)})
 
 
 HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version
@@ -4151,6 +4524,28 @@ def history_mark():
         return h.get("news") if isinstance(h, dict) else None
     except (OSError, ValueError):
         return None
+
+
+# the cache file(s) behind each kind of event: "as of" for the widget, so an empty list can say whether the
+# source was reached (the kind's newest cache) or never answered (no cache at all)
+KIND_CACHES = {"quake": ["quakes.json"], "storm": ["last-storms.json"], "volcano": ["last-volcanoes.json"], "fire": ["last-fires.json", "hotspots.csv", "last-nifc.json", "last-cwfis.json", "last-effis.json"],
+               "flood": ["last-floods.json", "last-nws-floods.json"], "tsunami": ["last-tsunami.json"], "alert": ["last-air-alerts.json"],
+               "launch": ["launches.json"], "sat": ["tle.json"]}
+
+
+def data_ages(now):
+    """{kind: minutes since its freshest cache was written}; a kind with no cache is left out."""
+    out = {}
+    for kind, files in KIND_CACHES.items():
+        ages = []
+        for f in files:
+            try:
+                ages.append((now - (DATA / f).stat().st_mtime) / 60)
+            except OSError:
+                pass
+        if ages:
+            out[kind] = round(min(ages), 1)
+    return out
 
 
 def read_history():
@@ -4393,7 +4788,7 @@ def cmd_status(args):
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
     if not args.offline:
-        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
+        jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
                  ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(args.feed)), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
@@ -5007,6 +5402,10 @@ def main():
     inc.add_argument("--stale", type=float, default=6); inc.add_argument("--table", action="store_true"); inc.set_defaults(fn=cmd_incidents)
     aa = sub.add_parser("air-alerts"); aa.add_argument("--token", default=""); aa.add_argument("--regions", action="store_true")
     aa.add_argument("--stale", type=float, default=1); aa.add_argument("--table", action="store_true"); aa.set_defaults(fn=cmd_air_alerts)
+    cv = sub.add_parser("coverage"); cv.add_argument("--markdown", action="store_true"); cv.add_argument("--home", default="")   # "lat,lon"
+    cv.set_defaults(fn=cmd_coverage)
+    ts = sub.add_parser("tsunami"); ts.add_argument("--table", action="store_true"); ts.add_argument("--stale", type=float, default=2)
+    ts.add_argument("--max-age", dest="max_age", type=float, default=5); ts.set_defaults(fn=cmd_tsunami)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)

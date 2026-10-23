@@ -7,7 +7,7 @@
         "Id": "io.github.tidybitz.livemap.wallpaper",
         "License": "GPL-3.0-or-later",
         "Name": "Live World Map",
-        "Version": "0.47"
+        "Version": "0.48"
     },
     "X-Plasma-API-Minimum-Version": "6.0"
 }
