@@ -152,7 +152,7 @@ def satellite_snapshot(lat, lon, now=None):
     s, n = max(-85, lat - 5), min(85, lat + 5)
     w, e = lon - 7, lon + 7
     return ("https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=%s&BBOX=%.2f,%.2f,%.2f,%.2f&CRS=EPSG:4326"
-            "&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor,Coastlines_15m&WRAP=day&FORMAT=image/jpeg&WIDTH=560&HEIGHT=400" % (date, s, w, n, e))
+            "&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor,Coastlines_15m&WRAP=day,x&FORMAT=image/jpeg&WIDTH=560&HEIGHT=400" % (date, s, w, n, e))   # WRAP: one value per layer
 
 
 def storm_image(it):

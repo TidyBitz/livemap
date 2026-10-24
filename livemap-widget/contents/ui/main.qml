@@ -440,6 +440,15 @@ PlasmoidItem {
                 }
             }
             PC3.Label { visible: bubbleBody.facts.length === 0; text: "Nothing more is known about this one."; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+            // when this record last changed here (the feed's own bookkeeping) and when its source was last read
+            PC3.Label {
+                Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing
+                visible: !bubbleBody.it.pin
+                textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: 0.55; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                text: (bubbleBody.it.updated ? "Record updated " + root.ago(bubbleBody.it.updated) : "")
+                    + (bubbleBody.it.seen && bubbleBody.it.seen !== bubbleBody.it.updated ? " \u00b7 first seen " + root.ago(bubbleBody.it.seen) : "")
+                    + (root.ages[bubbleBody.it.kind] !== undefined ? (bubbleBody.it.updated ? " \u00b7 " : "") + "source " + root.asOf(bubbleBody.it.kind).replace("as of now", "read just now").replace("as of ", "read ") : "")
+            }
             PC3.Label { visible: !!bubbleBody.it.url; Layout.fillWidth: true; text: "Click to open " + (root.webUrl(bubbleBody.it.url || "") || ""); textFormat: Text.PlainText; elide: Text.ElideMiddle; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize }
         }
     }
