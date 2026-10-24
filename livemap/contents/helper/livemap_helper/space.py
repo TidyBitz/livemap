@@ -188,6 +188,11 @@ def fetch_crews(max_age_h=4):
             since, days = time.strftime("%d %b %Y", time.gmtime(t)), int((now - t) // 86400)
         except (TypeError, ValueError):
             pass
+        # LL2 counts whatever it has launched and not brought back as "in space": Starman in his Roadster (2018,
+        # nationality "Earthling") is one. Nobody has stayed on a station longer than 371 days, so anyone up for
+        # over 450 is not aboard either of them.
+        if str(country).lower() == "earthling" or (days is not None and days > 450) or "starman" in (a.get("name") or "").lower():
+            continue
         crews["Tiangong" if chinese else "ISS"].append({"name": a.get("name") or "", "country": str(country), "agency": ag.get("abbrev") or ag.get("name") or "",
                                                        "since": since, "days": days, "image": a.get("profile_image_thumbnail") or ""})
     for k in crews:

@@ -384,7 +384,9 @@ def test_crews_from_ll2(no_network, data_dir, monkeypatch):
     no_network("astronaut/?in_space=true", json.dumps({"results": [
         {"name": "Jane Doe", "nationality": "American", "agency": {"abbrev": "NASA", "country_code": "USA"}, "last_flight": "2026-08-01T12:00:00Z"},
         {"name": "Li Wei", "nationality": "Chinese", "agency": {"abbrev": "CMSA", "country_code": "CHN"}, "last_flight": "2026-04-24T09:00:00Z"},
-        {"name": "Ivan Petrov", "nationality": "Russian", "agency": {"abbrev": "RFSA", "country_code": "RUS"}, "last_flight": "2026-09-27T00:00:00Z"}]}))
+        {"name": "Ivan Petrov", "nationality": "Russian", "agency": {"abbrev": "RFSA", "country_code": "RUS"}, "last_flight": "2026-09-27T00:00:00Z"},
+        {"name": "Starman", "nationality": "Earthling", "agency": {"abbrev": "SpX", "country_code": "USA"}, "last_flight": "2018-02-06T20:45:00Z"},
+        {"name": "Lost Probe", "nationality": "American", "agency": {"abbrev": "NASA", "country_code": "USA"}, "last_flight": "2021-01-01T00:00:00Z"}]}))
     crews = space.fetch_crews()
     assert [c["name"] for c in crews["ISS"]] == ["Jane Doe", "Ivan Petrov"] and crews["Tiangong"][0]["name"] == "Li Wei"
     assert crews["ISS"][0]["days"] > 60 and crews["ISS"][0]["country"] == "American"
