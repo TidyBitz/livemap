@@ -41,7 +41,7 @@ from .clouds import cmd_clouds
 from .quakes import cmd_quakes
 from .coverage import cmd_coverage
 from .feed import cmd_feed
-from .fetch import cmd_fetch_frame, cmd_fetch_geoip, cmd_fetch_maps, cmd_frame, cmd_make_lights
+from .fetch import cmd_fetch_frame, cmd_fetch_geoip, cmd_fetch_maps, cmd_frame, cmd_frame_state, cmd_make_lights
 from .fires import cmd_fires, cmd_hotspots, cmd_incidents
 from .floods import cmd_floods, cmd_nws_floods
 from .infra import cmd_fetch_infrastructure, cmd_infrastructure, cmd_plates, cmd_where_city
@@ -135,6 +135,8 @@ def main():
     hs.add_argument("--min-tier", type=int, default=0, choices=[0, 1, 2])     # 0 everything, 1 notable and up, 2 needs attention
     hs.add_argument("--people", action="store_true")                          # only clusters near people (a city of 100k within 50 km, or an orange/red event)
     hs.set_defaults(fn=cmd_hotspots)
+    fs = sub.add_parser("frame-state"); fs.add_argument("--set", choices=["building", "ready", "failed"]); fs.add_argument("--note", default=""); fs.add_argument("--style", default="")
+    fs.set_defaults(fn=cmd_frame_state)
     for name, fn in (("fetch-frame", cmd_fetch_frame), ("frame", cmd_frame)):
         fr = sub.add_parser(name); fr.add_argument("--style", default="seasonal", choices=["seasonal", "viirs", "relief", "dark"])
         fr.add_argument("--land", default="#2b3542"); fr.add_argument("--ocean", default="#0b1119"); fr.add_argument("--detail", default="50m", choices=["110m", "50m"])

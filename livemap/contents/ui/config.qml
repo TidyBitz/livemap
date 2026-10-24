@@ -816,6 +816,31 @@ RowLayout {
         onNewData: (source, data) => { disconnectSource(source); form.widgetBusy = false; try { form.widgetInfo = JSON.parse(data.stdout) || ({}); } catch (e) { form.widgetInfo = ({ error: "The helper did not answer: " + String(data.stderr).trim().split("\n").pop() }); } }
     }
     Timer { interval: 1500; running: true; onTriggered: form.widgetRun("") }
+    // what the wallpaper is doing about its imagery (helper `frame-state`, written by the wallpaper's FrameWatch):
+    // asked every few seconds while this page is open, so a change of base map or view can be watched here
+    property var frameState: ({})
+    P5Support.DataSource {
+        id: frameStateExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: (source, data) => { disconnectSource(source); try { form.frameState = JSON.parse(data.stdout) || ({}); } catch (e) {} }
+    }
+    Timer { interval: 2500; running: true; repeat: true; triggeredOnStart: true; onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
+    readonly property bool frameBuilding: frameState.state === "building" && (frameState.age || 0) < 900
+    readonly property string frameText: frameBuilding ? "Building the imagery for this view (" + (frameState.note || "") + ")\u2026 The map keeps its previous image until this is ready - about a minute, longer for a satellite picture or the hi-res maps."
+                                      : frameState.state === "failed" ? "The imagery could not be built: " + (frameState.note || "") + " (tried again in an hour; the map keeps its previous image)"
+                                      : frameState.state === "ready" ? "Imagery ready" + (frameState.age !== null && frameState.age !== undefined ? " (built " + (frameState.age < 90 ? frameState.age + " s" : frameState.age < 5400 ? Math.round(frameState.age / 60) + " min" : Math.round(frameState.age / 3600) + " h") + " ago)" : "") + ". A new base map or view is built after Apply; watch it here."
+                                      : "A new base map or view is built after Apply - the map keeps its previous image meanwhile; what happens shows here."
+    component ImageryRow: RowLayout {
+        Kirigami.FormData.label: "Imagery:"
+        Layout.fillWidth: true
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
+        spacing: Kirigami.Units.smallSpacing
+        QQC2.BusyIndicator { visible: form.frameBuilding; running: visible; implicitHeight: Kirigami.Units.gridUnit * 1.3; implicitWidth: implicitHeight; Layout.alignment: Qt.AlignTop }
+        HealthDot { visible: !form.frameBuilding; worst: form.frameState.state === "failed" ? "error" : form.frameState.state === "ready" ? "ok" : ""; Layout.alignment: Qt.AlignTop; Layout.topMargin: Kirigami.Units.smallSpacing }
+        QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: form.frameText; opacity: form.frameBuilding || form.frameState.state === "failed" ? 1 : 0.7; color: form.frameState.state === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor }
+    }
     // a style swatch: [top, bottom, text] for each base map (0 seasonal imagery, 1 satellite, 2 relief, 3 dark
     // cartographic, 4 Dark Matter, 5 Matrix)
     function swatchColours(base) {
@@ -1097,6 +1122,7 @@ RowLayout {
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
+        ImageryRow { visible: secE.open }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Events widget"; topPadding: Kirigami.Units.largeSpacing }
         // the companion widget: a card that says what it is and puts it on the desktop (helper `widget --add`, through
         // plasmashell's scripting interface), points at the Store when it is not installed, and says when it is there
@@ -1279,6 +1305,7 @@ RowLayout {
         // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
         // here that every full-width frame comes out as the whole latitude range in Fill mode
         Note { visible: sec1.open && form.fitPreview !== ""; text: form.fitPreview }
+        ImageryRow { visible: sec1.open }
         Amount {
             visible: sec1.open
             Kirigami.FormData.label: "Dim the imagery:"

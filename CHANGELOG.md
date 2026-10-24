@@ -24,6 +24,12 @@ release notes written at the time; their dates are the day the version was hande
   compares the two.
 
 ### Added
+- Settings: an "Imagery" line on Essentials and on the Map page says what the wallpaper is doing about its
+  picture - building it for the new base map or view (with a spinner; the map keeps its previous image until
+  it is ready, about a minute), ready and since when, or why it failed - so a change can be watched from the
+  dialog instead of looking like nothing happened. The wallpaper reports through the helper (`frame-state`).
+- Tsunami: PTWC and NTWC each send a message about the same earthquake; the two now show as one event,
+  both centres named, with every area and coast segment of either.
 - Units: the Units page now holds Speed as well as Distance (the same choice as Storms' wind unit, shown in both
   places), and the widget's bubbles follow them: depths, altitudes and orbital speeds in the units you chose.
 - Widget: a preview bubble. Rest the pointer on an event and a bubble beside the widget says what the feed knows:

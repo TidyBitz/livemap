@@ -401,3 +401,14 @@ def test_crews_from_ll2(no_network, data_dir, monkeypatch):
     aboard = [v for k, v in f["facts"] if k.startswith("Aboard") or k == " "]
     assert len(aboard) == 2 and aboard[0].startswith("Jane Doe · American \U0001F1FA\U0001F1F8 · ") and "days" in aboard[0]
     assert not [v for k, v in sat_facts("Hubble", {}, crews)["facts"] if k.startswith("Aboard")]
+
+
+def test_tsunami_twins_merge():
+    from livemap_helper.tsunami import merge_twins
+    a = {"centre": "PTWC", "incident": "1", "mag": 7.2, "lat": -15.2, "lon": 167.1, "sent": 1000, "level": 0, "active": False, "areas": [], "segments": [], "url": "u1", "event": "Tsunami Information"}
+    b = {"centre": "NTWC", "incident": "9", "mag": 7.2, "lat": -15.3, "lon": 167.0, "sent": 1060, "level": 1, "active": True, "areas": ["Hawaii"], "segments": [[1, 2]], "url": "u2", "event": "Tsunami Advisory"}
+    c = {"centre": "PTWC", "incident": "2", "mag": 6.1, "lat": 38.0, "lon": 142.0, "sent": 1100, "level": 0, "active": False, "areas": [], "segments": [], "url": "u3", "event": "Tsunami Information"}
+    out = merge_twins([a, b, c])
+    assert len(out) == 2
+    m = [e for e in out if e["mag"] == 7.2][0]
+    assert m["centre"] == "NTWC · PTWC" and m["level"] == 1 and m["active"] and m["areas"] == ["Hawaii"] and m["segments"] == [[1, 2]] and m["twin_url"] == "u1"

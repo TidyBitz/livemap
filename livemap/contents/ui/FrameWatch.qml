@@ -33,11 +33,15 @@ Item {
         if (helper === "" || busy) return;
         exec.connectSource("python3 '" + helper + "' frame" + frameArgs + " # " + Date.now());
     }
+    readonly property string styleWords: style === "viirs" ? "yesterday's satellite picture" : style === "relief" ? "relief and bathymetry" : style === "dark" ? "land and ocean" : "the monthly maps cut to size"
+    // the settings page shows what is going on here (helper `frame-state`): building, ready, or why not
+    function report(state, text) { if (helper !== "") exec.connectSource("python3 '" + helper + "' frame-state --set " + state + " --style " + style + " --note '" + String(text).replace(/'/g, "") + "' # " + Date.now()); }
     function fetch() {
         if (busy || helper === "") return;
         if (Date.now() - failedAt < 3600000) return;              // an hour between tries after a failure
         busy = true;
-        note = "Map style: building the imagery for this frame (" + (style === "viirs" ? "yesterday's satellite picture" : style === "relief" ? "relief and bathymetry" : style === "dark" ? "land and ocean" : "the monthly maps cut to size") + ")…";
+        note = "Map style: building the imagery for this frame (" + styleWords + ")…";
+        report("building", styleWords);
         exec.connectSource("python3 '" + helper + "' fetch-frame" + frameArgs + " # " + Date.now());
     }
     P5Support.DataSource {
@@ -50,16 +54,19 @@ Item {
                 watch.busy = false;
                 if (data["exit code"] === 0) {
                     watch.failedAt = 0; watch.note = "";
+                    watch.report("ready", watch.styleWords);
                     watch.askAgain = false; watch.ask();
                 } else if (watch.askAgain) {
                     watch.askAgain = false; watch.ask();
                 } else {
                     watch.failedAt = Date.now();
                     watch.note = "Map style: could not build the imagery - " + String(data.stderr || data.stdout).trim().split("\n").pop();
+                    watch.report("failed", String(data.stderr || data.stdout).trim().split("\n").pop());
                     console.warn("livemap frame:", watch.note);
                 }
                 return;
             }
+            if (source.indexOf("' frame-state ") >= 0) return;
             if (source.indexOf("' frame ") < 0) return;
             try {
                 var r = JSON.parse(data.stdout);

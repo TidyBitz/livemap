@@ -269,6 +269,28 @@ def frame_state(style, key):
     return {"ready": ready, "stale": stale, "day": meta.get("day", ""), "age_hours": round(age_h, 1)}
 
 
+FRAME_STATE = DATA / "frame-state.json"
+
+
+def cmd_frame_state(args):
+    """What the wallpaper is doing about its imagery, for the settings page: the wallpaper's FrameWatch sets it
+    (`frame-state --set building|ready|failed --note ...`), the settings read it (`frame-state`)."""
+    import time
+    try:
+        st = json.loads(FRAME_STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        st = {}
+    if getattr(args, "set", None):
+        st = {"state": args.set, "note": args.note or "", "at": time.time(), "style": args.style or st.get("style", "")}
+        try:
+            FRAME_STATE.parent.mkdir(parents=True, exist_ok=True)
+            FRAME_STATE.write_text(json.dumps(st), encoding="utf-8")
+        except OSError:
+            pass
+    st["age"] = round(time.time() - st["at"]) if st.get("at") else None
+    emit(st)
+
+
 def cmd_frame(args):
     """`frame --style S --north ... --width W`: is the imagery there? The wallpaper polls this and fetches when not."""
     n, so, w, e, width, _h = _frame_args(args)

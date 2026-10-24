@@ -181,8 +181,41 @@ def fetch_tsunami():
         it["first_hours"] = round((now - v.get("first_seen", v["sent"])) / 3600, 2)
         it["active"] = v.get("level", 0) > 0 and not v.get("ended") and (v.get("expires") or now + 1) > now
         out.append(it)
+    out = merge_twins(out)
     out.sort(key=lambda it: (-(it["level"] if it["active"] else -1), -it["sent"]))
     return {"events": out, "problems": failed, "latest": latest}
+
+
+def merge_twins(events):
+    """PTWC and NTWC each issue a message for the same quake (one for the Pacific, one for the US and Canadian
+    coasts). Two messages about the same earthquake - the same magnitude within 0.2, within 1.5 degrees and
+    half an hour of each other - become one event: the higher level, both centres named, every area, the
+    lists of segments joined."""
+    out = []
+    for e in events:
+        twin = None
+        for o in out:
+            try:
+                same = (abs(float(o.get("mag") or 0) - float(e.get("mag") or 0)) <= 0.2 and abs(o["lat"] - e["lat"]) <= 1.5
+                        and abs(o["lon"] - e["lon"]) <= 1.5 and abs(o["sent"] - e["sent"]) <= 1800 and o.get("centre") != e.get("centre"))
+            except (TypeError, KeyError):
+                same = False
+            if same:
+                twin = o
+                break
+        if twin is None:
+            out.append(dict(e))
+            continue
+        lead, other = (twin, e) if (twin["level"], twin["sent"]) >= (e["level"], e["sent"]) else (e, twin)
+        merged = dict(lead)
+        merged["centre"] = "%s \u00b7 %s" % (lead["centre"], other["centre"])
+        merged["centres"] = sorted({lead["centre"], other["centre"]})
+        merged["areas"] = list(dict.fromkeys((lead.get("areas") or []) + (other.get("areas") or [])))
+        merged["segments"] = (lead.get("segments") or []) + (other.get("segments") or [])
+        merged["active"] = lead["active"] or other["active"]
+        merged["twin_url"] = other.get("url", "")
+        out[out.index(twin)] = merged
+    return out
 
 
 def tsunami_cached(max_age_min=5):
