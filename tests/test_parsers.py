@@ -359,3 +359,37 @@ def test_spacecraft_facts_and_art():
     f = sat_facts("ISS", iss)
     labels = [k for k, v in f["facts"]]
     assert "Over" in labels and "Altitude" in labels and "One orbit" in labels
+
+
+def test_quake_pictures_and_snapshots(no_network, data_dir, monkeypatch):
+    import json
+    from livemap_helper import feed
+    monkeypatch.setattr(feed, "QUAKE_PICTURES", data_dir / "quake-pictures.json")
+    no_network("detail/us1.geojson", json.dumps({"properties": {"products": {"shakemap": [{"contents": {"download/intensity.jpg": {"url": "https://earthquake.usgs.gov/x/intensity.jpg"}}}]}}}))
+    no_network("detail/us2.geojson", json.dumps({"properties": {"products": {}}}))
+    pics = feed.quake_pictures(["us1", "us2", "emsc123"])
+    assert pics["us1"].endswith("intensity.jpg") and pics["us2"] == "" and "emsc123" not in pics
+    # a second run asks for nothing new (us1 is kept for good, us2 waits six hours) - the fake serves nothing else
+    pics2 = feed.quake_pictures(["us1", "us2", "us3", "us4", "us5", "us6", "us7"])
+    assert pics2["us1"] == pics["us1"] and len([k for k in pics2 if k.startswith("us") and k not in ("us1", "us2")]) <= feed.LOOKUPS_PER_RUN
+    url = feed.satellite_snapshot(18.4, 134.2, now=1792764800)   # 2026-10-23 14:13 UTC: evening in the western Pacific, the afternoon pass is in -> today
+    assert url.startswith("https://wvs.earthdata.nasa.gov/api/v1/snapshot?") and "BBOX=13.40,127.20,23.40,141.20" in url and "TIME=2026-10-23" in url
+    assert feed.storm_image({"id": "1001342", "source": "GDACS", "lat": 40.0, "lon": -65.8}).startswith("https://wvs.earthdata.nasa.gov/")
+
+
+def test_crews_from_ll2(no_network, data_dir, monkeypatch):
+    import json
+    from livemap_helper import space
+    monkeypatch.setattr(space, "ASTRONAUTS", data_dir / "astronauts.json")
+    no_network("astronaut/?in_space=true", json.dumps({"results": [
+        {"name": "Jane Doe", "nationality": "American", "agency": {"abbrev": "NASA", "country_code": "USA"}, "last_flight": "2026-08-01T12:00:00Z"},
+        {"name": "Li Wei", "nationality": "Chinese", "agency": {"abbrev": "CMSA", "country_code": "CHN"}, "last_flight": "2026-04-24T09:00:00Z"},
+        {"name": "Ivan Petrov", "nationality": "Russian", "agency": {"abbrev": "RFSA", "country_code": "RUS"}, "last_flight": "2026-09-27T00:00:00Z"}]}))
+    crews = space.fetch_crews()
+    assert [c["name"] for c in crews["ISS"]] == ["Jane Doe", "Ivan Petrov"] and crews["Tiangong"][0]["name"] == "Li Wei"
+    assert crews["ISS"][0]["days"] > 60 and crews["ISS"][0]["country"] == "American"
+    from livemap_helper.feed import sat_facts
+    f = sat_facts("ISS", {}, crews)
+    aboard = [v for k, v in f["facts"] if k.startswith("Aboard") or k == " "]
+    assert len(aboard) == 2 and aboard[0].startswith("Jane Doe · American · ") and "days" in aboard[0]
+    assert not [v for k, v in sat_facts("Hubble", {}, crews)["facts"] if k.startswith("Aboard")]

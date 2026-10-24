@@ -44,6 +44,31 @@ PlasmoidItem {
     readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", tsunami: "〰", alert: "⚠", launch: "↑", sat: "◆" })   // text fallbacks
     function kindIconUrl(kind) { return kind === "fire" || kind === "sat" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
     readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", tsunami: "Tsunami", alert: "Air raid alert", launch: "Launch", sat: "Satellite" })
+    // the Map controls chips: each live layer with the Status names of its sources (the same the wallpaper uses)
+    readonly property var layerChips: [
+        { layer: "quakes", name: "Earthquakes", sources: ["Earthquake feed (USGS)", "Earthquakes, secondary (EMSC)"] },
+        { layer: "volcanoes", name: "Volcanoes", sources: ["Volcanoes (Smithsonian / USGS)", "Eruption database (Smithsonian)", "Weekly report page (Smithsonian)", "Volcano alert levels (USGS)", "Volcano alert levels (GeoNet)", "Volcano alert levels (JMA)", "Ash advisories (Washington VAAC)"] },
+        { layer: "storms", name: "Storms", sources: ["Storms (GDACS)", "Storms, secondary (NHC)", "Storms, secondary (JTWC)"] },
+        { layer: "fires", name: "Wildfires", sources: ["Wildfires (GDACS)", "US fire incidents (NIFC)", "Canadian fires (CWFIS)", "European burnt areas (EFFIS)", "Fire hotspots (NASA FIRMS)"] },
+        { layer: "floods", name: "Floods", sources: ["Floods (GDACS)", "US flood alerts (NWS)", "European warnings (MeteoAlarm)", "Canadian alerts (Environment Canada)", "England flood warnings (Environment Agency)"] },
+        { layer: "tsunami", name: "Tsunami", sources: ["Tsunami bulletins (PTWC / NTWC)"] },
+        { layer: "alerts", name: "Air raid alerts", sources: ["Air raid alerts (alerts.in.ua)"] },
+        { layer: "sats", name: "Satellites", sources: ["Satellite elements (CelesTrak)"] },
+        { layer: "launches", name: "Launches", sources: ["Launches (The Space Devs)"] },
+        { layer: "network", name: "Network", sources: ["Connections (ss)", "GeoIP database (DB-IP)"] } ]
+    function layerHealth(layer) {                 // "", ok, warn or error: the worst of the layer's sources in the last status check
+        var chip = layerChips.find(function (c) { return c.layer === layer; });
+        if (!chip || checks.length === 0) return "";
+        var ok = 0, bad = 0, warn = 0;
+        for (var i = 0; i < chip.sources.length; i++) {
+            var c = checks.find(function (x) { return x.name === chip.sources[i]; });
+            if (!c) continue;
+            if (c.state === "error") bad++; else if (c.state === "warn") warn++; else ok++;
+        }
+        if (ok + bad + warn === 0) return "";
+        if (bad > 0) return ok > 0 ? "warn" : "error";
+        return warn > 0 ? "warn" : "ok";
+    }
     readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
     property var ages: ({})                       // minutes since each kind's source was last read: "as of", so an empty kind says whether it was reached
@@ -336,6 +361,13 @@ PlasmoidItem {
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
     switchWidth: Kirigami.Units.gridUnit * 18
     switchHeight: Kirigami.Units.gridUnit * 14
+
+    // a small upper-case heading and a greyed note, as the Map controls tab uses them (inline components live at the root)
+    component Heading: PC3.Label {
+        font.bold: true; font.capitalization: Font.AllUppercase; font.letterSpacing: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.6
+        Layout.topMargin: Kirigami.Units.smallSpacing
+    }
+    component Note: PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
 
     // ---- the preview bubble: what the feed knows about one event, beside the widget, after a short hover ----
     // 0 off (the plain link tooltip instead), 1 details, 2 details and the source's picture where it has one
@@ -769,100 +801,128 @@ PlasmoidItem {
                             text: liveTab.chosenUrl + (root.webcasts.length === 0 ? "   ·   no launch webcasts listed yet (they appear a day or so before lift-off)" : "") }
             }
 
-            // ---- Map controls -------------------------------------------------------
+            // ---- Map controls: quick settings on top of the wallpaper's own (mode.json, read within 20 s) ----
             ColumnLayout {
                 visible: tabs.currentIndex === 2
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: Kirigami.Units.smallSpacing
-                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; text: "These reach the wallpaper within 20 seconds and stay until changed here. They sit on top of the wallpaper's own settings." }
-                PC3.CheckBox {
-                    text: "Pause animations"
-                    checked: !!root.mode.pause
-                    onToggled: root.setMode("--pause " + (checked ? "on" : "off"))
-                }
-                PC3.CheckBox {
-                    text: "Plain map only (live layers off)"
-                    checked: !!root.mode.plain
-                    onToggled: root.setMode("--plain " + (checked ? "on" : "off"))
-                }
-                PC3.Label { text: "Hide layers:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
-                GridLayout {
-                    columns: 2
-                    Repeater {
-                        model: [["quakes", "Earthquakes"], ["volcanoes", "Volcanoes"], ["storms", "Storms"], ["fires", "Wildfires"], ["floods", "Floods"], ["tsunami", "Tsunami"], ["alerts", "Air raid alerts"], ["sats", "Satellites"], ["launches", "Launches"], ["network", "Network"]]
-                        PC3.CheckBox {
-                            required property var modelData
-                            text: modelData[1]
-                            checked: !!(root.mode.hide && root.mode.hide.indexOf(modelData[0]) >= 0)
-                            onToggled: {
-                                var hide = (root.mode.hide || []).filter(function (h) { return h !== modelData[0]; });
-                                if (checked) hide.push(modelData[0]);
-                                root.setMode("--hide '" + hide.join(",") + "'");
-                            }
-                        }
-                    }
-                }
-                PC3.Label { text: "Clouds:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                onVisibleChanged: if (visible && root.checks.length === 0) root.checkStatus()   // the chips' health dots
+
+                Heading { text: "Quick settings \u00b7 the widget's own" }
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.CheckBox {
-                        text: "Show clouds"
-                        tristate: false
+                    PC3.Switch {
+                        text: "Clouds"
                         checked: root.mode.clouds !== false
                         onToggled: root.setMode("--clouds " + (checked ? "auto" : "off"))
                     }
-                    PC3.Label { text: root.mode.clouds === false ? "(hidden from here)" : "(as set in the wallpaper)"; opacity: 0.6 }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    enabled: root.mode.clouds !== false
-                    PC3.Label { text: "Opacity" }
+                    Item { Layout.fillWidth: true }
                     PC3.Slider {
                         id: cloudOpacity
-                        Layout.fillWidth: true
+                        enabled: root.mode.clouds !== false
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 7
                         from: 0; to: 100; stepSize: 5
                         value: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null ? root.mode.cloud_opacity : 100
                         onMoved: cloudSend.restart()
                         Timer { id: cloudSend; interval: 400; onTriggered: root.setMode("--cloud-opacity " + Math.round(cloudOpacity.value)) }
+                        PC3.ToolTip.text: "Cloud opacity, on top of the wallpaper's own"; PC3.ToolTip.visible: hovered
                     }
-                    PC3.Label { text: Math.round(cloudOpacity.value) + " %"; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5 }
+                    PC3.Label { text: Math.round(cloudOpacity.value) + " %"; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5; enabled: root.mode.clouds !== false }
                     PC3.ToolButton {
                         icon.name: "edit-undo"; visible: root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null
                         PC3.ToolTip.text: "Back to the wallpaper's own opacity"; PC3.ToolTip.visible: hovered
                         onClicked: root.setMode("--cloud-opacity auto")
                     }
                 }
-                PC3.Label { text: "Power:"; font.bold: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                PC3.Switch {
+                    text: "Pulses and animation"
+                    checked: !root.mode.pause
+                    onToggled: root.setMode("--pause " + (checked ? "off" : "on"))
+                }
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.CheckBox {
+                    PC3.Switch {
                         id: fullSpeed
                         text: "Full speed"
                         checked: !!root.mode.full
                         onToggled: root.setMode(checked ? "--full on --full-hours " + [0, 1, 4, 8][fullHours.currentIndex] : "--full off")
-                        PC3.ToolTip.text: "Ignore the wallpaper's on-battery policy and its load guard for a while. Pause and Plain map above still apply."
-                        PC3.ToolTip.visible: hovered
+                        PC3.ToolTip.text: "Ignore the wallpaper's on-battery policy and its load guard for a while"; PC3.ToolTip.visible: hovered
                     }
                     PC3.ComboBox {
                         id: fullHours
                         model: ["until switched off", "for 1 hour", "for 4 hours", "for 8 hours"]
-                        currentIndex: 2
+                        currentIndex: 1
                         enabled: !fullSpeed.checked
-                        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 9
+                    }
+                    PC3.Label {
+                        Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        text: !root.mode.full ? "" : root.mode.full_until ? "(load guard overridden, " + Math.max(1, Math.round((root.mode.full_until - root.nowSec) / 60)) + " min left)" : "(load guard overridden)"
                     }
                 }
-                PC3.Label {
-                    Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6
-                    text: !root.mode.full ? "Battery policy and load guard as set in the wallpaper."
-                        : root.mode.full_until ? "Full speed until " + Qt.formatTime(new Date(root.mode.full_until * 1000), "hh:mm") + " (" + Math.max(1, Math.round((root.mode.full_until - root.nowSec) / 60)) + " min left), then back to the wallpaper's settings."
-                        : "Full speed until switched off here: the battery policy and the load guard are ignored."
+
+                Heading { text: "Layers on the map" }
+                // a chip per layer: on when the wallpaper shows it and the widget is not hiding it; the dot is its
+                // sources' health, as the Status tab sees them. A click hides or shows it from here.
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Repeater {
+                        model: root.layerChips
+                        Rectangle {
+                            id: lchip
+                            required property var modelData
+                            readonly property bool hiddenHere: !!(root.mode.hide && root.mode.hide.indexOf(modelData.layer) >= 0)
+                            readonly property bool onMap: root.layers === null || root.layers.indexOf(modelData.layer) >= 0
+                            readonly property bool on: onMap && !hiddenHere
+                            readonly property string worst: root.layerHealth(modelData.layer)
+                            radius: height / 2
+                            implicitHeight: lchipRow.implicitHeight + 8; implicitWidth: lchipRow.implicitWidth + 20
+                            color: on ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, lchipHover.containsMouse ? 0.35 : 0.22)
+                                      : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, lchipHover.containsMouse ? 0.14 : 0.07)
+                            border.width: 1; border.color: on ? Qt.rgba(Kirigami.Theme.highlightColor.r, Kirigami.Theme.highlightColor.g, Kirigami.Theme.highlightColor.b, 0.7) : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.25)
+                            RowLayout {
+                                id: lchipRow
+                                anchors.centerIn: parent
+                                spacing: Kirigami.Units.smallSpacing
+                                Rectangle {
+                                    Layout.preferredWidth: 7; Layout.preferredHeight: 7; radius: 4
+                                    color: lchip.worst === "ok" ? Kirigami.Theme.positiveTextColor : lchip.worst === "warn" ? Kirigami.Theme.neutralTextColor
+                                         : lchip.worst === "error" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.disabledTextColor
+                                }
+                                PC3.Label { text: lchip.modelData.name; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: lchip.on ? 1 : 0.6 }
+                            }
+                            PC3.ToolTip.text: (!lchip.onMap ? "Off in the wallpaper's settings" : lchip.hiddenHere ? "Hidden from here \u00b7 click to show" : "Shown \u00b7 click to hide from here")
+                                              + (lchip.worst === "warn" ? "\nSome of its sources are not answering" : lchip.worst === "error" ? "\nNone of its sources are answering" : "")
+                            PC3.ToolTip.visible: lchipHover.containsMouse
+                            MouseArea {
+                                id: lchipHover
+                                anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var hide = (root.mode.hide || []).filter(function (h) { return h !== lchip.modelData.layer; });
+                                    if (!lchip.hiddenHere) hide.push(lchip.modelData.layer);
+                                    root.setMode("--hide '" + hide.join(",") + "'");
+                                }
+                            }
+                        }
+                    }
                 }
+                PC3.Switch {
+                    text: "Plain map only (every live layer off)"
+                    checked: !!root.mode.plain
+                    onToggled: root.setMode("--plain " + (checked ? "on" : "off"))
+                }
+                Note { text: "A chip is the same layer as the wallpaper's switch: grey, the wallpaper has it off; outlined, hidden from here. Everything on this tab sits on top of the wallpaper's own settings, reaches it within 20 seconds and stays until changed here." }
                 RowLayout {
-                    PC3.Button { text: "Clear all overrides"; icon.name: "edit-clear"; onClicked: root.setMode("--clear") }
-                    PC3.Button { text: "Re-read"; icon.name: "view-refresh"; onClicked: root.refreshMode() }
+                    PC3.Button { text: "Clear overrides"; icon.name: "edit-clear"; enabled: !!root.mode.pause || !!root.mode.plain || !!root.mode.full || root.mode.clouds === false || (root.mode.hide || []).length > 0 || (root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null); onClicked: root.setMode("--clear") }
+                    PC3.ToolButton { icon.name: "view-refresh"; PC3.ToolTip.text: "Re-read the overrides"; PC3.ToolTip.visible: hovered; onClicked: root.refreshMode() }
                 }
                 Item { Layout.fillHeight: true }
-                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Uses the " + root.helper + " and its data folder; nothing is fetched twice." }
+                PC3.Button {
+                    Layout.fillWidth: true
+                    text: "Open the wallpaper settings\u2026"; icon.name: "configure"
+                    onClicked: exec.connectSource(root.helperShell + "widget --configure # " + Date.now())
+                }
             }
 
             // ---- Status: every data source and local file, as the wallpaper's own Status section sees them ----

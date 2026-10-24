@@ -39,6 +39,15 @@ print(done ? "added" : "no desktop");
 """ % (WIDGET_ID, WIDGET_ID)
 
 
+CONFIGURE_SCRIPT = """
+var ds = desktops();
+var d = null;
+for (var i = 0; i < ds.length; i++) if (ds[i].screen === 0) { d = ds[i]; break; }
+if (!d && ds.length > 0) d = ds[0];
+if (d) { d.showConfigurationInterface(); print("opened"); } else print("no desktop");
+"""
+
+
 def installed():
     home = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share")
     for base in (home / "plasma/plasmoids", Path("/usr/share/plasma/plasmoids"), Path("/usr/local/share/plasma/plasmoids")):
@@ -86,6 +95,9 @@ def cmd_widget(args):
     """`widget` -> {installed, placed (screens it is on, or null when plasmashell could not be asked), store};
     `widget --add` places it on the desktop and reports again."""
     result = {"installed": installed(), "store": STORE_URL, "id": WIDGET_ID}
+    if getattr(args, "configure", False):                # open the desktop's settings dialog (the wallpaper page is in it)
+        out = evaluate(CONFIGURE_SCRIPT)
+        result["configure"] = out if out is not None else "plasmashell could not be asked (D-Bus): right-click the desktop > Configure Desktop and Wallpaper"
     if getattr(args, "add", False):
         if not result["installed"]:
             result["error"] = "The widget is not installed: install it first (livemap.sh install, or the KDE Store)"

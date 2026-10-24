@@ -156,6 +156,48 @@ LL2 = "https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20&hide_recent_p
 
 
 LAUNCHES = DATA / "launches.json"
+ASTRONAUTS = DATA / "astronauts.json"
+LL2_IN_SPACE = "https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&limit=40&format=json"
+
+
+def fetch_crews(max_age_h=4):
+    """Who is in space right now, from Launch Library 2 (the same source as the launches, so no new host), kept
+    for four hours: LL2's free tier allows 15 requests an hour and the feed runs every five minutes. Returns
+    {"ISS": [...], "Tiangong": [...]} of {name, country, agency, since, days}: a person is put on Tiangong
+    when their agency is Chinese, on the ISS otherwise (LL2 does not say which station)."""
+    import time
+    from datetime import datetime, timezone
+    now = time.time()
+    try:
+        c = json.loads(ASTRONAUTS.read_text(encoding="utf-8"))
+        if now - c.get("at", 0) < max_age_h * 3600 and isinstance(c.get("crews"), dict):
+            return c["crews"]
+    except (OSError, ValueError):
+        c = {}
+    body = json.loads(_http(LL2_IN_SPACE, timeout=12)[2].decode("utf-8", "replace"))
+    crews = {"ISS": [], "Tiangong": []}
+    for a in body.get("results", []):
+        ag = a.get("agency") or {}
+        country = a.get("nationality") or ag.get("country_code") or ""
+        if isinstance(country, list):                                  # LL2 2.3 shape: [{"name": ...}]
+            country = ", ".join(str(x.get("name") or x.get("nationality_name") or "") for x in country if isinstance(x, dict))
+        chinese = (ag.get("country_code") or "").upper() in ("CHN", "CN") or "china" in (ag.get("name") or "").lower() or "chinese" in str(country).lower()
+        since, days = "", None
+        try:
+            t = datetime.strptime(str(a.get("last_flight"))[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+            since, days = time.strftime("%d %b %Y", time.gmtime(t)), int((now - t) // 86400)
+        except (TypeError, ValueError):
+            pass
+        crews["Tiangong" if chinese else "ISS"].append({"name": a.get("name") or "", "country": str(country), "agency": ag.get("abbrev") or ag.get("name") or "",
+                                                       "since": since, "days": days, "image": a.get("profile_image_thumbnail") or ""})
+    for k in crews:
+        crews[k].sort(key=lambda x: -(x["days"] if x["days"] is not None else -1))
+    try:
+        ASTRONAUTS.parent.mkdir(parents=True, exist_ok=True)
+        ASTRONAUTS.write_text(json.dumps({"at": now, "crews": crews}), encoding="utf-8")
+    except OSError:
+        pass
+    return crews
 
 
 def fetch_launches(max_age_h=1):

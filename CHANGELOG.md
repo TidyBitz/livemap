@@ -33,6 +33,15 @@ release notes written at the time; their dates are the day the version was hande
   conclusions of its own. The three spacecraft get one too: where it is right now, altitude, speed, one orbit's
   length and the age of the elements, with the wallpaper's own marker art as the picture; Tiangong is now
   "Tiangong Chinese Space Station" in the list.
+- Widget: the spacecraft bubbles say who is aboard - name, country and how long they have been up (Launch Library
+  2's list of people in space, kept four hours; CMSA crews on Tiangong, the rest on the ISS). Pictures for
+  earthquakes (USGS's ShakeMap intensity map, looked up once per quake, a few per feed run) and for the storms
+  GDACS alone tracks (NASA Worldview's latest true-colour satellite pass round the storm, the same imagery the
+  clouds come from).
+- Widget: the Map controls tab in the shape of the design: Quick settings (clouds and their opacity, pulses and
+  animation, full speed) as switches, the layers as chips - on, grey when the wallpaper has the layer off,
+  outlined when hidden from here, each with its sources' health dot - and an "Open the wallpaper settings"
+  button that asks plasmashell to open the desktop's settings (helper `widget --configure`).
 - Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame
   included, to an opacity of your choice, so the map shows through - and come back as the pointer arrives; or
   hold a fixed opacity. Settings, "On the desktop". It draws its own (Plasma's usual) frame there for that.

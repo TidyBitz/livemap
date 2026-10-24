@@ -11,14 +11,14 @@ import urllib.request
 from .alerts import fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text
+    wind_text, _http
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
 from .floods import official_floods, group_nws, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
-from .space import SATS, fetch_launches, fetch_tles
+from .space import SATS, fetch_crews, fetch_launches, fetch_tles
 from .tsunami import tsunami_cached
 
 
@@ -60,8 +60,9 @@ SAT_BLURB = {
 }
 
 
-def sat_facts(short, tles):
-    """Where a spacecraft is right now, from the wallpaper's cached orbital elements (no network)."""
+def sat_facts(short, tles, crews=None):
+    """Where a spacecraft is right now, from the wallpaper's cached orbital elements (no network), and who is
+    aboard (Launch Library 2, cached four hours)."""
     import math
     import time
     from .space import parse_tle, propagate
@@ -78,7 +79,80 @@ def sat_facts(short, tles):
                      ["One orbit", "%.0f min" % period], ["Elements", "%s old (CelesTrak)" % _hours((now - el["epoch"]) / 3600)]]
         except Exception as e:
             rows.append(["Position", "not computed: %s" % e])
+    crew = (crews or {}).get(short) or []
+    for i, c in enumerate(crew):
+        stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
+        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s \u00b7 %s%s" % (c["name"], c.get("country") or c.get("agency") or "", " \u00b7 " + stay if stay else "")])
     return {"facts": [[k, v] for k, v in rows if v], "image": sat_picture(short)}
+
+
+QUAKE_PICTURES = DATA / "quake-pictures.json"
+USGS_DETAIL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/detail/%s.geojson"
+LOOKUPS_PER_RUN = 4
+
+
+def quake_pictures(ids):
+    """USGS's ShakeMap intensity picture for each quake that has one: the event's detail record names it. One
+    request per quake, at most LOOKUPS_PER_RUN new ones per feed run (the rest wait for the next), the answer
+    kept for good when there is a picture and re-asked after six hours when there is not yet (ShakeMaps can
+    arrive an hour after the quake). EMSC's events have none."""
+    import time
+    now = time.time()
+    try:
+        cache = json.loads(QUAKE_PICTURES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    looked = 0
+    for qid in ids:
+        qid = str(qid)
+        if not qid or qid.startswith("emsc"):
+            continue
+        c = cache.get(qid)
+        if c and (c.get("image") or now - c.get("at", 0) < 6 * 3600):
+            continue
+        if looked >= LOOKUPS_PER_RUN:
+            break
+        looked += 1
+        image = ""
+        try:
+            d = json.loads(_http(USGS_DETAIL % qid, timeout=8)[2].decode("utf-8", "replace"))
+            sm = ((d.get("properties") or {}).get("products") or {}).get("shakemap") or []
+            contents = (sm[0].get("contents") or {}) if sm else {}
+            for key in ("download/intensity.jpg", "download/pga.jpg", "download/pin-thumbnail.png"):
+                if contents.get(key, {}).get("url"):
+                    image = contents[key]["url"]
+                    break
+        except Exception:
+            pass
+        cache[qid] = {"image": image, "at": now}
+    if looked:
+        try:
+            for k in [k for k, v in cache.items() if now - v.get("at", 0) > 14 * 86400]:
+                del cache[k]
+            QUAKE_PICTURES.parent.mkdir(parents=True, exist_ok=True)
+            QUAKE_PICTURES.write_text(json.dumps(cache), encoding="utf-8")
+        except OSError:
+            pass
+    return {k: v.get("image") or "" for k, v in cache.items()}
+
+
+def satellite_snapshot(lat, lon, now=None):
+    """A true-colour satellite picture of the area round a point, from NASA Worldview's snapshot service (the
+    same GIBS imagery the clouds come from): the latest daytime pass, today's where the afternoon pass has
+    been processed for that longitude, else yesterday's."""
+    import time
+    now = now if now is not None else time.time()
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return ""
+    solar_hour = (time.gmtime(now).tm_hour + lon / 15.0) % 24
+    day = now if solar_hour >= 17 else now - 86400
+    date = time.strftime("%Y-%m-%d", time.gmtime(day))
+    s, n = max(-85, lat - 5), min(85, lat + 5)
+    w, e = lon - 7, lon + 7
+    return ("https://wvs.earthdata.nasa.gov/api/v1/snapshot?REQUEST=GetSnapshot&TIME=%s&BBOX=%.2f,%.2f,%.2f,%.2f&CRS=EPSG:4326"
+            "&LAYERS=VIIRS_NOAA20_CorrectedReflectance_TrueColor,Coastlines_15m&WRAP=day&FORMAT=image/jpeg&WIDTH=560&HEIGHT=400" % (date, s, w, n, e))
 
 
 def storm_image(it):
@@ -90,7 +164,7 @@ def storm_image(it):
         return "https://www.nhc.noaa.gov/storm_graphics/%s%s/refresh/%s_5day_cone_with_line_and_wind_sm2+png/" % (basin, sid[2:4], sid.upper())
     if src == "JTWC" and re.match(r"^(wp|io|sh)\d{4}$", sid, re.I):
         return "https://www.metoc.navy.mil/jtwc/products/%s.gif" % sid.lower()
-    return ""
+    return satellite_snapshot(it.get("lat"), it.get("lon"))      # GDACS: the satellite's view of where it is
 
 
 def facts_for(kind, it, extra=None):
@@ -181,11 +255,16 @@ def cmd_feed(args):
     try:
         qfeatures, qproblems = quakes_cached(args.feed, read_layers_int("quake_sources", 3))
         problems += qproblems
+        try:
+            qpics = quake_pictures([f.get("id") for f in qfeatures])
+        except Exception as e:
+            qpics, _ = {}, problems.append("quake pictures: %s" % e)
         for f in qfeatures:
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
                           "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
-                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f)})
+                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f),
+                          "image": qpics.get(str(f.get("id") or ""), "")})
     except Exception as e:
         problems.append("quakes: %s" % e)
     # remembered events: storms, volcanoes, fires (first seen / changed)
@@ -347,10 +426,14 @@ def cmd_feed(args):
             tles = fetch_tles()                          # the wallpaper's cache; only fetched when it is over six hours old
         except Exception:
             tles = {}
+        try:
+            crews = fetch_crews()
+        except Exception as e:
+            crews, _ = {}, problems.append("crews: %s" % e)
         for short, catnr, longname in SATS:
             it = {"kind": "sat", "when": now, "title": longname, "detail": "live position on the map",
                   "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": [],
-                  **sat_facts(short, tles)}
+                  **sat_facts(short, tles, crews)}
             if short == "ISS":                            # the people on board, and the station's own news
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             elif short == "Tiangong":
