@@ -82,7 +82,7 @@ def sat_facts(short, tles, crews=None):
     crew = (crews or {}).get(short) or []
     for i, c in enumerate(crew):
         stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
-        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s \u00b7 %s%s" % (c["name"], c.get("country") or c.get("agency") or "", " \u00b7 " + stay if stay else "")])
+        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s%s \u00b7 %s%s" % (c["flag"] + " " if c.get("flag") else "", c["name"], c.get("country") or c.get("agency") or "", " \u00b7 " + stay if stay else "")])
     return {"facts": [[k, v] for k, v in rows if v], "image": sat_picture(short)}
 
 

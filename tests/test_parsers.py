@@ -389,9 +389,11 @@ def test_crews_from_ll2(no_network, data_dir, monkeypatch):
         {"name": "Lost Probe", "nationality": "American", "agency": {"abbrev": "NASA", "country_code": "USA"}, "last_flight": "2021-01-01T00:00:00Z"}]}))
     crews = space.fetch_crews()
     assert [c["name"] for c in crews["ISS"]] == ["Jane Doe", "Ivan Petrov"] and crews["Tiangong"][0]["name"] == "Li Wei"
-    assert crews["ISS"][0]["days"] > 60 and crews["ISS"][0]["country"] == "American"
+    assert crews["ISS"][0]["days"] > 60 and crews["ISS"][0]["country"] == "American" and crews["ISS"][0]["flag"] == "\U0001F1FA\U0001F1F8"
+    from livemap_helper.space import flag_for
+    assert flag_for("Chinese") == "\U0001F1E8\U0001F1F3" and flag_for("", "RUS") == "\U0001F1F7\U0001F1FA" and flag_for("Martian", "AUT,BEL,FRA") == ""
     from livemap_helper.feed import sat_facts
     f = sat_facts("ISS", {}, crews)
     aboard = [v for k, v in f["facts"] if k.startswith("Aboard") or k == " "]
-    assert len(aboard) == 2 and aboard[0].startswith("Jane Doe · American · ") and "days" in aboard[0]
+    assert len(aboard) == 2 and aboard[0].startswith("\U0001F1FA\U0001F1F8 Jane Doe · American · ") and "days" in aboard[0]
     assert not [v for k, v in sat_facts("Hubble", {}, crews)["facts"] if k.startswith("Aboard")]

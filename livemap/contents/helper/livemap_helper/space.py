@@ -160,6 +160,42 @@ ASTRONAUTS = DATA / "astronauts.json"
 LL2_IN_SPACE = "https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&limit=40&format=json"
 
 
+# A flag for a crew member: LL2 gives a demonym ("American") and the agency's ISO 3166 alpha-3 code ("USA"; a list
+# for ESA). The demonym decides, the agency's code is the fallback; an unknown one gets no flag.
+DEMONYMS = {"american": "US", "russian": "RU", "chinese": "CN", "japanese": "JP", "canadian": "CA", "french": "FR", "german": "DE",
+            "italian": "IT", "british": "GB", "english": "GB", "scottish": "GB", "danish": "DK", "swedish": "SE", "belgian": "BE",
+            "dutch": "NL", "spanish": "ES", "swiss": "CH", "emirati": "AE", "saudi": "SA", "saudi arabian": "SA", "indian": "IN",
+            "turkish": "TR", "polish": "PL", "hungarian": "HU", "australian": "AU", "brazilian": "BR", "israeli": "IL",
+            "south korean": "KR", "korean": "KR", "kazakh": "KZ", "kazakhstani": "KZ", "belarusian": "BY", "norwegian": "NO",
+            "austrian": "AT", "portuguese": "PT", "mexican": "MX", "new zealander": "NZ", "malaysian": "MY", "thai": "TH",
+            "egyptian": "EG", "nigerian": "NG", "south african": "ZA", "argentine": "AR", "argentinian": "AR", "ukrainian": "UA",
+            "czech": "CZ", "slovak": "SK", "romanian": "RO", "greek": "GR", "irish": "IE", "finnish": "FI", "luxembourger": "LU",
+            "bulgarian": "BG", "cuban": "CU", "vietnamese": "VN", "mongolian": "MN", "syrian": "SY", "afghan": "AF", "indonesian": "ID",
+            "peruvian": "PE", "chilean": "CL", "colombian": "CO", "costa rican": "CR", "iranian": "IR", "pakistani": "PK",
+            "singaporean": "SG", "taiwanese": "TW", "omani": "OM", "qatari": "QA", "kuwaiti": "KW", "lebanese": "LB"}
+ALPHA3 = {"USA": "US", "RUS": "RU", "CHN": "CN", "JPN": "JP", "CAN": "CA", "FRA": "FR", "DEU": "DE", "ITA": "IT", "GBR": "GB", "DNK": "DK",
+          "SWE": "SE", "BEL": "BE", "NLD": "NL", "ESP": "ES", "CHE": "CH", "ARE": "AE", "SAU": "SA", "IND": "IN", "TUR": "TR", "POL": "PL",
+          "HUN": "HU", "AUS": "AU", "BRA": "BR", "ISR": "IL", "KOR": "KR", "KAZ": "KZ", "BLR": "BY", "NOR": "NO", "AUT": "AT", "PRT": "PT",
+          "MEX": "MX", "NZL": "NZ", "MYS": "MY", "THA": "TH", "EGY": "EG", "NGA": "NG", "ZAF": "ZA", "ARG": "AR", "UKR": "UA", "CZE": "CZ",
+          "SVK": "SK", "ROU": "RO", "GRC": "GR", "IRL": "IE", "FIN": "FI", "LUX": "LU"}
+
+
+def flag_for(nationality, agency_code=""):
+    """The flag emoji (two regional-indicator letters) for a nationality, or "" when it is not known."""
+    code = ""
+    for part in str(nationality or "").replace("/", ",").split(","):
+        code = DEMONYMS.get(part.strip().lower(), "")
+        if code:
+            break
+    if not code:
+        codes = [c.strip().upper() for c in str(agency_code or "").split(",") if c.strip()]
+        if len(codes) == 1:
+            code = ALPHA3.get(codes[0], "")
+    if len(code) != 2:
+        return ""
+    return "".join(chr(0x1F1E6 + ord(ch) - 65) for ch in code)
+
+
 def fetch_crews(max_age_h=4):
     """Who is in space right now, from Launch Library 2 (the same source as the launches, so no new host), kept
     for four hours: LL2's free tier allows 15 requests an hour and the feed runs every five minutes. Returns
@@ -194,6 +230,7 @@ def fetch_crews(max_age_h=4):
         if str(country).lower() == "earthling" or (days is not None and days > 450) or "starman" in (a.get("name") or "").lower():
             continue
         crews["Tiangong" if chinese else "ISS"].append({"name": a.get("name") or "", "country": str(country), "agency": ag.get("abbrev") or ag.get("name") or "",
+                                                       "flag": flag_for(country, ag.get("country_code")),
                                                        "since": since, "days": days, "image": a.get("profile_image_thumbnail") or ""})
     for k in crews:
         crews[k].sort(key=lambda x: -(x["days"] if x["days"] is not None else -1))
