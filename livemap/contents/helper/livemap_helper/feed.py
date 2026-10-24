@@ -8,7 +8,7 @@ import urllib.request
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .alerts import fetch_air_alerts, ua_regions
+from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
     wind_text, dist_text, speed_text, _http
@@ -441,6 +441,10 @@ def cmd_feed(args):
             items.append(it)
     except Exception:
         pass
+    try:
+        alert_strip = alert_history(6)
+    except Exception as e:
+        alert_strip, _ = {"hours": 6, "rows": []}, problems.append("alert history: %s" % e)
     remember_history(items, now)
     if args.since is not None or args.until is not None:          # the past: from the history file, not the live feeds
         since, until = args.since if args.since is not None else 0, args.until if args.until is not None else now + 1
@@ -464,7 +468,7 @@ def cmd_feed(args):
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
     items = sorted(keep + rest, key=lambda it: (1 if it.get("pin") else 0, -(it.get("updated") or it["when"])))
-    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now)})
+    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip})
 
 
 HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version

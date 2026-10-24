@@ -1,8 +1,10 @@
 /*
- * Ukraine's civil air-raid alerts, by oblast: the region fills in the alert colour while an alert is on (the whole
- * oblast), at a lower opacity when only part of it is (a raion, hromada or city), breathing slowly; every oblast
- * can be outlined faintly so the map says where the alerts live even when none is on. Labelled "Kharkiv · air raid
- * · 23 min". Source: alerts.in.ua with a personal token (minute by minute, alert types and partial alerts), or
+ * Ukraine's civil air-raid alerts, by oblast. Two ways of drawing (AirAlertStyle): edge lights - the oblast's border
+ * glows in the alert colour and the imagery inside stays as it is; a new alert breathes brightest, a settled one
+ * holds a steady edge, part of an oblast is dashed, a long-running one a thin ochre edge, an ended one a dotted cool
+ * edge fading out - or fills, the region shaded in the alert colour (lower opacity for part of it), breathing slowly.
+ * Every oblast can be outlined faintly so the map says where the alerts live even when none is on. Labelled "Kharkiv
+ * · air raid · 23 min". Source: alerts.in.ua with a personal token (minute by minute, alert types and partial alerts), or
  * without one a public mirror at oblast level, air raid only. The polygons ship with the package.
  */
 import QtQuick
@@ -19,8 +21,10 @@ Item {
 
     readonly property real unit: Math.max(1, Screen.width / 1920)
     readonly property real staleHours: cfg ? cfg.StaleHours : 6
-    readonly property color ink: cfg ? cfg.AirAlertColor : "#ff3b3b"
-    readonly property color newInk: cfg ? cfg.AirAlertNewColor : "#ffb347"
+    readonly property color ink: cfg ? cfg.AirAlertColor : "#e03a3a"
+    readonly property color newInk: cfg ? cfg.AirAlertNewColor : "#ff3b30"
+    readonly property color longInk: cfg ? cfg.AirAlertLongColor : "#d68c28"
+    readonly property bool edges: cfg ? cfg.AirAlertStyle === 0 : true
     readonly property real newMinutes: cfg ? cfg.AirAlertNewMinutes : 15
     readonly property color clearInk: cfg ? cfg.AirAlertClearColor : "#8fb6d6"
     readonly property bool showClear: cfg ? cfg.AirAlertShowClear : true
@@ -31,7 +35,7 @@ Item {
     function freshSince(r) { return Math.max(r.since || 0, r.renewed || 0) || null }
     function newness(r) { var t = freshSince(r); return r.status === "C" || !t || newMinutes <= 0 ? 0 : Math.max(0, 1 - (nowSec - t) / (newMinutes * 60)) }
     function clearFade(r) { return r.status !== "C" || !r.ended ? 0 : Math.max(0, 1 - (nowSec - r.ended) / (clearMinutes * 60)) }
-    function toneOf(r) { return r.status === "C" ? clearInk : Geo.mix(ink, newInk, newness(r)) }
+    function toneOf(r) { return r.status === "C" ? clearInk : longRunning(r) && longStyle > 0 && !hideLong ? longInk : Geo.mix(ink, newInk, newness(r)) }
     readonly property real fillOpacity: (cfg ? cfg.AirAlertOpacity : 35) / 100
     readonly property real partialOpacity: (cfg ? cfg.AirAlertPartialOpacity : 18) / 100
     readonly property bool outline: cfg ? cfg.AirAlertOutline : true
@@ -130,19 +134,46 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             visible: (modelData.status !== "N" && (modelData.status !== "C" || overlay.showClear)) || overlay.outline
             readonly property bool long: overlay.longRunning(modelData)
+            readonly property bool hiddenLong: long && overlay.hideLong
             readonly property bool cleared: modelData.status === "C"
+            readonly property bool quiet: modelData.status === "N" || hiddenLong        // drawn as any oblast without an alert
+            readonly property bool partial: modelData.status === "P"
             readonly property real fresh: overlay.newness(modelData)
             readonly property color tone: overlay.toneOf(modelData)
-            readonly property real base: modelData.status === "A" ? overlay.fillOpacity : modelData.status === "P" ? overlay.partialOpacity : 0
-            // new: a stronger breath (the breath swings twice as far); long-running: lighter or none; cleared: a faint fill that fades
-            readonly property real fill: cleared ? overlay.fillOpacity * 0.25 * overlay.clearFade(modelData)
-                                       : long ? (overlay.longStyle >= 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath)
-                                       : base * (overlay.breath + fresh * (overlay.breath - 1))
-            ShapePath {
+            readonly property real base: modelData.status === "A" ? overlay.fillOpacity : partial ? overlay.partialOpacity : 0
+            // fills: new, a stronger breath (the breath swings twice as far); long-running, lighter or none; cleared, a faint fill that fades
+            readonly property real fill: !overlay.edges ? (cleared ? overlay.fillOpacity * 0.25 * overlay.clearFade(modelData)
+                                                          : long ? (overlay.longStyle >= 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath)
+                                                          : base * (overlay.breath + fresh * (overlay.breath - 1)))
+                                       // edges: no fill, except a hint of the long-running colour so the frontline still reads as an area
+                                       : (long && !hiddenLong && overlay.longStyle === 1 ? 0.06 : 0)
+            // edges: the glow is a wide, faint stroke under a crisp one; a new alert's glow breathes
+            readonly property real glowAlpha: cleared ? 0.25 * overlay.clearFade(modelData)
+                                            : long ? 0.12
+                                            : (partial ? 0.28 : 0.4) * (overlay.breath + fresh * (overlay.breath - 1) * 1.5)
+            readonly property real glowWidth: (cleared ? 4 : long ? 2.5 : partial ? 5 : 6 + 5 * fresh) * overlay.unit
+            readonly property real edgeAlpha: cleared ? 0.35 + 0.55 * overlay.clearFade(modelData) : long ? 0.8 : 0.95
+            readonly property real edgeWidth: (cleared ? 1.3 : long ? 1.2 : partial ? 1.8 : 2.2) * overlay.unit
+            readonly property var paths: overlay.project(modelData.rings || [], overlay.width, overlay.height)
+            ShapePath {                                                            // the glow (edges only, not for a quiet oblast)
+                strokeColor: overlay.edges && !region.quiet ? Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.glowAlpha) : "transparent"
+                strokeWidth: region.glowWidth
+                fillColor: "transparent"
+                capStyle: ShapePath.RoundCap; joinStyle: ShapePath.RoundJoin
+                PathMultiline { paths: region.paths }
+            }
+            ShapePath {                                                            // the fill (fills style) and the crisp edge
                 fillColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.fill)
-                strokeColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.cleared ? 0.3 + 0.6 * overlay.clearFade(region.modelData) : region.modelData.status !== "N" && !(region.long && overlay.hideLong) ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)
-                strokeWidth: Math.max(1, (region.cleared ? 1.4 : region.modelData.status !== "N" && !(region.long && overlay.hideLong) ? 1.2 : 0.7) * overlay.unit)
-                PathMultiline { paths: overlay.project(region.modelData.rings || [], overlay.width, overlay.height) }
+                strokeColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b,
+                                     region.quiet ? overlay.outlineOpacity
+                                   : overlay.edges ? region.edgeAlpha
+                                   : region.cleared ? 0.3 + 0.6 * overlay.clearFade(region.modelData) : Math.min(1, overlay.fillOpacity * 2))
+                strokeWidth: Math.max(1, region.quiet ? 0.7 * overlay.unit : overlay.edges ? region.edgeWidth : (region.cleared ? 1.4 : 1.2) * overlay.unit)
+                strokeStyle: overlay.edges && !region.quiet && (region.cleared || region.partial || region.long) ? ShapePath.DashLine : ShapePath.SolidLine
+                dashPattern: region.cleared ? [1, 3] : region.long ? [4, 3] : [6, 3]
+                capStyle: region.cleared ? ShapePath.RoundCap : ShapePath.FlatCap
+                joinStyle: ShapePath.RoundJoin
+                PathMultiline { paths: region.paths }
             }
         }
     }

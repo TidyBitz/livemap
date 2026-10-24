@@ -412,3 +412,21 @@ def test_tsunami_twins_merge():
     assert len(out) == 2
     m = [e for e in out if e["mag"] == 7.2][0]
     assert m["centre"] == "NTWC · PTWC" and m["level"] == 1 and m["active"] and m["areas"] == ["Hawaii"] and m["segments"] == [[1, 2]] and m["twin_url"] == "u1"
+
+
+def test_alert_history_spans(data_dir, monkeypatch):
+    from livemap_helper import alerts
+    monkeypatch.setattr(alerts, "ALERTS_HISTORY", data_dir / "hist.json")
+    t0 = 1_792_800_000
+    alerts.remember_alert_history({"UA-32": {"status": "A", "since": t0, "first_seen": t0}}, t0 + 60)
+    alerts.remember_alert_history({"UA-32": {"status": "A", "since": t0, "first_seen": t0, "renewed": t0 + 1800}}, t0 + 1900)
+    alerts.remember_alert_history({"UA-32": {"status": "C", "since": t0, "ended": t0 + 3600}}, t0 + 3660)
+    alerts.remember_alert_history({"UA-32": {"status": "A", "since": t0 + 7200, "first_seen": t0 + 7200}}, t0 + 7260)
+    import json
+    h = json.loads((data_dir / "hist.json").read_text())
+    assert [sp[:2] for sp in h["UA-32"]] == [[t0, t0 + 3600], [t0 + 7200, None]] and h["UA-32"][0][2] == t0 + 1800
+    monkeypatch.setattr(alerts, "ua_regions", lambda: [{"code": "UA-32", "name": "Kyiv", "lat": 50, "lon": 30}])
+    import time
+    monkeypatch.setattr(time, "time", lambda: t0 + 7500)
+    rows = alerts.alert_history(6)["rows"]
+    assert len(rows) == 1 and rows[0]["name"] == "Kyiv" and rows[0]["active"] and len(rows[0]["spans"]) == 2 and rows[0]["on_minutes"] == 60

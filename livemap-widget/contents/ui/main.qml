@@ -71,6 +71,7 @@ PlasmoidItem {
     }
     readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
+    property var alertStrip: ({ hours: 6, rows: [] })   // the air raid alerts of the last hours, one row per oblast (the strip under the group header)
     property var ages: ({})                       // minutes since each kind's source was last read: "as of", so an empty kind says whether it was reached
     function asOf(k) { var m = ages[k]; return m === undefined ? "no data yet" : m < 1.5 ? "as of now" : m < 90 ? "as of " + Math.round(m) + " min ago" : "as of " + (m / 60).toFixed(m < 600 ? 1 : 0) + " h ago"; }
     function wanted(kind) {
@@ -222,6 +223,7 @@ PlasmoidItem {
             if (list.length === 0 && !hidden[kind] && !(wanted(kind) && layers !== null && layerOf[kind] && layers.indexOf(layerOf[kind]) >= 0)) continue;
             var open = list.length > 0 && !closed[kind];
             out.push({ head: true, kind: kind, count: hidden[kind] || list.length, hidden: !!hidden[kind] && list.length === 0, fact: kindFact(kind, list), open: open });
+            if (open && kind === "alert" && alertStrip.rows && alertStrip.rows.length > 0) out.push({ strip: true, kind: "alert", key: "strip:alert" });
             if (open) out = out.concat(list);
         }
         return out;
@@ -300,6 +302,7 @@ PlasmoidItem {
                     root.items = r.items || [];
                     root.layers = r.layers === undefined ? null : r.layers;
                     root.ages = r.ages || ({});
+                    root.alertStrip = r.alert_strip || ({ hours: 6, rows: [] });
                     root.problems = r.problems || [];
                     root.version = r.version || "";
                     root.problem = "";
@@ -579,8 +582,79 @@ PlasmoidItem {
                             required property var modelData
                             required property int index
                             width: list.width
-                            sourceComponent: modelData.head ? headerRow : eventRow
+                            sourceComponent: modelData.head ? headerRow : modelData.strip ? stripRow : eventRow
                             onLoaded: { item.modelData = modelData; item.width = Qt.binding(function () { return list.width; }); }
+                        }
+                    }
+                }
+                // The air raid strip: under the group's header, one row per oblast that was under alert in the last
+                // six hours, newest on the right - bright red for an alert still on (brightest when new or renewed),
+                // dull red for one that ended, ochre for the frontline, on for days. The helper keeps the history.
+                Component {
+                    id: stripRow
+                    Item {
+                        property var modelData: ({})
+                        readonly property var strip: root.alertStrip
+                        readonly property real hours: strip.hours || 6
+                        readonly property real now: strip.now || root.nowSec
+                        readonly property real nameW: Kirigami.Units.gridUnit * 6.5
+                        implicitHeight: stripCol.implicitHeight + Kirigami.Units.smallSpacing * 2
+                        ColumnLayout {
+                            id: stripCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; leftMargin: Kirigami.Units.gridUnit * 1.4; rightMargin: Kirigami.Units.smallSpacing; topMargin: Kirigami.Units.smallSpacing }
+                            spacing: 2
+                            Repeater {
+                                model: (strip.rows || []).slice(0, 14)
+                                RowLayout {
+                                    id: stripLine
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: Kirigami.Units.smallSpacing
+                                    PC3.Label {
+                                        Layout.preferredWidth: nameW; elide: Text.ElideRight; textFormat: Text.PlainText
+                                        text: modelData.name; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                        opacity: modelData.active ? 0.95 : 0.6; font.bold: modelData.active && !modelData.long
+                                    }
+                                    Item {
+                                        id: track
+                                        Layout.fillWidth: true; implicitHeight: 9
+                                        Rectangle { anchors.fill: parent; radius: 2; color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06) }
+                                        Repeater {
+                                            model: modelData.spans || []
+                                            Rectangle {
+                                                required property var modelData
+                                                readonly property real t0: Math.max(0, (modelData[0] - (now - hours * 3600)) / (hours * 3600))
+                                                readonly property real t1: modelData[1] === null || modelData[1] === undefined ? 1 : Math.min(1, (modelData[1] - (now - hours * 3600)) / (hours * 3600))
+                                                readonly property bool on: modelData[1] === null || modelData[1] === undefined
+                                                readonly property bool freshNow: on && (now - Math.max(modelData[0], modelData[2] || 0)) < 15 * 60
+                                                x: t0 * track.width; width: Math.max(2, (t1 - t0) * track.width); height: parent.height; radius: 2
+                                                color: !on ? Qt.rgba(0.78, 0.25, 0.23, 0.45) : stripLine.modelData.long ? "#9a6a2a" : freshNow ? "#ff3b30" : "#c8403a"
+                                                Rectangle { visible: freshNow; anchors.fill: parent; radius: 2; color: "transparent"; border.width: 1; border.color: Qt.rgba(1, 0.4, 0.35, 0.9) }
+                                            }
+                                        }
+                                    }
+                                    PC3.Label {
+                                        Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6; horizontalAlignment: Text.AlignRight
+                                        text: modelData.active ? (modelData.on_minutes >= 60 ? Math.round(modelData.on_minutes / 60) + " h" : modelData.on_minutes + " m") : "clear"
+                                        font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: modelData.active ? 0.8 : 0.45
+                                    }
+                                }
+                            }
+                            RowLayout {                                             // the axis
+                                Layout.fillWidth: true
+                                spacing: 0
+                                Item { Layout.preferredWidth: nameW + Kirigami.Units.smallSpacing }
+                                PC3.Label { text: "\u2212" + Math.round(hours) + " h"; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; opacity: 0.4 }
+                                Item { Layout.fillWidth: true }
+                                PC3.Label { text: "\u2212" + Math.round(hours / 2) + " h"; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; opacity: 0.4 }
+                                Item { Layout.fillWidth: true }
+                                PC3.Label { text: "now"; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; opacity: 0.4 }
+                                Item { Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6 + Kirigami.Units.smallSpacing }
+                            }
+                            PC3.Label {
+                                visible: (strip.rows || []).length > 14
+                                text: "+" + ((strip.rows || []).length - 14) + " more oblasts in the last " + Math.round(hours) + " h"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            }
                         }
                     }
                 }

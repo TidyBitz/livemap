@@ -70,8 +70,10 @@
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
     <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAirAlerts" type="Bool"><default>false</default></entry>   <!-- off until the user opts in -->
-    <entry name="AirAlertColor" type="Color"><default>#ff3b3b</default></entry>
-    <entry name="AirAlertNewColor" type="Color"><default>#ffb347</default></entry>       <!-- the first minutes of an alert -->
+    <entry name="AirAlertColor" type="Color"><default>#e03a3a</default></entry>        <!-- an alert that has settled in: steady red -->
+    <entry name="AirAlertNewColor" type="Color"><default>#ff3b30</default></entry>     <!-- the first minutes of an alert: the brightest red, breathing -->
+    <entry name="AirAlertLongColor" type="Color"><default>#d68c28</default></entry>    <!-- long-running (the frontline): ochre, so a fresh alert next to it stands out -->
+    <entry name="AirAlertStyle" type="Int"><default>0</default></entry>              <!-- 0 edge lights (the border glows, the imagery inside stays), 1 fills -->
     <entry name="AirAlertNewMinutes" type="Int"><default>15</default></entry>
     <entry name="AirAlertClearColor" type="Color"><default>#8fb6d6</default></entry>     <!-- an alert that just ended, fading over 30 min -->
     <entry name="AirAlertShowClear" type="Bool"><default>true</default></entry>

@@ -334,6 +334,8 @@ RowLayout {
     property alias cfg_ShowAirAlerts: airAlerts.checked
     property alias cfg_AirAlertColor: alertColor.color
     property alias cfg_AirAlertNewColor: alertNewColor.color
+    property alias cfg_AirAlertLongColor: alertLongColor.color
+    property alias cfg_AirAlertStyle: alertDrawStyle.currentIndex
     property alias cfg_AirAlertNewMinutes: alertNewMinutes.value
     property alias cfg_AirAlertClearColor: alertClearColor.color
     property alias cfg_AirAlertShowClear: alertShowClear.checked
@@ -2158,7 +2160,15 @@ RowLayout {
         Note { visible: sec9a.open; text: "Without a token the layer reads a public mirror of the same data (ubilling.net.ua): which oblasts are under air raid alert, once a minute. With a personal token (free for personal use, requested at alerts.in.ua/api-request; the limit is 8-10 requests a minute and this makes one) it reads alerts.in.ua itself: the alert type too (air raid, artillery shelling, street fighting, chemical, nuclear), when it started, and alerts on part of an oblast - a raion, hromada or city - drawn at the lower opacity and labelled with the place. The mirror does not say when an alert began, so a duration is shown only for alerts this wallpaper saw begin; with a token every alert carries its start time. Not for critical use: the data can lag, as the service itself says. The oblast outlines ship with the wallpaper (Natural Earth)." }
         RowLayout {
             visible: sec9a.open
-            Kirigami.FormData.label: "Alert fill:"
+            Kirigami.FormData.label: "Drawn as:"
+            enabled: airAlerts.checked
+            QQC2.ComboBox { id: alertDrawStyle; Layout.preferredWidth: Kirigami.Units.gridUnit * 16; model: ["Edge lights: the oblast's border glows", "Fills: the oblast is shaded"] }
+            QQC2.Button { text: "Default colours"; icon.name: "edit-undo"; onClicked: { alertColor.color = "#e03a3a"; alertNewColor.color = "#ff3b30"; alertLongColor.color = "#d68c28"; alertClearColor.color = "#8fb6d6"; } }
+        }
+        Note { visible: sec9a.open; text: alertDrawStyle.currentIndex === 0 ? "The border of an oblast under alert lights up and the imagery inside it - the city lights, the terrain - stays as it is, so the night map keeps its look; a new alert breathes brightest, one that has settled in holds a steady edge, part of an oblast is dashed. Weaker at world zoom, where a border is a pixel wide: the glow carries it." : "The oblast is shaded in the alert colour, at the lower opacity when only part of it is under alert. Reads at any zoom; the imagery inside is tinted." }
+        RowLayout {
+            visible: sec9a.open
+            Kirigami.FormData.label: alertDrawStyle.currentIndex === 0 ? "Alert edge:" : "Alert fill:"
             enabled: airAlerts.checked
             KQuickControls.ColorButton { id: alertColor; showAlphaChannel: false; dialogTitle: "Air raid alert colour" }
             Pct { id: alertOpacity; from: 10; to: 80; label: "Whole oblast under alert" }
@@ -2180,14 +2190,15 @@ RowLayout {
             QQC2.CheckBox { id: alertShowClear; text: "Keep an ended alert as a fading outline for 30 minutes" }
             KQuickControls.ColorButton { id: alertClearColor; enabled: alertShowClear.checked; showAlphaChannel: false; dialogTitle: "All-clear colour" }
         }
-        Note { visible: sec9a.open; text: "Time-graded: an alert's first minutes in the new-alert colour, then the alert colour, then (below) lighter once it has run for hours; the all-clear leaves a cool outline that fades, labelled 'Kyiv · all clear · 12 min'. Only alerts this wallpaper saw begin count as new (or any alert, with a token)." }
+        Note { visible: sec9a.open; text: "Time-graded: an alert's first minutes in the new-alert colour, breathing hardest, then the alert colour, then (below) the long-running colour once it has run for hours; the all-clear leaves a cool outline that fades, labelled 'Kyiv · all clear · 12 min'. Only alerts this wallpaper saw begin count as new (or any alert, with a token)." }
         RowLayout {
             visible: sec9a.open
             Kirigami.FormData.label: "Long-running alerts:"
             enabled: airAlerts.checked
-            QQC2.ComboBox { id: alertLongStyle; model: ["Drawn like any other", "Lighter, without the breath", "Outline only", "Hidden until something new happens there"] }
+            QQC2.ComboBox { id: alertLongStyle; model: ["Drawn like any other", "In their own colour, without the breath", "Outline only", "Hidden until something new happens there"] }
             Hours { id: alertLongHours; from: 0; to: 168; enabled: alertLongStyle.currentIndex > 0 }
             QQC2.Label { text: "and over"; opacity: 0.7 }
+            KQuickControls.ColorButton { id: alertLongColor; enabled: alertLongStyle.currentIndex === 1 || alertLongStyle.currentIndex === 2; showAlphaChannel: false; dialogTitle: "Long-running alert colour" }
         }
         Note { visible: sec9a.open; text: "An alert clears from the map the minute the all-clear is given; nothing is kept on. But the frontline oblasts (Luhansk, Donetsk, Kharkiv, Zaporizhzhia, Kherson, Crimea) have been under alert for months on end, so past this many hours an alert is drawn lighter, as an outline, or not at all - until something new happens there. The oblast-level alert itself is never re-issued while it is on: what counts as new is a raion or city inside it getting its own alert, or a type added (shelling on top of the air raid), and only alerts.in.ua reports those - with a token. Without one, the mirror sees the oblast as one unchanging alert, so a hidden frontline oblast stays hidden until it clears. 0 hours: never. An alert already on at the first look counts from that look." }
         RowLayout {

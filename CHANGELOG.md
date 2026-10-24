@@ -6,6 +6,17 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Changed
+- Air raid alerts redrawn. Edge lights (new default): an oblast under alert has its border glow in the alert
+  colour and the imagery inside it - the city lights, the terrain - stays as it is; a new alert breathes
+  brightest, a settled one holds a steady edge, part of an oblast is dashed, a long-running one a thin dashed
+  edge in its own colour, an ended one a dotted cool edge fading out. Fills remain a choice ("Drawn as"). The
+  palette is turned round: red is the alarm - the newest alert the brightest red (#ff3b30), settled alerts a
+  steady red (#e03a3a), the frontline's long-running ones ochre (#d68c28, their own colour setting) so a fresh
+  alert next to them stands out, all-clear cool blue. A "Default colours" button sets these.
+- Widget: a six-hour strip under the Air raid alerts header - one row per oblast under alert in the last six
+  hours, a bar for every alert, newest on the right: bright red while on (framed when new or renewed), dull red
+  once ended, ochre for the frontline, with how long the current one has been on. The helper keeps a day of
+  alert spans per oblast (air-alerts-history.json) and the feed carries the last six hours.
 - The settings page has a new shape, the one KDE's own System Settings uses: a sidebar on the left lists every
   layer as one row - its on/off switch, its name and the health of its sources - grouped as Map, Natural events,
   Civil/space/network and Shared, with "Find a setting" above; the right side shows one page at a time. The

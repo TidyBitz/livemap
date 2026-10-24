@@ -22,6 +22,8 @@ ALERTS_MIRROR = "https://ubilling.net.ua/aerialalerts/?json=true"
 
 
 ALERTS_MEMORY = DATA / "air-alerts.json"
+ALERTS_HISTORY = DATA / "air-alerts-history.json"      # {code: [[start, end|null, renewed|null], ...]} over the last day
+HISTORY_HOURS = 24
 
 
 AIR_CLEAR_MINUTES = 30                            # an ended alert stays listed as "all clear" this long
@@ -161,7 +163,71 @@ def fetch_air_alerts(token=""):
         ALERTS_MEMORY.write_text(json.dumps(mem), encoding="utf-8")
     except OSError:
         pass
+    remember_alert_history(out, now)
     return {"alerts": out, "source": source, "at": now}
+
+
+def remember_alert_history(alerts, now):
+    """One span per alert per oblast - [start, end, renewed] - for the widget's six-hour strip: an active alert keeps
+    an open span (its start as known, else the first look), an ended one closes it, a renewal is noted on it.
+    Spans older than a day are dropped."""
+    try:
+        hist = json.loads(ALERTS_HISTORY.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        hist = {}
+    cutoff = now - HISTORY_HOURS * 3600
+    for code, e in alerts.items():
+        spans = hist.setdefault(code, [])
+        last = spans[-1] if spans else None
+        if e["status"] in ("A", "P"):
+            start = e.get("since") or e.get("first_seen") or now
+            if last and last[1] is None:
+                if e.get("renewed") and (last[2] or 0) < e["renewed"]:
+                    last[2] = e["renewed"]
+            elif last and start < last[0]:               # the same alert, seen again after a gap in watching
+                last[1] = None
+            else:
+                spans.append([start, None, e.get("renewed") or None])
+        elif e["status"] == "C" and last and last[1] is None:
+            last[1] = e.get("ended") or now
+    for code in list(hist):
+        if code not in alerts and hist[code] and hist[code][-1][1] is None:
+            hist[code][-1][1] = now                       # cleared while we were not looking
+        hist[code] = [sp for sp in hist[code] if sp[1] is None or sp[1] >= cutoff]
+        if not hist[code]:
+            del hist[code]
+    try:
+        ALERTS_HISTORY.parent.mkdir(parents=True, exist_ok=True)
+        ALERTS_HISTORY.write_text(json.dumps(hist), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def alert_history(hours=6):
+    """The strip's rows: the oblasts with a span inside the last `hours`, their spans clipped to it, active ones first."""
+    import time
+    now = time.time()
+    try:
+        hist = json.loads(ALERTS_HISTORY.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"hours": hours, "rows": []}
+    names = {r["code"]: r for r in ua_regions()}
+    since = now - hours * 3600
+    rows = []
+    for code, spans in hist.items():
+        r = names.get(code)
+        if not r:
+            continue
+        keep = [[max(sp[0], since), sp[1], sp[2]] for sp in spans if sp[1] is None or sp[1] >= since]
+        if not keep:
+            continue
+        active = any(sp[1] is None for sp in keep)
+        longest = max((now if sp[1] is None else sp[1]) - sp[0] for sp in keep)
+        rows.append({"code": code, "name": r["name"], "spans": keep, "active": active,
+                     "long": active and (now - min(sp[0] for sp in spans if sp[1] is None)) > 6 * 3600 if active else False,
+                     "renewed": max((sp[2] or 0) for sp in keep) or None, "on_minutes": round(longest / 60)})
+    rows.sort(key=lambda x: (not x["active"], x["long"], -(x["renewed"] or 0), x["name"]))
+    return {"hours": hours, "now": now, "rows": rows}
 
 
 def cmd_air_alerts(args):
