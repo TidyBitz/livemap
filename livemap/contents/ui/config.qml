@@ -2391,14 +2391,16 @@ RowLayout {
         // #################################################################### Global settings
 
         // ================================================================== Units
-        SectionHeader { id: sec13; title: "Units"; group: "Shared"; twin: null; summary: distanceUnits.currentText }
+        SectionHeader { id: sec13; title: "Units"; group: "Shared"; twin: null; keywords: "units distance speed wind miles kilometres knots mph acres hectares"; summary: distanceUnits.currentText + " \u00b7 " + stormUnits.currentText }
         QQC2.ComboBox {
             visible: sec13.open
             id: distanceUnits
             Kirigami.FormData.label: "Distance:"
             model: ["Kilometres (areas in hectares)", "Miles (areas in acres)", "Nautical miles"]
         }
-        Note { visible: sec13.open; text: "Satellite altitudes and burned areas. Storm wind speed has its own choice under Storms." }
+        Note { visible: sec13.open; text: "Lengths and areas everywhere: satellite altitudes, earthquake depths, burned areas, the widget's facts." }
+        MirrorCombo { visible: sec13.open; Kirigami.FormData.label: "Speed:"; twin: stormUnits }
+        Note { visible: sec13.open; text: "Storm winds on the map and in the widget, and the spacecraft's orbital speed. The same choice as under Storms." }
 
         // ============================================================ Label styling
         SectionHeader { id: sec14; title: "Markers and labels"; group: "Shared"; twin: null; summary: "Layout: " + labelLines.currentText.toLowerCase() + " · plate " + form.cfg_PlateOpacity + " % · text " + form.cfg_TextOpacity + " %" }

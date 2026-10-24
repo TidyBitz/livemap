@@ -24,7 +24,7 @@
     <entry name="SoundLaunch" type="Bool"><default>true</default></entry>
     <entry name="SoundLaunchMinutes" type="Int"><default>15</default></entry>
     <entry name="NewMinutes" type="Int"><default>60</default></entry>
-    <entry name="IdleOpacity" type="Int"><default>100</default></entry>   <!-- on the desktop: the widget's opacity when idle (or always, with FadeIdle off) -->
+    <entry name="IdleOpacity" type="Int"><default>45</default></entry>   <!-- on the desktop: the widget's opacity when idle (or always, with FadeIdle off) -->
     <entry name="FadeIdle" type="Bool"><default>true</default></entry>
     <entry name="IdleSeconds" type="Int"><default>3</default></entry>
     <entry name="Preview" type="Int"><default>2</default></entry>      <!-- hover bubble: 0 off, 1 details, 2 details and pictures -->

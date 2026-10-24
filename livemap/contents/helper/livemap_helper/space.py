@@ -157,6 +157,7 @@ LL2 = "https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20&hide_recent_p
 
 LAUNCHES = DATA / "launches.json"
 ASTRONAUTS = DATA / "astronauts.json"
+CREWS_V = 3                                   # bump when what is kept per person changes: the cache is then refetched
 LL2_IN_SPACE = "https://ll.thespacedevs.com/2.2.0/astronaut/?in_space=true&limit=40&format=json"
 
 
@@ -206,7 +207,7 @@ def fetch_crews(max_age_h=4):
     now = time.time()
     try:
         c = json.loads(ASTRONAUTS.read_text(encoding="utf-8"))
-        if now - c.get("at", 0) < max_age_h * 3600 and isinstance(c.get("crews"), dict):
+        if now - c.get("at", 0) < max_age_h * 3600 and isinstance(c.get("crews"), dict) and c.get("v") == CREWS_V:
             return c["crews"]
     except (OSError, ValueError):
         c = {}
@@ -236,7 +237,7 @@ def fetch_crews(max_age_h=4):
         crews[k].sort(key=lambda x: -(x["days"] if x["days"] is not None else -1))
     try:
         ASTRONAUTS.parent.mkdir(parents=True, exist_ok=True)
-        ASTRONAUTS.write_text(json.dumps({"at": now, "crews": crews}), encoding="utf-8")
+        ASTRONAUTS.write_text(json.dumps({"at": now, "v": CREWS_V, "crews": crews}), encoding="utf-8")
     except OSError:
         pass
     return crews

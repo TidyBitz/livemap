@@ -24,6 +24,8 @@ release notes written at the time; their dates are the day the version was hande
   compares the two.
 
 ### Added
+- Units: the Units page now holds Speed as well as Distance (the same choice as Storms' wind unit, shown in both
+  places), and the widget's bubbles follow them: depths, altitudes and orbital speeds in the units you chose.
 - Widget: a preview bubble. Rest the pointer on an event and a bubble beside the widget says what the feed knows:
   a storm's class, wind, position, last fix, centre and what lies in its path; a quake's depth, felt reports,
   intensity and PAGER alert; a flood's level, area, issuer and when it ends; a volcano's level, observatory and
@@ -42,7 +44,7 @@ release notes written at the time; their dates are the day the version was hande
   animation, full speed) as switches, the layers as chips - on, grey when the wallpaper has the layer off,
   outlined when hidden from here, each with its sources' health dot - and an "Open the wallpaper settings"
   button that asks plasmashell to open the desktop's settings (helper `widget --configure`).
-- Widget: on the desktop it can fade once the pointer has been away for a few seconds - the whole widget, frame
+- Widget: on the desktop it fades to 45 % once the pointer has been away for three seconds - the whole widget, frame
   included, to an opacity of your choice, so the map shows through - and come back as the pointer arrives; or
   hold a fixed opacity. Settings, "On the desktop". It draws its own (Plasma's usual) frame there for that.
 - A forecast cone for the storms JTWC covers (the western Pacific, Indian Ocean and southern hemisphere), which

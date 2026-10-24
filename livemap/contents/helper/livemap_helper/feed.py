@@ -11,7 +11,7 @@ import urllib.request
 from .alerts import fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, _http
+    wind_text, dist_text, speed_text, _http
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -60,7 +60,7 @@ SAT_BLURB = {
 }
 
 
-def sat_facts(short, tles, crews=None):
+def sat_facts(short, tles, crews=None, units=(0, 0)):
     """Where a spacecraft is right now, from the wallpaper's cached orbital elements (no network), and who is
     aboard (Launch Library 2, cached four hours)."""
     import math
@@ -75,14 +75,14 @@ def sat_facts(short, tles, crews=None):
             lat, lon, alt = propagate(el, now)
             period = 1440.0 / el["n"]
             speed = 2 * math.pi * (6371.0 + alt) / (period * 60)
-            rows += [["Over", _pos(lat, lon)], ["Altitude", "%.0f km" % alt], ["Speed", "%.1f km/s" % speed],
+            rows += [["Over", _pos(lat, lon)], ["Altitude", dist_text(alt, units[0])], ["Speed", "%s (%.1f km/s)" % (speed_text(speed * 3600, units[1]), speed)],
                      ["One orbit", "%.0f min" % period], ["Elements", "%s old (CelesTrak)" % _hours((now - el["epoch"]) / 3600)]]
         except Exception as e:
             rows.append(["Position", "not computed: %s" % e])
     crew = (crews or {}).get(short) or []
     for i, c in enumerate(crew):
         stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
-        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s%s \u00b7 %s%s" % (c["flag"] + " " if c.get("flag") else "", c["name"], c.get("country") or c.get("agency") or "", " \u00b7 " + stay if stay else "")])
+        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s \u00b7 %s%s%s" % (c["name"], c.get("country") or c.get("agency") or "", " " + c["flag"] if c.get("flag") else "", " \u00b7 " + stay if stay else "")])
     return {"facts": [[k, v] for k, v in rows if v], "image": sat_picture(short)}
 
 
@@ -167,7 +167,7 @@ def storm_image(it):
     return satellite_snapshot(it.get("lat"), it.get("lon"))      # GDACS: the satellite's view of where it is
 
 
-def facts_for(kind, it, extra=None):
+def facts_for(kind, it, extra=None, units=(0, 0)):
     """What the widget's preview bubble says for one event: [label, value] rows (a value may be ""; the widget
     skips those) and a picture where the source publishes one. `it` is the source's own record; `extra` carries
     what the caller computed (units, people)."""
@@ -176,7 +176,7 @@ def facts_for(kind, it, extra=None):
     if kind == "quake":
         p, c = it.get("properties") or {}, (it.get("geometry") or {}).get("coordinates") or [0, 0, 0]
         rows = [["Magnitude", "%s %.1f" % ((p.get("magType") or "M").replace("ml", "ML").replace("mb", "mb"), float(p.get("mag") or 0))],
-                ["Depth", "%.0f km" % float(c[2]) if len(c) > 2 and c[2] is not None else ""],
+                ["Depth", dist_text(float(c[2]), units[0]) if len(c) > 2 and c[2] is not None else ""],
                 ["When", _when((p.get("time") or 0) / 1000)],
                 ["Where", _pos(c[1], c[0])],
                 ["Felt", "%d reports" % p["felt"] if p.get("felt") else ""],
@@ -251,6 +251,7 @@ def cmd_feed(args):
     from the caches the wallpaper already keeps, plus one small USGS request (cached 5 min)."""
     import time
     now, items, problems = time.time(), [], []
+    units = read_units()                            # the wallpaper's Units (distance, speed) choices
     # earthquakes (the merged USGS + EMSC list the layer reads; cached 5 min)
     try:
         qfeatures, qproblems = quakes_cached(args.feed, read_layers_int("quake_sources", 3))
@@ -263,7 +264,7 @@ def cmd_feed(args):
             p, c = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or [0, 0]
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
                           "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
-                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f),
+                          "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f, None, units),
                           "image": qpics.get(str(f.get("id") or ""), "")})
     except Exception as e:
         problems.append("quakes: %s" % e)
@@ -272,7 +273,6 @@ def cmd_feed(args):
         mem = json.loads(EVENTS.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         mem = {}
-    units = read_units()                            # the wallpaper's Units and Storm wind choices
     fire_focus = read_fire_focus()                  # and its Wildfire focus
     flood_level = read_flood_level()                # and its flood filter
     for kind, url_of, title_of in (
@@ -433,7 +433,7 @@ def cmd_feed(args):
         for short, catnr, longname in SATS:
             it = {"kind": "sat", "when": now, "title": longname, "detail": "live position on the map",
                   "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": [],
-                  **sat_facts(short, tles, crews)}
+                  **sat_facts(short, tles, crews, units)}
             if short == "ISS":                            # the people on board, and the station's own news
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             elif short == "Tiangong":

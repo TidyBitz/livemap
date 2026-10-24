@@ -504,6 +504,18 @@ def wind_text(kmh, u):
     return ("%d mph" % round(kmh * 0.621371)) if u == 1 else ("%d kt" % round(kmh / 1.852)) if u == 2 else "%d km/h" % round(kmh)
 
 
+def dist_text(km, u, digits=0):
+    """A length in the wallpaper's distance unit (0 km, 1 miles, 2 nautical miles)."""
+    v, unit = (km * 0.621371, "mi") if u == 1 else (km / 1.852, "nmi") if u == 2 else (km, "km")
+    return ("%.*f %s" % (digits, v, unit)) if v < 100 or digits else "%s %s" % ("{:,}".format(round(v)).replace(",", "\u202f"), unit)
+
+
+def speed_text(kmh, u):
+    """A speed in the wallpaper's speed unit (0 km/h, 1 mph, 2 knots), thousands spaced."""
+    v, unit = (kmh * 0.621371, "mph") if u == 1 else (kmh / 1.852, "kn") if u == 2 else (kmh, "km/h")
+    return "%s %s" % ("{:,}".format(round(v)).replace(",", "\u202f"), unit)
+
+
 def area_text(ha, u):
     v, unit = (ha * 2.47105, "ac") if u == 1 else (ha, "ha")
     return ("%dk %s" % (round(v / 1000), unit)) if v >= 100000 else ("%.1fk %s" % (v / 1000, unit)) if v >= 10000 else "%d %s" % (round(v), unit)
