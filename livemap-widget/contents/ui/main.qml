@@ -592,7 +592,7 @@ PlasmoidItem {
                         PC3.ToolTip.text: (modelData.url ? "Open: " + modelData.url : "No link") + (modelData.lat !== null && modelData.lat !== undefined ? "\n" + Number(modelData.lat).toFixed(2) + ", " + Number(modelData.lon).toFixed(2) : "")
                         PC3.ToolTip.visible: hovered && root.previewMode === 0
                         onHoveredChanged: {
-                            if (hovered && root.previewMode > 0 && !modelData.pin) root.bubbleFor(row, modelData);
+                            if (hovered && root.previewMode > 0) root.bubbleFor(row, modelData);
                             else if (!hovered) root.bubbleAway(row);
                         }
                         contentItem: RowLayout {

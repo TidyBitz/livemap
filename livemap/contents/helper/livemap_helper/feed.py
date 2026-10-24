@@ -9,7 +9,7 @@ import urllib.request
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .alerts import fetch_air_alerts, ua_regions
-from .common import DATA, EVENTS, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
+from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
     wind_text
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
@@ -18,7 +18,7 @@ from .quakes import quakes_cached
 from .floods import official_floods, group_nws, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
-from .space import SATS, fetch_launches
+from .space import SATS, fetch_launches, fetch_tles
 from .tsunami import tsunami_cached
 
 
@@ -45,6 +45,40 @@ def _hours(h):
     except (TypeError, ValueError):
         return ""
     return "%d min" % round(h * 60) if h < 1 else "%.0f h" % h if h < 48 else "%.0f d" % (h / 24)
+
+
+# A picture of each spacecraft: the wallpaper's own marker art (contents/images), so nothing is fetched
+def sat_picture(short):
+    f = PKG / "images" / ("%s.png" % short.lower())
+    return "file://" + str(f) if f.exists() else ""
+
+
+SAT_BLURB = {
+    "ISS": "Crewed continuously since November 2000; about 420 km up, a lap of the Earth every 93 minutes, 16 sunrises a day.",
+    "Hubble": "In orbit since April 1990, serviced five times by the Shuttle; about 520 km up, it sees from the ultraviolet to the near infrared.",
+    "Tiangong": "China's three-module station, crewed since June 2021; about 390 km up, with crews of three rotating every six months.",
+}
+
+
+def sat_facts(short, tles):
+    """Where a spacecraft is right now, from the wallpaper's cached orbital elements (no network)."""
+    import math
+    import time
+    from .space import parse_tle, propagate
+    rows = [["About", SAT_BLURB.get(short, "")]]
+    tle = (tles or {}).get(short)
+    if tle:
+        try:
+            el = parse_tle(tle[1], tle[2])
+            now = time.time()
+            lat, lon, alt = propagate(el, now)
+            period = 1440.0 / el["n"]
+            speed = 2 * math.pi * (6371.0 + alt) / (period * 60)
+            rows += [["Over", _pos(lat, lon)], ["Altitude", "%.0f km" % alt], ["Speed", "%.1f km/s" % speed],
+                     ["One orbit", "%.0f min" % period], ["Elements", "%s old (CelesTrak)" % _hours((now - el["epoch"]) / 3600)]]
+        except Exception as e:
+            rows.append(["Position", "not computed: %s" % e])
+    return {"facts": [[k, v] for k, v in rows if v], "image": sat_picture(short)}
 
 
 def storm_image(it):
@@ -80,7 +114,7 @@ def facts_for(kind, it, extra=None):
         rows = [["Class", "%s%s" % (it.get("kind") or "", " \u00b7 category %d" % it["cat"] if it.get("cat") else "")],
                 ["Wind", extra.get("wind") or ""],
                 ["Position", _pos(it.get("lat"), it.get("lon"))],
-                ["Last fix", _hours(it.get("hours")) + " ago" if it.get("hours") is not None else ""],
+                ["Last fix", ("just now" if float(it["hours"]) < 0.02 else _hours(it["hours"]) + " ago") if it.get("hours") is not None else ""],
                 ["Centre", (it.get("source") or "GDACS") + (" \u00b7 cone from JTWC's mean errors" if it.get("cone_estimated") else "")],
                 ["Was named", str(it.get("was_named") or "").title() if it.get("was_named") else ""],
                 ["In its path", extra.get("ahead") or ""],
@@ -309,9 +343,14 @@ def cmd_feed(args):
         problems.append("launches: %s" % e)
     # satellites
     try:
+        try:
+            tles = fetch_tles()                          # the wallpaper's cache; only fetched when it is over six hours old
+        except Exception:
+            tles = {}
         for short, catnr, longname in SATS:
             it = {"kind": "sat", "when": now, "title": longname, "detail": "live position on the map",
-                  "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": []}
+                  "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": [],
+                  **sat_facts(short, tles)}
             if short == "ISS":                            # the people on board, and the station's own news
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             elif short == "Tiangong":

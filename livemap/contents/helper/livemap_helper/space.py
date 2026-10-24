@@ -17,7 +17,7 @@ CELESTRAK = "https://celestrak.org/NORAD/elements/gp.php?CATNR=%s&FORMAT=TLE"
 
 
 SATS = [("ISS", "25544", "International Space Station"), ("Hubble", "20580", "Hubble Space Telescope"),
-        ("Tiangong", "48274", "Chinese space station")]
+        ("Tiangong", "48274", "Tiangong Chinese Space Station")]
 
 
 TLES = DATA / "tle.json"

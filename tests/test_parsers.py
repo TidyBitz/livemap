@@ -347,3 +347,15 @@ def test_feed_facts_and_pictures():
     assert not any(k == "Crossed" for k, v in st["facts"])
     L = facts_for("launch", {"rocket": "Falcon 9", "mission": "Starlink", "orbit": "LEO", "provider": "SpaceX", "pad": "SLC-4E", "site": "Vandenberg", "net": 1760000000, "status_name": "Go for Launch", "image": "https://x/y.png"})
     assert L["image"] == "https://x/y.png" and ["Pad", "SLC-4E, Vandenberg"] in L["facts"]
+
+
+def test_spacecraft_facts_and_art():
+    from livemap_helper.feed import sat_facts
+    for short in ("ISS", "Hubble", "Tiangong"):
+        f = sat_facts(short, {})
+        assert f["facts"][0][0] == "About" and f["image"].endswith("/images/%s.png" % short.lower()), short
+    iss = {"ISS": ["ISS (ZARYA)", "1 25544U 98067A   26296.50000000  .00016717  00000-0  10270-3 0  9000",
+                   "2 25544  51.6400 208.9163 0006703 130.5360 325.0288 15.49000000000000"]}
+    f = sat_facts("ISS", iss)
+    labels = [k for k, v in f["facts"]]
+    assert "Over" in labels and "Altitude" in labels and "One orbit" in labels
