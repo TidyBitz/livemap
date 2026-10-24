@@ -2185,11 +2185,11 @@ RowLayout {
             visible: sec9a.open
             Kirigami.FormData.label: "Long-running alerts:"
             enabled: airAlerts.checked
-            QQC2.ComboBox { id: alertLongStyle; model: ["Drawn like any other", "Lighter, without the breath", "Outline only"] }
+            QQC2.ComboBox { id: alertLongStyle; model: ["Drawn like any other", "Lighter, without the breath", "Outline only", "Hidden until something new happens there"] }
             Hours { id: alertLongHours; from: 0; to: 168; enabled: alertLongStyle.currentIndex > 0 }
             QQC2.Label { text: "and over"; opacity: 0.7 }
         }
-        Note { visible: sec9a.open; text: "An alert clears from the map the minute the all-clear is given; nothing is kept on. But the frontline oblasts (Luhansk, Donetsk, Kharkiv, Zaporizhzhia, Kherson, Crimea) have been under alert for months on end, so past this many hours an alert is drawn lighter or as an outline and a fresh alert elsewhere stands out. 0 hours: never. An alert already on at the first look counts from that look." }
+        Note { visible: sec9a.open; text: "An alert clears from the map the minute the all-clear is given; nothing is kept on. But the frontline oblasts (Luhansk, Donetsk, Kharkiv, Zaporizhzhia, Kherson, Crimea) have been under alert for months on end, so past this many hours an alert is drawn lighter, as an outline, or not at all - until something new happens there. The oblast-level alert itself is never re-issued while it is on: what counts as new is a raion or city inside it getting its own alert, or a type added (shelling on top of the air raid), and only alerts.in.ua reports those - with a token. Without one, the mirror sees the oblast as one unchanging alert, so a hidden frontline oblast stays hidden until it clears. 0 hours: never. An alert already on at the first look counts from that look." }
         RowLayout {
             visible: sec9a.open
             Kirigami.FormData.label: "Oblast outlines:"

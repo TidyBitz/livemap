@@ -749,12 +749,12 @@ WallpaperItem {
         readonly property var fw: frameLoader.item
         readonly property bool building: !!fw && fw.busy
         readonly property bool ready: !!fw && fw.justReady
-        readonly property real unit: Math.max(1, root.width / 1920)
+        readonly property real unit: Math.max(1, Math.min(1.45, root.width / 1920))   // grows with the screen, but not all the way (an ultrawide got a billboard)
         readonly property real elapsed: building && fw.startedAt > 0 ? (fw.tick - fw.startedAt) / 1000 : 0
         visible: opacity > 0
         opacity: (building || ready) && cfg.HintCorner < 4 ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 400 } }
-        width: Math.min(root.width * 0.4, 520 * unit); height: toastColumn.implicitHeight + 24 * unit
+        width: Math.min(root.width * 0.3, 460 * unit); height: toastColumn.implicitHeight + 24 * unit
         x: (root.width - width) / 2; y: root.height - height - 72 * unit
         radius: 8 * unit
         color: Qt.rgba(0.05, 0.07, 0.1, 0.92)

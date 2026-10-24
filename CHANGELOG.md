@@ -30,6 +30,11 @@ release notes written at the time; their dates are the day the version was hande
   lands and red with the reason if it failed. On the map itself a toast in the lower middle shows the same
   progress - after Apply the eyes are there, not on the dialog - and fades once the new picture is in. The
   helper reports tiles and months as it goes (`frame-state`).
+- Air raid alerts: "Long-running alerts" has a fourth choice, "Hidden until something new happens there" - a
+  frontline oblast under alert for weeks disappears from the map (outline like any quiet oblast, no label), and
+  comes back as new when a raion or city inside it gets its own alert or a type is added (shelling on top of
+  the air raid), which the helper now tracks as a renewal; the label then says "renewed 4 min". The oblast
+  alert itself is never re-issued while on, and only alerts.in.ua (with a token) reports what happens inside.
 - Air raid alert labels vanished at 6 px and below: the label's gap from its anchor fell under the placement
   padding, so every position failed the "not over the mark" test. Fixed.
 - Tsunami: PTWC and NTWC each send a message about the same earthquake; the two now show as one event,

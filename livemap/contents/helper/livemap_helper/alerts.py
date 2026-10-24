@@ -84,7 +84,7 @@ def fetch_air_alerts(token=""):
                 since = datetime.fromisoformat(str(a.get("started_at")).replace("Z", "+00:00")).timestamp()
             except (ValueError, TypeError):
                 pass
-            e = out.setdefault(code, {"status": "N", "types": [], "since": None, "places": []})
+            e = out.setdefault(code, {"status": "N", "types": [], "since": None, "places": [], "latest": None})
             if whole:
                 e["status"] = "A"
             elif e["status"] != "A":
@@ -96,6 +96,8 @@ def fetch_air_alerts(token=""):
                 e["types"].append(t)
             if since and (e["since"] is None or since < e["since"]):
                 e["since"] = since
+            if since and (e["latest"] is None or since > e["latest"]):
+                e["latest"] = since                           # the newest alert inside the oblast: a raion or city joining
         source = "alerts.in.ua"
     else:
         data = json.loads(_http(ALERTS_MIRROR, timeout=15)[2])
@@ -104,7 +106,7 @@ def fetch_air_alerts(token=""):
                 continue
             code = ua_region_code(title)
             if code:
-                out[code] = {"status": "A", "types": ["air raid"], "since": None, "places": []}
+                out[code] = {"status": "A", "types": ["air raid"], "since": None, "places": [], "latest": None}
         source = "mirror"
     # Our own memory of when each alert started, for the mirror (which does not say). A start is only known when
     # this helper saw the oblast go from quiet to alert; an alert already on at the first look has no known start,
@@ -126,6 +128,21 @@ def fetch_air_alerts(token=""):
             mem[code] = {"since": now, "known": watching, "first_seen": now}
             e["since"] = now if watching else None
         e["first_seen"] = mem[code].get("first_seen", now)
+        # renewed: something new inside an oblast already under alert - a raion or city joining (its own, later
+        # start) or an alert type added (shelling on top of the air raid). Only the API tells; the mirror never
+        # renews. The oblast then counts as fresh again, which is what lets a long-running one resurface.
+        prev_types = mem[code].get("types") or []
+        added = [t for t in e.get("types") or [] if t not in prev_types]
+        renewed = mem[code].get("renewed")
+        latest = e.get("latest")
+        if latest and e["since"] and latest > e["since"] + 60 and latest > (renewed or 0):
+            renewed = latest
+        if added and prev_types and watching:
+            renewed = max(renewed or 0, now)
+        mem[code]["types"] = list(e.get("types") or [])
+        if renewed:
+            mem[code]["renewed"] = renewed
+        e["renewed"] = renewed
     # alerts that ended: kept for AIR_CLEAR_MINUTES as "all clear", so the map can show where one just finished
     cleared = mem.setdefault("_cleared", {})
     for code in list(mem):

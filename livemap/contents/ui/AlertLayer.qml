@@ -26,7 +26,10 @@ Item {
     readonly property bool showClear: cfg ? cfg.AirAlertShowClear : true
     readonly property real clearMinutes: 30
     // 0 established .. 1 brand new: known starts only (an alert already on at the first look is never "new")
-    function newness(r) { return r.status === "C" || !r.since || newMinutes <= 0 ? 0 : Math.max(0, 1 - (nowSec - r.since) / (newMinutes * 60)) }
+    // "fresh" counts from the alert's start, or from its last renewal (a raion or city joining, a type added - the
+    // API only): that is what brings a frontline oblast back to the front when something new happens in it
+    function freshSince(r) { return Math.max(r.since || 0, r.renewed || 0) || null }
+    function newness(r) { var t = freshSince(r); return r.status === "C" || !t || newMinutes <= 0 ? 0 : Math.max(0, 1 - (nowSec - t) / (newMinutes * 60)) }
     function clearFade(r) { return r.status !== "C" || !r.ended ? 0 : Math.max(0, 1 - (nowSec - r.ended) / (clearMinutes * 60)) }
     function toneOf(r) { return r.status === "C" ? clearInk : Geo.mix(ink, newInk, newness(r)) }
     readonly property real fillOpacity: (cfg ? cfg.AirAlertOpacity : 35) / 100
@@ -44,7 +47,8 @@ Item {
     // (already on at the first look, from the mirror) counts from the first look.
     readonly property real longHours: cfg ? cfg.AirAlertLongHours : 6
     readonly property int longStyle: cfg ? cfg.AirAlertLongStyle : 1
-    function longRunning(r) { return longHours > 0 && (r.status !== "N") && (nowSec - (r.since || r.first_seen || nowSec)) > longHours * 3600 }
+    function longRunning(r) { return longHours > 0 && (r.status !== "N") && (nowSec - (freshSince(r) || r.first_seen || nowSec)) > longHours * 3600 }
+    readonly property bool hideLong: longStyle === 3                         // long-running alerts not drawn at all (outline as any quiet oblast)
     readonly property real mark: Math.round((cfg ? cfg.AirAlertLabelSize : 10) * unit)
     property var regions: []
     property string feedSource: ""
@@ -78,11 +82,12 @@ Item {
         var parts = [r.name];
         if (r.status === "P") parts.push("part" + (r.places && r.places.length ? ": " + r.places.join(", ") : ""));
         if (r.types && r.types.length) parts.push(r.types.join(", "));
-        if (r.since) parts.push(Geo.spanText(Math.max(0, nowSec - r.since) / 3600));
+        if (r.renewed && r.since && r.renewed > r.since + 60 && nowSec - r.renewed < 6 * 3600) parts.push("renewed " + Geo.spanText(Math.max(0, nowSec - r.renewed) / 3600));
+        else if (r.since) parts.push(Geo.spanText(Math.max(0, nowSec - r.since) / 3600));
         else if (r.first_seen && nowSec - r.first_seen > longHours * 3600 && longHours > 0) parts.push("over " + Geo.spanText(nowSec - r.first_seen > 0 ? (nowSec - r.first_seen) / 3600 : 0));
         return parts.join(" · ");
     }
-    readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 || (r.status !== "N" && (r.status !== "C" || showClear)); }).map(function (r) {
+    readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 ? !(hideLong && longRunning(r)) : (r.status !== "N" && (r.status !== "C" || showClear) && !(hideLong && longRunning(r))); }).map(function (r) {
         var c = r.status === "N" ? Qt.rgba(labelColor.r, labelColor.g, labelColor.b, 0.6) : r.status === "C" ? clearInk : cfg && !cfg.AirAlertTextFollows ? labelColor : toneOf(r);
         // the gap must clear the label pass's padding (2 units), or every side fails its "not over the mark" test and
         // the label vanishes - which is what happened at 6 px and below
@@ -131,12 +136,12 @@ Item {
             readonly property real base: modelData.status === "A" ? overlay.fillOpacity : modelData.status === "P" ? overlay.partialOpacity : 0
             // new: a stronger breath (the breath swings twice as far); long-running: lighter or none; cleared: a faint fill that fades
             readonly property real fill: cleared ? overlay.fillOpacity * 0.25 * overlay.clearFade(modelData)
-                                       : long ? (overlay.longStyle === 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath)
+                                       : long ? (overlay.longStyle >= 2 ? 0 : overlay.longStyle === 1 ? base * 0.4 : base * overlay.breath)
                                        : base * (overlay.breath + fresh * (overlay.breath - 1))
             ShapePath {
                 fillColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.fill)
-                strokeColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.cleared ? 0.3 + 0.6 * overlay.clearFade(region.modelData) : region.modelData.status !== "N" ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)
-                strokeWidth: Math.max(1, (region.cleared ? 1.4 : region.modelData.status !== "N" ? 1.2 : 0.7) * overlay.unit)
+                strokeColor: Qt.rgba(region.tone.r, region.tone.g, region.tone.b, region.cleared ? 0.3 + 0.6 * overlay.clearFade(region.modelData) : region.modelData.status !== "N" && !(region.long && overlay.hideLong) ? Math.min(1, overlay.fillOpacity * 2) : overlay.outlineOpacity)
+                strokeWidth: Math.max(1, (region.cleared ? 1.4 : region.modelData.status !== "N" && !(region.long && overlay.hideLong) ? 1.2 : 0.7) * overlay.unit)
                 PathMultiline { paths: overlay.project(region.modelData.rings || [], overlay.width, overlay.height) }
             }
         }
