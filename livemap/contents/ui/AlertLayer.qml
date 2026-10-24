@@ -84,7 +84,9 @@ Item {
     }
     readonly property var labelSpecs: labelMode === 0 ? [] : regions.filter(function (r) { return labelMode === 2 || (r.status !== "N" && (r.status !== "C" || showClear)); }).map(function (r) {
         var c = r.status === "N" ? Qt.rgba(labelColor.r, labelColor.g, labelColor.b, 0.6) : r.status === "C" ? clearInk : cfg && !cfg.AirAlertTextFollows ? labelColor : toneOf(r);
-        return { x: px(r.lon), y: py(r.lat), gap: mark * 0.3, side: "below",
+        // the gap must clear the label pass's padding (2 units), or every side fails its "not over the mark" test and
+        // the label vanishes - which is what happened at 6 px and below
+        return { x: px(r.lon), y: py(r.lat), gap: Math.max(mark * 0.3, 2.5 * unit), side: "below",
                  text: r.status === "N" ? r.name : describe(r), px: labelPx, color: c,
                  plate: labelPlate && r.status !== "N", bold: r.status === "A" && !longRunning(r), alpha: r.status === "N" ? 0.7 : r.status === "C" ? 0.5 + 0.5 * clearFade(r) : longRunning(r) ? 0.75 : 1 };
     })

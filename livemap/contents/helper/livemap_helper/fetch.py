@@ -176,7 +176,7 @@ def _frame_args(args):
     return n, so, w, e, width, height
 
 
-def gibs_image(layer, n, so, w, e, width, height, day, log=print):
+def gibs_image(layer, n, so, w, e, width, height, day, log=print, progress=None):
     """One image of a GIBS layer over the box, stitched from requests of at most GIBS_CHUNK pixels a side."""
     from PIL import Image
     import io
@@ -196,6 +196,8 @@ def gibs_image(layer, n, so, w, e, width, height, day, log=print):
             if tile.size != (x1 - x0, y1 - y0):
                 tile = tile.resize((x1 - x0, y1 - y0), Image.LANCZOS)
             out.paste(tile, (x0, y0))
+            if progress:
+                progress(r * cols + c + 1, rows * cols + 1, "tile %d of %d" % (r * cols + c + 1, rows * cols))
     return out
 
 
@@ -207,6 +209,21 @@ def crop_world_image(src, n, so, w, e, width, height):
     W, H = im.size
     box = (int((w + 180) / 360 * W), int((90 - n) / 180 * H), int(round((e + 180) / 360 * W)), int(round((90 - so) / 180 * H)))
     return im.crop(box).resize((width, height), Image.LANCZOS)
+
+
+def frame_progress(done, total, what=""):
+    """fetch-frame's progress for the settings banner and the map's toast: done of total steps (tiles, months)."""
+    try:
+        st = json.loads(FRAME_STATE.read_text(encoding="utf-8")) if FRAME_STATE.exists() else {}
+    except (OSError, ValueError):
+        st = {}
+    if st.get("state") != "building":
+        return
+    st.update({"done": done, "total": total, "what": what, "tick": time.time()})
+    try:
+        FRAME_STATE.write_text(json.dumps(st), encoding="utf-8")
+    except OSError:
+        pass
 
 
 def cmd_fetch_frame(args):
@@ -226,6 +243,7 @@ def cmd_fetch_frame(args):
     if args.style == "dark":
         draw_land(n, so, w, e, width, height, args.land, args.ocean, args.detail).save(dest / "base.png")
         print("  land drawn in %s over %s, %d x %d" % (args.land, args.ocean, width, height))
+        frame_progress(1, 2, "land drawn")
     elif args.style == "seasonal":
         if world and not use_hires(args):
             sys.exit("the whole world in the seasonal style needs no frame imagery: it uses the monthly maps as they are")
@@ -237,10 +255,11 @@ def cmd_fetch_frame(args):
                 sys.exit("month %02d is missing - run: livemap-helper fetch-maps" % i)
             crop_world_image(src, n, so, w, e, width, height).save(dest / ("base%02d.jpg" % i), quality=90)
             print("  month %02d cropped from %s" % (i, src.name))
+            frame_progress(i, 13, "month %02d" % i)
     elif args.style in GIBS_LAYERS:
         if args.style == "viirs":                  # today's picture is still being taken: yesterday's is whole
             day = (date.today() - timedelta(days=1)).isoformat() if not args.date else args.date
-        gibs_image(GIBS_LAYERS[args.style], n, so, w, e, width, height, day).save(dest / "base.jpg", quality=90)
+        gibs_image(GIBS_LAYERS[args.style], n, so, w, e, width, height, day, progress=frame_progress).save(dest / "base.jpg", quality=90)
     else:
         sys.exit("unknown style %r" % args.style)
     night = night_source()
@@ -250,6 +269,7 @@ def cmd_fetch_frame(args):
             img, _share = lights_rgba(crop_world_image(night, n, so, w, e, lw, lh))
             img.save(dest / "lights.png", optimize=True)
             print("  city lights cut from %s" % night.name)
+            frame_progress(1, 1, "city lights")
         except ImportError:
             print("  numpy missing: no city lights for this view (the whole-world lights are stretched instead)")
     meta = {"style": args.style, "frame": [n, so, w, e], "width": width, "height": height, "day": day, "at": int(time.time())}

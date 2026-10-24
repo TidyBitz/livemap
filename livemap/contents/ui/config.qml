@@ -827,20 +827,12 @@ RowLayout {
     }
     Timer { interval: 2500; running: true; repeat: true; triggeredOnStart: true; onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
     readonly property bool frameBuilding: frameState.state === "building" && (frameState.age || 0) < 900
-    readonly property string frameText: frameBuilding ? "Building the imagery for this view (" + (frameState.note || "") + ")\u2026 The map keeps its previous image until this is ready - about a minute, longer for a satellite picture or the hi-res maps."
-                                      : frameState.state === "failed" ? "The imagery could not be built: " + (frameState.note || "") + " (tried again in an hour; the map keeps its previous image)"
-                                      : frameState.state === "ready" ? "Imagery ready" + (frameState.age !== null && frameState.age !== undefined ? " (built " + (frameState.age < 90 ? frameState.age + " s" : frameState.age < 5400 ? Math.round(frameState.age / 60) + " min" : Math.round(frameState.age / 3600) + " h") + " ago)" : "") + ". A new base map or view is built after Apply; watch it here."
-                                      : "A new base map or view is built after Apply - the map keeps its previous image meanwhile; what happens shows here."
-    component ImageryRow: RowLayout {
-        Kirigami.FormData.label: "Imagery:"
-        Layout.fillWidth: true
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 30
-        Layout.maximumWidth: Kirigami.Units.gridUnit * 34
-        spacing: Kirigami.Units.smallSpacing
-        QQC2.BusyIndicator { visible: form.frameBuilding; running: visible; implicitHeight: Kirigami.Units.gridUnit * 1.3; implicitWidth: implicitHeight; Layout.alignment: Qt.AlignTop }
-        HealthDot { visible: !form.frameBuilding; worst: form.frameState.state === "failed" ? "error" : form.frameState.state === "ready" ? "ok" : ""; Layout.alignment: Qt.AlignTop; Layout.topMargin: Kirigami.Units.smallSpacing }
-        QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: form.frameText; opacity: form.frameBuilding || form.frameState.state === "failed" ? 1 : 0.7; color: form.frameState.state === "failed" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor }
-    }
+    readonly property bool frameJustReady: frameState.state === "ready" && (frameState.age || 0) < 12
+    readonly property bool frameFailed: frameState.state === "failed" && (frameState.age || 0) < 3600
+    readonly property real frameFraction: frameBuilding && frameState.total > 0 ? Math.min(1, frameState.done / frameState.total) : -1
+    readonly property string frameText: frameBuilding ? "<b>Building the map imagery</b> - " + (frameState.note || "") + (frameState.what ? " \u00b7 " + frameState.what : "") + " \u00b7 " + frameState.age + " s so far, usually about a minute. The map keeps its previous picture until this is ready."
+                                      : frameFailed ? "<b>The map imagery could not be built</b> - " + (frameState.note || "") + ". The map keeps its previous picture; it is tried again in an hour, or on the next change here."
+                                      : frameJustReady ? "<b>Map imagery ready</b> - " + (frameState.note || "") : ""
     // a style swatch: [top, bottom, text] for each base map (0 seasonal imagery, 1 satellite, 2 relief, 3 dark
     // cartographic, 4 Dark Matter, 5 Matrix)
     function swatchColours(base) {
@@ -970,9 +962,31 @@ RowLayout {
     // simply gets narrower instead.
     // Kirigami centres a form's grid inside the form, so the form is made exactly as wide as its content (never
     // wider than the room there is): the labels then sit next to the sidebar instead of floating in the middle.
-    Item {
+    ColumnLayout {
         Layout.fillWidth: true
         Layout.alignment: Qt.AlignTop
+        spacing: Kirigami.Units.largeSpacing
+        // what the wallpaper is doing about its picture, where it cannot be missed: a banner over the page while a
+        // base map or view is built (with the helper's progress), green for a moment when it lands, red if it failed
+        Kirigami.InlineMessage {
+            id: imageryBanner
+            Layout.fillWidth: true
+            Layout.maximumWidth: pageForm.width
+            visible: form.frameBuilding || form.frameJustReady || form.frameFailed
+            type: form.frameFailed ? Kirigami.MessageType.Error : form.frameJustReady ? Kirigami.MessageType.Positive : Kirigami.MessageType.Information
+            text: form.frameText
+            showCloseButton: form.frameFailed
+        }
+        QQC2.ProgressBar {
+            Layout.fillWidth: true
+            Layout.maximumWidth: pageForm.width
+            visible: form.frameBuilding
+            from: 0; to: 1
+            indeterminate: form.frameFraction < 0
+            value: Math.max(0, form.frameFraction)
+        }
+    Item {
+        Layout.fillWidth: true
         implicitHeight: pageForm.implicitHeight
         clip: true
         Kirigami.FormLayout {
@@ -1122,7 +1136,6 @@ RowLayout {
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
-        ImageryRow { visible: secE.open }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Events widget"; topPadding: Kirigami.Units.largeSpacing }
         // the companion widget: a card that says what it is and puts it on the desktop (helper `widget --add`, through
         // plasmashell's scripting interface), points at the Store when it is not installed, and says when it is there
@@ -1305,7 +1318,6 @@ RowLayout {
         // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
         // here that every full-width frame comes out as the whole latitude range in Fill mode
         Note { visible: sec1.open && form.fitPreview !== ""; text: form.fitPreview }
-        ImageryRow { visible: sec1.open }
         Amount {
             visible: sec1.open
             Kirigami.FormData.label: "Dim the imagery:"
@@ -2588,6 +2600,7 @@ RowLayout {
             text: "The coverage panel could not be loaded. The settings above still work."
             color: Kirigami.Theme.negativeTextColor
         }
+    }
     }
     }
 

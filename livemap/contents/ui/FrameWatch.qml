@@ -24,6 +24,16 @@ Item {
     property string note: ""
     property bool busy: false
     property real failedAt: 0
+    // progress while a build runs (the helper writes it to frame-state as it goes), and a few seconds of "ready"
+    property int done: 0
+    property int total: 0
+    property string what: ""
+    property real startedAt: 0
+    property real readyAt: 0
+    readonly property bool justReady: !busy && readyAt > 0 && (tick - readyAt) < 6000
+    property real tick: Date.now()
+    Timer { interval: 2000; running: watch.busy || watch.justReady; repeat: true; triggeredOnStart: true
+            onTriggered: { watch.tick = Date.now(); if (watch.busy) exec.connectSource("python3 '" + watch.helper + "' frame-state # " + Date.now()); } }
 
     readonly property string frameArgs: " --style " + style + " --north " + north + " --south " + south + " --west " + west + " --east " + east + " --width " + widthPx + extra
     property bool askAgain: false                 // the view moved while a build ran: look again when it ends
@@ -39,7 +49,7 @@ Item {
     function fetch() {
         if (busy || helper === "") return;
         if (Date.now() - failedAt < 3600000) return;              // an hour between tries after a failure
-        busy = true;
+        busy = true; done = 0; total = 0; what = ""; startedAt = Date.now(); readyAt = 0;
         note = "Map style: building the imagery for this frame (" + styleWords + ")…";
         report("building", styleWords);
         exec.connectSource("python3 '" + helper + "' fetch-frame" + frameArgs + " # " + Date.now());
@@ -53,7 +63,7 @@ Item {
             if (source.indexOf("' fetch-frame ") >= 0) {
                 watch.busy = false;
                 if (data["exit code"] === 0) {
-                    watch.failedAt = 0; watch.note = "";
+                    watch.failedAt = 0; watch.note = ""; watch.readyAt = Date.now(); watch.tick = watch.readyAt;
                     watch.report("ready", watch.styleWords);
                     watch.askAgain = false; watch.ask();
                 } else if (watch.askAgain) {
@@ -66,7 +76,10 @@ Item {
                 }
                 return;
             }
-            if (source.indexOf("' frame-state ") >= 0) return;
+            if (source.indexOf("' frame-state ") >= 0) {
+                try { var st = JSON.parse(data.stdout); if (st.state === "building") { watch.done = st.done || 0; watch.total = st.total || 0; watch.what = st.what || ""; } } catch (e) {}
+                return;
+            }
             if (source.indexOf("' frame ") < 0) return;
             try {
                 var r = JSON.parse(data.stdout);

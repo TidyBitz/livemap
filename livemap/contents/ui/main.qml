@@ -741,6 +741,68 @@ WallpaperItem {
         }
     }
 
+    // ---- imagery toast: while the picture for a new base map or view is built, say so where the eyes are ----
+    // (large, lower middle, with the helper's progress; a few seconds of "ready" when it lands; the small corner
+    // notice above carries everything else)
+    Rectangle {
+        id: imageryToast
+        readonly property var fw: frameLoader.item
+        readonly property bool building: !!fw && fw.busy
+        readonly property bool ready: !!fw && fw.justReady
+        readonly property real unit: Math.max(1, root.width / 1920)
+        readonly property real elapsed: building && fw.startedAt > 0 ? (fw.tick - fw.startedAt) / 1000 : 0
+        visible: opacity > 0
+        opacity: (building || ready) && cfg.HintCorner < 4 ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 400 } }
+        width: Math.min(root.width * 0.4, 520 * unit); height: toastColumn.implicitHeight + 24 * unit
+        x: (root.width - width) / 2; y: root.height - height - 72 * unit
+        radius: 8 * unit
+        color: Qt.rgba(0.05, 0.07, 0.1, 0.92)
+        border.width: 1; border.color: ready ? "#27ae60" : "#3daee9"
+        Column {
+            id: toastColumn
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 16 * imageryToast.unit }
+            spacing: 6 * imageryToast.unit
+            Row {
+                spacing: 10 * imageryToast.unit
+                Item {                                                   // spinner, or a tick when ready
+                    width: 18 * imageryToast.unit; height: width
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle { visible: imageryToast.building; anchors.fill: parent; radius: width / 2; color: "transparent"; border.width: 3 * imageryToast.unit; border.color: "#3daee9"
+                                Rectangle { width: parent.width / 2; height: parent.height / 2; color: Qt.rgba(0.05, 0.07, 0.1, 0.92) }
+                                RotationAnimation on rotation { from: 0; to: 360; duration: 1000; loops: Animation.Infinite; running: imageryToast.building } }
+                    Text { visible: imageryToast.ready; anchors.centerIn: parent; text: "\u2713"; color: "#27ae60"; font.pixelSize: 18 * imageryToast.unit; font.bold: true }
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: imageryToast.width - 60 * imageryToast.unit
+                    wrapMode: Text.Wrap
+                    color: "#fcfcfc"; font.pixelSize: Math.round(13 * imageryToast.unit); font.bold: true
+                    text: imageryToast.ready ? "Map imagery ready" : "Building the map imagery" + (imageryToast.fw && imageryToast.fw.total > 0 ? " \u00b7 " + Math.round(100 * imageryToast.fw.done / imageryToast.fw.total) + " %" : "")
+                }
+            }
+            Rectangle {                                                  // the progress bar
+                visible: imageryToast.building
+                width: parent.width; height: 6 * imageryToast.unit; radius: height / 2
+                color: Qt.rgba(1, 1, 1, 0.12)
+                Rectangle {
+                    height: parent.height; radius: height / 2; color: "#3daee9"
+                    width: imageryToast.fw && imageryToast.fw.total > 0 ? parent.width * Math.min(1, imageryToast.fw.done / imageryToast.fw.total) : parent.width * 0.15
+                    Behavior on width { NumberAnimation { duration: 600 } }
+                    x: imageryToast.fw && imageryToast.fw.total > 0 ? 0 : (parent.width - width) * (0.5 + 0.5 * Math.sin(imageryToast.elapsed * 1.5))
+                }
+            }
+            Text {
+                width: parent.width; wrapMode: Text.Wrap
+                color: "#9ea3a6"; font.pixelSize: Math.round(11 * imageryToast.unit)
+                text: imageryToast.ready ? (imageryToast.fw ? imageryToast.fw.styleWords : "")
+                    : (imageryToast.fw ? imageryToast.fw.styleWords : "") + (imageryToast.fw && imageryToast.fw.what ? " \u00b7 " + imageryToast.fw.what : "")
+                      + (imageryToast.elapsed > 0 ? " \u00b7 " + Math.round(imageryToast.elapsed) + " s so far" : "") + (root.frameStyle === "seasonal" ? ", usually under a minute" : root.frameStyle === "viirs" ? ", usually a minute or two" : ", usually about a minute")
+                      + " \u00b7 the previous picture stays until this is ready"
+            }
+        }
+    }
+
     // ---- first-run hint -----------------------------------------------------
     Text {
         anchors.centerIn: parent
