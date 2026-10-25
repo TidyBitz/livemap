@@ -450,12 +450,15 @@ def cmd_volcanoes(args):
     note, rows, tags, url = "", [], Counter(), ""
     data, stale_h, err = last_good("volcanoes", lambda: list(fetch_volcanoes()[0]))
     rows = data or []
-    if err:
-        note = stale_note("Volcanoes", stale_h, err, args.stale)
-    else:
+    primary_note = stale_note("Volcanoes", stale_h, err, args.stale) if err else ""
+    if not err:
         url = GVP_FEEDS[0]
     alerts_note = ""
     adata, astale, aerr = last_good("usgs-alerts", fetch_usgs_alerts)
+    # the Smithsonian feed down (a 403 for days) while USGS's alert levels answer: Status says so, the map keeps
+    # its last list and the levels; the corner notice only when both are out
+    if primary_note and (aerr or not adata):
+        note = primary_note
     for cache, fetch in (("geonet-alerts", fetch_geonet_alerts), ("jma-alerts", fetch_jma_alerts)):
         more, _s, _e = last_good(cache, fetch)
         if more:
@@ -469,7 +472,7 @@ def cmd_volcanoes(args):
         pass
     if adata:
         rows = merge_usgs_alerts(rows, adata)
-    if aerr:
+    if aerr and not rows:                                  # a secondary source: the corner only when the primary is out too
         alerts_note = stale_note("USGS alert levels", astale, aerr, args.stale)
     placed = [r for r in rows if r["lat"] is not None and r["lon"] is not None]
     if rows and not placed:

@@ -48,6 +48,7 @@ from .infra import cmd_fetch_infrastructure, cmd_infrastructure, cmd_plates, cmd
 from .net import cmd_forget, cmd_net, cmd_where
 from .power import cmd_mode, cmd_power
 from .space import cmd_launches, cmd_sats
+from .passes import cmd_passes
 from .status import cmd_status
 from .storms import cmd_storms
 from .styles import cmd_styles
@@ -77,6 +78,7 @@ def main():
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
+    pw.add_argument("--home"); pw.add_argument("--passes", type=int)
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -127,6 +129,8 @@ def main():
     b.add_argument("--state-capitals", dest="state_capitals", action="store_true"); b.add_argument("--city-pop", dest="city_pop", type=int, default=0)
     b.set_defaults(fn=cmd_borders)
     wc = sub.add_parser("where-city"); wc.add_argument("query"); wc.set_defaults(fn=cmd_where_city)
+    ps = sub.add_parser("passes"); ps.add_argument("--lat"); ps.add_argument("--lon"); ps.add_argument("--days", type=int, default=3)
+    ps.add_argument("--all", action="store_true"); ps.add_argument("--table", action="store_true"); ps.set_defaults(fn=cmd_passes)
     sa = sub.add_parser("sats"); sa.add_argument("--table", action="store_true"); sa.add_argument("--ahead", type=int, default=100)
     sa.add_argument("--behind", type=int, default=15); sa.set_defaults(fn=cmd_sats)
     la = sub.add_parser("launches"); la.add_argument("--table", action="store_true"); la.add_argument("--stale", type=float, default=6)

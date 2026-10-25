@@ -1,49 +1,61 @@
 # Live World Map
 
-![Full view: clouds, day/night, storms, quakes, volcanoes, launches, satellites and the companion widget](docs/screenshots/full-view.webp)
+![The whole world at night: city lights, storm tracks in the Pacific, the Vanuatu quake swarm, the ISS and the companion widget](docs/screenshots/world-night.webp)
 
-A live situational-awareness wallpaper for KDE Plasma 6, with a companion panel widget.
+A live situational-awareness wallpaper for KDE Plasma 6, with a companion desktop widget.
 
-One equirectangular world map, and on it - each layer its own tick box - the day/night line and city
-lights, live clouds, earthquakes, volcanoes with their alert history, tropical storms with their track
-coloured by intensity, wildfires, floods, the ISS, Hubble and Tiangong gliding along their orbits, the next rocket
-launches counting down on their pads, time zones, borders, and (optionally, never leaving your machine)
-where your own computer is connected to right now. Underneath the events: tectonic plate boundaries
-(Earthquakes > Tectonic plates), major rivers (Rivers), state and province names, country capitals, state
-capitals and cities by population (Countries > State names, Country capitals, State capitals, Cities), each
-its own tick box with its own colour, size and label style.
+One equirectangular world map, and on it - each layer its own switch - the day/night line and city lights
+(or the whole map at night, by the clock or always), live clouds, earthquakes, volcanoes with their alert levels
+and ash advisories, tropical storms with their track coloured by intensity and a forecast cone for every one,
+wildfires, floods and official flood warnings on four continents, tsunami bulletins, Ukraine's air raid alerts,
+the ISS, Hubble and Tiangong gliding along their orbits with their crews listed, the next rocket launches
+counting down on their pads, time zones, borders, rivers, lakes and seas, and (optionally, never leaving your
+machine) where your own computer is connected to right now.
 
-It is built to sit on a desktop for weeks: every feed keeps its last good data and only says something when
-it has been stale for hours, the clouds fall back to imagery stitched locally from five geostationary
-satellites when the usual source is down, and a load guard pauses the animation - or hides the live
-layers entirely - when the CPU or GPU is busy with something else, so a game or a build never fights the
-wallpaper for frames.
+It is built to sit on a desktop for weeks: every feed keeps its last good data and only says something when it
+has been stale for hours, the clouds fall back to imagery stitched locally from five geostationary satellites
+when the usual source is down, a load guard pauses the animation - or hides the live layers entirely - when the
+CPU or GPU is busy, and a daily probe on GitHub asks every source whether it still answers.
 
 | | |
 |---|---|
-| ![Full view without clouds](docs/screenshots/full-view-no-clouds.webp) | ![North America, cropped framing](docs/screenshots/north-america.webp) |
-| *Clouds off: day/night, city lights, borders and every event layer* | *Cropped to North America: storm tracks, launches and quake labels up close* |
-| ![Companion widget, Events tab](docs/screenshots/widget-events.webp) | ![Wallpaper settings page](docs/screenshots/settings.webp) |
-| *The companion widget's Events tab: launches, quakes and storms with NEW tags and source links* | *The settings page: profile and layer switches, then one section per layer with the live state of its sources* |
+| ![Europe at night: flood warnings in blue and orange, the air raid alerts as edge lights](docs/screenshots/europe-night-air-raid.webp) | ![The widget's Air raid alerts group with its six-hour strip](docs/screenshots/widget-air-raid-strip.webp) |
+| *Air raid alerts as edge lights: a new alert breathes brightest red, settled ones hold a steady edge, the frontline's long-running ones drop to ochre, all-clears fade in cool blue - the city lights inside stay* | *The widget: under the Air raid alerts header, one row per oblast for the last six hours - a bar for every alert, newest on the right* |
+| ![The widget's preview bubble for a storm: the satellite's view and the facts](docs/screenshots/widget-storm-bubble.webp) | ![The settings' Essentials page](docs/screenshots/settings-essentials.webp) |
+| *Rest the pointer on an event and a bubble says what the feed knows - here In-Fa, with NASA's latest satellite pass, winds, position, the last fix and when the record changed* | *Settings: a sidebar with a switch and a health dot per layer, Essentials first - style, profile, home, framing and the widget* |
+
+### Space
+
+| | |
+|---|---|
+| ![The ISS bubble: position, altitude, speed, and the crew with flags and days aloft](docs/screenshots/widget-iss-crew.webp) | ![A launch bubble: the rocket's picture, mission, orbit, pad, time and status](docs/screenshots/widget-launch-bubble.webp) |
+| *The ISS right now: where it is, how high and how fast, and the seven people aboard - flag, agency's country and days in space* | *A launch five days out: GSLV Mk. II with its picture, the mission, orbit, pad, local launch time and status; the widget sorted soonest launch first* |
+
+### Styles
+
+| | |
+|---|---|
+| ![Matrix style](docs/screenshots/world-matrix.webp) | ![Dark cartographic style](docs/screenshots/world-dark-cartographic.webp) |
+| *Matrix: phosphor green, a scanline, monospaced labels* | *Dark cartographic: your own land and ocean colours, the events in theirs* |
+| ![Dark Matter style](docs/screenshots/world-dark-matter.webp) | ![Air raid alerts close up](docs/screenshots/air-raid-edges.webp) |
+| *Dark Matter: greys, the city lights the only colour besides the events* | *The alert edges up close: new brightest, settled steady, frontline ochre, all-clear fading blue* |
 
 ### A closer look
 
-![Three eastern Pacific storms with intensity-coloured tracks and forecast cones](docs/screenshots/storm-tracks.webp)
-
-![The United States on the hi-res seasonal map: NWS flood warnings and watches as shaded counties, a tropical storm's track, and the widget listing the alerts by forecast office](docs/screenshots/us-floods.webp)
+| | |
+|---|---|
+| ![Day and night settings with the night modes](docs/screenshots/settings-day-night.webp) | ![The Map page: base map, framing, fit to screen](docs/screenshots/settings-map.webp) |
+| *Night: the terminator, everywhere always, or everywhere during your own night* | *Map: base map, the region on screen, and how it is fitted; a banner shows the imagery being built after Apply* |
+| ![Storm settings](docs/screenshots/settings-storms.webp) | ![Air raid alert settings](docs/screenshots/settings-air-raid.webp) |
+| *Storms: GDACS, NHC and JTWC; icon set, intensity colours, cones for every storm, facilities in the cone* | *Air raid alerts: edge lights or fills, the red-first palette, long-running alerts in their own colour or hidden until something new happens* |
 
 | | |
 |---|---|
-| ![The widget's Floods group: one row per forecast office and alert type, with the end time](docs/screenshots/widget-floods.webp) | |
+| ![The Status page: every source and local file with its live state](docs/screenshots/settings-status.webp) | ![The Coverage page: hazards by world region, with the source and its lead time, and the data credits](docs/screenshots/settings-coverage.webp) |
+| *Status: every source and local file, green/orange/red, with what it answered - the same list the widget's Status tab shows* | *Coverage: which source covers each hazard in each region and how fast, your own area first, then every provider's licence* |
 
-*Tropical storms: each piece of the track takes the colour of the wind the storm had at that fix, from depression
-blue through tropical-storm green to category 5 magenta. Forecast cone and points, a dot at every fix, and a ring
-where the storm was first fixed.*
-
-| | |
-|---|---|
-| ![A swarm of earthquakes off New Caledonia, and the widget sorted by severity](docs/screenshots/quakes-widget.webp) | ![Electron on its pad, T minus 3 days](docs/screenshots/launch-countdown.webp) ![Electron just after lift-off](docs/screenshots/launch-liftoff.webp) |
-| *A swarm off New Caledonia: rings sized by magnitude, the strongest pulsing, and the widget listing the same quakes most severe first* | *A launch counts down on its pad, then shows lift-off for two minutes after T-0* |
+Older pictures (0.46: the collapsible settings, the storm tracks page, US floods, launches) are in
+[docs/screenshots/v0.46](docs/screenshots/v0.46).
 
 ## Features
 
@@ -215,7 +227,7 @@ wallpaper's helper and caches; nothing is fetched twice.
     .github/                     CI on every push (check.py, ruff, pytest, qmllint, the zip); a release on every v* tag;
                                  Dependabot; bug and feature templates
     docs/SOURCES.md, docs/COVERAGE.md   every feed's format and handling; what covers where (generated)
-    docs/screenshots/            the pictures in this README
+    docs/screenshots/            the pictures in this README (v0.46/ holds the previous set)
     CHANGELOG.md                 every release, newest first
 
 Adding a layer: a new `FooLayer.qml`, an `<entry name="ShowFoo">` in main.xml, a `cfg_ShowFoo` alias and a
