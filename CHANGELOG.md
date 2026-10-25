@@ -39,6 +39,8 @@ release notes written at the time; their dates are the day the version was hande
   official source answers at all.
 - Widget: the Map controls tab ends with "This widget" - fade when idle with its opacity, and the preview on
   hover choice - the same settings as the configuration page, in reach.
+- Environment Canada's alerts never loaded: the request named the WMS layer (ALERTS) where the WFS wants its own
+  type name, ec-msc:Current-Alerts. Fixed; the feed answers with GeoJSON now.
 - The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
   keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
   not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test

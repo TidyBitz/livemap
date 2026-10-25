@@ -230,7 +230,7 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   (Natural Earth 10m admin-1 units and their regions for the 38 countries: normalised names, a centre, rings
   thinned to 0.05°), matched exactly or on the longest shared name start of 5+ characters; unknown areas fall
   back to the country's centre. Licence CC BY 4.0 (EUMETNET). Every 30 minutes.
-- **Environment and Climate Change Canada** - GeoMet WFS `typename=ALERTS` as GeoJSON with polygons; kept where
+- **Environment and Climate Change Canada** - GeoMet WFS `typename=ec-msc:Current-Alerts` as GeoJSON with polygons; kept where
   the headline matches `flood|rainfall|rain\b|storm surge`; level red for a flash flood, orange for a warning,
   green otherwise. Open Government Licence - Canada. Every 15 minutes. (The property names are read
   tolerantly - `headline`, `alert_type`, `area`, `expires`, `url` - and should be confirmed against the live layer.)

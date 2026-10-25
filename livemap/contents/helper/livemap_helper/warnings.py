@@ -150,7 +150,8 @@ def fetch_meteoalarm():
 # ---- Environment and Climate Change Canada ----------------------------------------------------------------
 # GeoMet's WFS serves every active public alert as GeoJSON with its polygon; the flood ones are the rainfall and
 # flood warnings, watches and statements (ECCC's flood *forecasting* is provincial and not in this feed).
-ECCC_WFS = ("https://geo.weather.gc.ca/geomet?service=WFS&version=2.0.0&request=GetFeature&typename=ALERTS"
+# the WFS type is ec-msc:Current-Alerts (the WMS layer is called ALERTS; the two names differ)
+ECCC_WFS = ("https://geo.weather.gc.ca/geomet?service=WFS&version=2.0.0&request=GetFeature&typename=ec-msc:Current-Alerts"
             "&outputFormat=application/json&srsName=EPSG:4326&count=2000")
 ECCC_FLOOD_RE = re.compile(r"flood|rainfall|rain\b|storm surge", re.I)
 
