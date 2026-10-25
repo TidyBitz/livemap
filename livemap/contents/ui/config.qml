@@ -2269,7 +2269,7 @@ RowLayout {
             Layout.preferredWidth: Kirigami.Units.gridUnit * 20
             model: ["Not listed", "The ones you can see, in the widget", "Every pass, seen or not"]
         }
-        Note { visible: sec10.open; text: "Experimental. When the ISS will cross the sky over your home place (Essentials), from the same orbital elements: rise, highest point and set with compass directions, in the widget's Satellites group an hour ahead and in the station's bubble. A pass can be seen only when your sky is dark and the station is still in sunlight - the first hours after dusk and before dawn - so the daytime passes are left out unless you ask for every pass. Cloud over your home from the live cloud image is shown beside it as a hint; it never hides a pass." + (homeLat.text === "" || homeLon.text === "" ? " No home place is set yet." : "") }
+        Note { visible: sec10.open; text: "Experimental. When the ISS or Tiangong will cross the sky over your home place (Essentials), from the same orbital elements: rise, highest point and set with compass directions, in the widget's Satellites group an hour ahead and in the station's bubble. A pass can be seen only when your sky is dark and the station is still in sunlight - the first hours after dusk and before dawn - so the daytime passes are left out unless you ask for every pass. Cloud over your home from the live cloud image is shown beside it as a hint; it never hides a pass." + (homeLat.text === "" || homeLon.text === "" ? " No home place is set yet." : "") }
         RowLayout {
             visible: sec10.open
             Kirigami.FormData.label: "Satellite marker:"

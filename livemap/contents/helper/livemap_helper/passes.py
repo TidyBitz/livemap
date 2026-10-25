@@ -1,4 +1,4 @@
-"""When the ISS (or Tiangong) passes over the home place, and whether it can be seen.
+"""When the ISS and Tiangong pass over the home place, and whether it can be seen.
 
 A pass is visible when three things hold at once: the station is above the horizon, the observer's sky is
 dark (sun more than 6 degrees down: civil twilight or later), and the station itself is still in sunlight -
@@ -129,7 +129,12 @@ def cloud_over(lat, lon):
     return round(tot / n / 255 * 100)
 
 
-def passes_for(lat, lon, now=None, which=("ISS",), days=DAYS):
+# the stations are the worthwhile targets: Tiangong (41.5 degrees inclination, about as bright as a bright star)
+# covers the same latitudes; Hubble (28.5 degrees, dim) stays low in a mid-latitude sky and is not predicted
+PASS_SATS = ("ISS", "Tiangong")
+
+
+def passes_for(lat, lon, now=None, which=PASS_SATS, days=DAYS):
     now = now if now is not None else time.time()
     tles = fetch_tles()
     out = []

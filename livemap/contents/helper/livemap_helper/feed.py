@@ -99,10 +99,9 @@ def home_passes(now, mode):
 
 
 def pass_text(p):
-    """'rises WSW 19:42 · peaks 61° S · sets ENE · 6 min, 4 visible'"""
-    import time
-    return "rises %s %s \u00b7 peaks %d\u00b0 %s \u00b7 sets %s \u00b7 %d min%s" % (
-        p["rise_dir"], time.strftime("%H:%M", time.localtime(p["rise"])), p["max_el"], p["peak_dir"], p["set_dir"], round(p["duration"] / 60),
+    """'rises WSW · peaks 61° S · sets ENE · 6 min, 4 visible' (the time is said once, by the caller)"""
+    return "rises %s \u00b7 peaks %d\u00b0 %s \u00b7 sets %s \u00b7 %d min%s" % (
+        p["rise_dir"], p["max_el"], p["peak_dir"], p["set_dir"], round(p["duration"] / 60),
         (", %d visible" % round(p["visible_seconds"] / 60)) if p.get("visible") and p.get("visible_seconds") else "")
 
 
@@ -125,15 +124,15 @@ def sat_facts(short, tles, crews=None, units=(0, 0), passes=None, cloud=None):
                      ["One orbit", "%.0f min" % period], ["Elements", "%s old (CelesTrak)" % _hours((now - el["epoch"]) / 3600)]]
         except Exception as e:
             rows.append(["Position", "not computed: %s" % e])
+    crew = (crews or {}).get(short) or []
+    for i, c in enumerate(crew):
+        stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
+        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s \u00b7 %s%s%s" % (c["name"], c.get("country") or c.get("agency") or "", " " + c["flag"] if c.get("flag") else "", " \u00b7 " + stay if stay else "")])
     if passes:                                             # the next three over the home place
         for i, p in enumerate(passes[:3]):
             rows.append(["Over you" if i == 0 else " ", "%s \u00b7 %s%s" % (time.strftime("%a %H:%M", time.localtime(p["rise"])), pass_text(p), "" if p.get("visible") else " \u00b7 in daylight, not visible")])
         if cloud is not None:
             rows.append(["Cloud now", "%d %% over your home (from the cloud image; a hint, not a forecast)" % cloud])
-    crew = (crews or {}).get(short) or []
-    for i, c in enumerate(crew):
-        stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
-        rows.append(["Aboard (%d)" % len(crew) if i == 0 else " ", "%s \u00b7 %s%s%s" % (c["name"], c.get("country") or c.get("agency") or "", " " + c["flag"] if c.get("flag") else "", " \u00b7 " + stay if stay else "")])
     return {"facts": [[k, v] for k, v in rows if v], "image": sat_picture(short)}
 
 
@@ -491,7 +490,7 @@ def cmd_feed(args):
         for short, catnr, longname in SATS:
             it = {"kind": "sat", "when": now, "title": longname, "detail": "live position on the map",
                   "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": [],
-                  **sat_facts(short, tles, crews, units, [p for p in upcoming if p["sat"] == short], cloud if short == "ISS" else None)}
+                  **sat_facts(short, tles, crews, units, [p for p in upcoming if p["sat"] == short], cloud if short in ("ISS", "Tiangong") else None)}
             if short == "ISS":                            # the people on board, and the station's own news
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             elif short == "Tiangong":
@@ -509,7 +508,7 @@ def cmd_feed(args):
                      _at("Sets", p["set"]), ["Towards", p["set_dir"]], ["Visible for", "%d min" % round(p["visible_seconds"] / 60) if p.get("visible") else "not visible: daylight"]]
             if cloud is not None:
                 facts.append(["Cloud now", "%d %% over your home" % cloud])
-            items.append({"kind": "sat", "when": p["rise"], "title": "%s over you \u00b7 %s" % (p["sat"], pass_text(p)),
+            items.append({"kind": "sat", "when": p["rise"], "title": "%s over you at %s \u00b7 %s" % (p["sat"], time.strftime("%H:%M", time.localtime(p["rise"])), pass_text(p)),
                           "detail": "look %s, it climbs to %d\u00b0 in the %s" % (p["rise_dir"], p["max_el"], p["peak_dir"]) + ("" if p.get("visible") else " \u00b7 daylight, not visible"),
                           "url": "https://spotthestation.nasa.gov/", "lat": None, "lon": None, "level": 2 if p.get("visible") else 1, "future": True,
                           "key": "pass:%s:%d" % (p["sat"], p["rise"]), "facts": [r for r in facts if r[1]], "image": sat_picture(p["sat"])})
