@@ -79,6 +79,10 @@ release notes written at the time; their dates are the day the version was hande
   padding, so every position failed the "not over the mark" test. Fixed.
 - Tsunami: PTWC and NTWC each send a message about the same earthquake; the two now show as one event,
   both centres named, with every area and coast segment of either.
+- The daily source probe on GitHub now also runs the feed and flags a kind with no records at all - the quiet
+  failure, a source answering 200 OK with a changed record shape - and on any failure opens one GitHub issue
+  ("Source probe: ...") with the failing lines and what each server answered, adding to it each day it persists
+  and closing it when every source answers again.
 - Units: the Units page now holds Speed as well as Distance (the same choice as Storms' wind unit, shown in both
   places), and the widget's bubbles follow them: depths, altitudes and orbital speeds in the units you chose.
 - Widget: a flood warning's bubble lists every county or area it covers - "6 counties" and then one line each -

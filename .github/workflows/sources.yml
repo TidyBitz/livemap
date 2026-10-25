@@ -1,7 +1,9 @@
 # Every data source, against the live internet, once a day. The parsers' unit tests run on recorded fixtures and
-# pass for as long as the fixtures do; this is what notices a source that changed its format, moved, or went away
-# (Environment Canada's WFS type name was wrong for weeks while every test was green). A failing run is the signal:
-# the job's log names the source and what it answered.
+# pass for as long as the fixtures do; this is what notices a source that changed its format, moved, or went away.
+# Two kinds of trouble are caught: a source that errors (the Status check names what it answered - an OGC
+# exception, an HTML outage page), and the quieter one, a source that answers 200 OK with a changed record shape
+# so the parser yields nothing. On failure the job opens or updates one GitHub issue with the exact lines, so the
+# fix starts from the server's own words.
 name: sources
 
 on:
@@ -9,33 +11,80 @@ on:
     - cron: "17 6 * * *"        # daily, 06:17 UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+  issues: write
+
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Ask every source
+        id: probe
         env:
           XDG_DATA_HOME: ${{ runner.temp }}/data
         run: |
-          python3 livemap/contents/helper/livemap-helper.py status --feed 4.5_day > status.json || true
+          H=livemap/contents/helper/livemap-helper.py
+          python3 $H status --feed 4.5_day > status.json || true
+          python3 $H feed --feed 4.5_day > feed.json || true
           python3 - <<'PY'
-          import json, sys
+          import json, sys, os
           st = json.load(open("status.json"))
           bad, warn = [], []
-          for c in st.get("checks", []):
-              line = "%-48s %-5s %s" % (c["name"], c["state"], c.get("detail", "")[:140])
-              print(line)
-              (bad if c["state"] == "error" else warn if c["state"] == "warn" else []).append(line)
           # local files are not expected on a runner: maps, borders, GeoIP, lights, infrastructure
-          local = ("Seasonal maps", "Hi-res seasonal maps", "City lights", "Map style imagery", "Borders", "GeoIP", "Oil and gas infrastructure", "Plate boundaries", "Connections (ss)", "Power and load")
-          bad = [b for b in bad if not b.startswith(local)]
+          local = ("Seasonal maps", "Hi-res seasonal maps", "City lights", "Map style imagery", "Borders", "GeoIP", "Oil and gas infrastructure",
+                   "Plate boundaries", "Connections (ss)", "Power and load", "Cloud stitching")
+          for c in st.get("checks", []):
+              line = "%-48s %-5s %s" % (c["name"], c["state"], c.get("detail", "")[:160])
+              print(line)
+              if c["name"].startswith(local):
+                  continue
+              (bad if c["state"] == "error" else warn if c["state"] == "warn" else []).append(line)
+          # the quiet failure: a kind that normally has records but has none today (a changed record shape)
+          try:
+              fd = json.load(open("feed.json"))
+              counts = {}
+              for it in fd.get("items", []):
+                  counts[it["kind"]] = counts.get(it["kind"], 0) + 1
+              print("\nfeed records by kind:", counts)
+              for kind in ("quake", "storm", "flood", "launch", "sat"):          # never empty in practice
+                  if not counts.get(kind):
+                      bad.append("%-48s %-5s %s" % ("feed: " + kind, "empty", "no records at all - a source answered but nothing parsed"))
+              for p in fd.get("problems", []):
+                  warn.append("%-48s %-5s %s" % ("feed problem", "warn", str(p)[:160]))
+          except Exception as e:
+              bad.append("%-48s %-5s %s" % ("feed", "error", str(e)[:160]))
           print("\n%d sources failing, %d warnings" % (len(bad), len(warn)))
+          with open("report.md", "w") as f:
+              f.write("Daily probe of every live source, %s.\n\n" % os.environ.get("GITHUB_RUN_ID", ""))
+              if bad:
+                  f.write("### Failing\n```\n" + "\n".join(bad) + "\n```\n")
+              if warn:
+                  f.write("### Warnings\n```\n" + "\n".join(warn) + "\n```\n")
+              f.write("\nRun: %s/%s/actions/runs/%s\n" % (os.environ.get("GITHUB_SERVER_URL", ""), os.environ.get("GITHUB_REPOSITORY", ""), os.environ.get("GITHUB_RUN_ID", "")))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("failing=%d\n" % len(bad))
           if bad:
               print("\nFAILING:\n" + "\n".join(bad))
-              sys.exit(1)
           PY
+      - name: Open or update the issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FAILING: ${{ steps.probe.outputs.failing }}
+        run: |
+          TITLE="Source probe: a live source is not answering as expected"
+          N=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ "${FAILING:-0}" != "0" ]; then
+            if [ -n "$N" ]; then gh issue comment "$N" --body-file report.md
+            else gh issue create --title "$TITLE" --label "sources" --body-file report.md; fi
+            exit 1
+          elif [ -n "$N" ]; then
+            gh issue comment "$N" --body "Every source answered on today's probe; closing."
+            gh issue close "$N"
+          fi
