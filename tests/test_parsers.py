@@ -523,3 +523,24 @@ def test_flood_places_listed_in_the_bubble():
     assert row[1].count("•") == 3 and "Coastal Broward" in row[1]
     f = facts_for("flood", {"source": "ea", "alert": "green", "event": "Flood alert", "name": "Kent, South London and East Sussex", "places": ["Kent", "East Sussex"]}, {"by": "Environment Agency"})
     assert ["2 areas", "• Kent\n• East Sussex"] in [r[:2] for r in f["facts"]]
+
+
+def test_classic_copy_rules(tmp_path, monkeypatch):
+    """fetch-maps --classic-from: a 2:1 picture bigger than the packaged one becomes base/classic.jpg; others are refused."""
+    try:
+        from PIL import Image
+    except ImportError:
+        return
+    from livemap_helper import fetch
+    monkeypatch.setattr(fetch, "DATA", tmp_path)
+    big = tmp_path / "big.png"; Image.new("RGB", (4096, 2048), (10, 26, 51)).save(big)
+    dest, w, h = fetch.save_classic(big)
+    assert dest == tmp_path / "base" / "classic.jpg" and (w, h) == (4096, 2048) and dest.exists()
+    small = tmp_path / "small.png"; Image.new("RGB", (2048, 1024)).save(small)
+    square = tmp_path / "square.png"; Image.new("RGB", (4096, 4096)).save(square)
+    for bad in (small, square):
+        try:
+            fetch.save_classic(bad)
+            assert False, "accepted %s" % bad.name
+        except ValueError:
+            pass

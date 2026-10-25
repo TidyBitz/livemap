@@ -10,6 +10,12 @@ release notes written at the time; their dates are the day the version was hande
   around - the same in every season, with the ice and the deep blue ocean - shipped with the package at 2 576 px
   (a bigger copy saved as base/classic.jpg in the data folder is used instead), cut to the frame like the
   monthly maps, with the map tone and the night side applying. Also a built-in style of that name.
+- Hi-res classic Blue Marble: a Map section line with a Download button that fetches NASA's 8 192 px original
+  (Visible Earth record 57730, a 100 MB TIFF, kept as a 10 MB JPEG) so the Classic style stays sharp on 4K and
+  5K screens and in regions; `fetch-maps --classic`, or `--classic-from IMAGE` for a copy downloaded by hand.
+  Every style cuts its frames to the screen's own pixel size from the best source present, so the same package
+  fits a 1080p laptop and a 5K ultrawide: the 2 576 px picture is enough up to about 1440p, the 8 192 px one
+  beyond that.
 - ISS and Tiangong passes over your home place. Satellites > "Passes over you": from the same orbital elements,
   when a station will cross your sky - rise, highest point and set with compass directions and how long you
   can see it - in the widget's Satellites group an hour ahead (SOON when minutes away; the launch sound covers

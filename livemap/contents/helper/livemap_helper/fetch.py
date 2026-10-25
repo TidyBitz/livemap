@@ -346,7 +346,41 @@ def chk_frames():
     return "ok", "%d frame%s (%.0f MB) under frames/ - old ones can be deleted" % (len(dirs), "" if len(dirs) == 1 else "s", mb)
 
 
+CLASSIC_URL = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_8192.tif"
+CLASSIC_PX = 8192
+
+
+def save_classic(src):
+    """A bigger 2002 Blue Marble (any format pillow reads, 2:1 equirectangular) becomes base/classic.jpg, which the classic
+    style then cuts its frames from instead of the 2 576 px picture in the package. The frames built so far are
+    rebuilt the next time the wallpaper looks (their frame.json records the source size)."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    im = Image.open(src).convert("RGB")
+    W, H = im.size
+    if abs(W - 2 * H) > max(4, W // 100):
+        raise ValueError("%s is %dx%d, not a 2:1 whole-world picture" % (src, W, H))
+    if W <= 2576:
+        raise ValueError("%s is %d px across, no bigger than the picture in the package" % (src, W))
+    dest = DATA / "base" / "classic.jpg"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    im.save(dest, quality=93, subsampling=0)
+    return dest, W, H
+
+
 def cmd_fetch_maps(args):
+    if args.classic_from or args.classic:          # the 8 192 px 2002 Blue Marble for the classic style
+        if args.classic_from:
+            src = Path(args.classic_from)
+        else:
+            src = DATA / "base" / "classic-download.tif"
+            download(CLASSIC_URL, src)
+        dest, W, H = save_classic(src)
+        if not args.classic_from:
+            src.unlink(missing_ok=True)
+        print("Done. The classic style now cuts its frames from %s (%dx%d); the frames built so far are rebuilt "
+              "the next time the wallpaper looks (within a minute)." % (dest, W, H))
+        return
     if args.hires:                                # the 21600 px set, for regions: hires01..12.jpg beside the 5400 px set
         for i, name in enumerate(MONTHS, 1):
             download("%s/bmng/bmng-topography-bathymetry/%s/world.topo.bathy.2004%02d.3x21600x10800.jpg"

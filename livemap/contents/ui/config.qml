@@ -1202,8 +1202,8 @@ RowLayout {
         // #################################################################### Map base
 
         // ==================================================================== Map
-        SectionHeader { id: sec1; title: "Map"; group: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && (mapStyle.currentIndex < 3 || mapStyle.currentIndex === 6) ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
-        Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"] }
+        SectionHeader { id: sec1; title: "Map"; group: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "Hi-res classic Blue Marble (NASA 2002)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && (mapStyle.currentIndex < 3 || mapStyle.currentIndex === 6) ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
+        Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "Hi-res classic Blue Marble (NASA 2002)", "NASA image server"] }
 
         QQC2.ComboBox {
             visible: sec1.open
@@ -1219,7 +1219,7 @@ RowLayout {
                    "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
                    "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data; the lightest on the GPU.",
                    "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything.",
-                   "The original: NASA's 2002 Blue Marble, the picture this wallpaper was built around - one composite, the same in every season, with the ice and the deep blue ocean. Ships with the package at 2 576 px; a bigger copy saved as base/classic.jpg in the data folder is used instead."][mapStyle.currentIndex]
+                   "The original: NASA's 2002 Blue Marble, the picture this wallpaper was built around - one composite, the same in every season, with the ice and the deep blue ocean. Ships with the package at 2 576 px, enough for the whole world up to about 1440p; for a 4K or 5K screen, or a region, press Download on the Hi-res classic Blue Marble line below (NASA's 8 192 px original)."][mapStyle.currentIndex]
         }
         RowLayout {
             visible: sec1.open && mapStyle.currentIndex === 3

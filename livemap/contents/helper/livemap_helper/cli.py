@@ -20,6 +20,8 @@
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
       --hires                        the 21600x10800 monthly set beside the small one, for regions (~330 MB)
+      --classic                      the 8192x4096 original 2002 Blue Marble for the Classic style (~100 MB TIFF, kept as a 10 MB JPEG)
+      --classic-from IMAGE           the same from a copy you downloaded yourself (any 2:1 picture pillow reads)
   livemap-helper frame | fetch-frame --style S --north N --south S --west W --east E --width PX
                                      is the imagery for that view and style there / build it (the wallpaper calls both;
                                      styles: seasonal, viirs, relief, dark [--land --ocean --detail]); needs pillow
@@ -149,6 +151,7 @@ def main():
         fr.add_argument("--width", type=int, default=4096); fr.add_argument("--date", default="")
         fr.add_argument("--lowres", action="store_true"); fr.set_defaults(fn=fn)   # the 5 400 px maps even when the hi-res set is there
     m = sub.add_parser("fetch-maps"); m.add_argument("--ocean-from"); m.add_argument("--hires", action="store_true")
+    m.add_argument("--classic", action="store_true"); m.add_argument("--classic-from")
     m.set_defaults(fn=cmd_fetch_maps)
     sy = sub.add_parser("styles"); sy.add_argument("action", choices=["keys", "list", "read", "save", "delete", "export", "import"])
     sy.add_argument("--id"); sy.add_argument("--name"); sy.add_argument("--includes", type=int); sy.add_argument("--values"); sy.add_argument("--path")
