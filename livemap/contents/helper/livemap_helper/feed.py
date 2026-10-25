@@ -39,6 +39,16 @@ def _when(ts):
         return ""
 
 
+def _at(label, ts, suffix=""):
+    """A time row: [label, "Sat 24 Oct 21:27", ts] - the widget adds "2 h ago" from the timestamp, live."""
+    try:
+        t = float(ts)
+    except (TypeError, ValueError):
+        return [label, ""]
+    text = _when(t)
+    return [label, text + suffix, t] if text else [label, ""]
+
+
 def _hours(h):
     try:
         h = float(h)
@@ -177,7 +187,7 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
         p, c = it.get("properties") or {}, (it.get("geometry") or {}).get("coordinates") or [0, 0, 0]
         rows = [["Magnitude", "%s %.1f" % ((p.get("magType") or "M").replace("ml", "ML").replace("mb", "mb"), float(p.get("mag") or 0))],
                 ["Depth", dist_text(float(c[2]), units[0]) if len(c) > 2 and c[2] is not None else ""],
-                ["When", _when((p.get("time") or 0) / 1000)],
+                _at("When", (p.get("time") or 0) / 1000),
                 ["Where", _pos(c[1], c[0])],
                 ["Felt", "%d reports" % p["felt"] if p.get("felt") else ""],
                 ["Intensity", ("%.1f (reported)" % p["cdi"] if p.get("cdi") else "") + (" \u00b7 %.1f (modelled)" % p["mmi"] if p.get("mmi") else "")],
@@ -215,8 +225,8 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Event", it.get("event") or ""],
                 ["Area", it.get("name") or ""],
                 ["Issued by", extra.get("by") or ""],
-                ["From", _when(it["onset"]) if it.get("onset") else ""],
-                ["Until", _when(it["until"]) if it.get("until") else ""],
+                _at("From", it.get("onset")),
+                _at("Until", it.get("until")),
                 ["People exposed", extra.get("people") or ""],
                 ["Headline", it.get("headline") or ""]]
     elif kind == "tsunami":
@@ -225,24 +235,24 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Centre", it.get("centre") or ""],
                 ["Earthquake", "M%.1f %s" % (it["mag"], it.get("location") or "") if it.get("mag") else ""],
                 ["Areas", ", ".join(it.get("areas") or [])],
-                ["Sent", _when(it["sent"]) if it.get("sent") else ""]]
+                _at("Sent", it.get("sent"))]
     elif kind == "alert":
         rows = [["Alert", ", ".join(it.get("types") or ["air raid"]).capitalize()],
                 ["Region", extra.get("region") or ""],
                 ["Places", ", ".join(it.get("places") or [])],
-                ["Since", _when(it["since"]) if it.get("since") else ""],
-                ["Ended", _when(it["ended"]) if it.get("ended") else ""]]
+                _at("Since", it.get("since")),
+                _at("Ended", it.get("ended"))]
     elif kind == "launch":
         rows = [["Rocket", it.get("rocket") or ""],
                 ["Mission", it.get("mission") or it.get("name") or ""],
                 ["Orbit", it.get("orbit") or ""],
                 ["Provider", it.get("provider") or ""],
                 ["Pad", ", ".join(x for x in (it.get("pad"), it.get("site")) if x)],
-                ["Launch", _when(it["net"]) + " (local time)" if it.get("net") else ""],
+                _at("Launch", it.get("net"), " (local time)"),
                 ["Status", it.get("status_name") or it.get("status") or ""],
                 ["Webcast", "live now" if it.get("webcast_live") else ""]]
         image = it.get("image") or ""
-    return {"facts": [[k, v] for k, v in rows if v], "image": image}
+    return {"facts": [row for row in rows if row[1]], "image": image}
 
 
 # ------------------------------------------------------------------ feed -----

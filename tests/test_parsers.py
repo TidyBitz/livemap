@@ -335,16 +335,18 @@ def test_feed_facts_and_pictures():
     from livemap_helper.feed import facts_for, storm_image
     q = facts_for("quake", {"properties": {"mag": 5.1, "magType": "mww", "time": 1760000000000, "felt": 12, "cdi": 4.2, "alert": "green", "source": "USGS", "status": "reviewed"},
                             "geometry": {"coordinates": [14.2, 38.7, 10.0]}})
-    labels = [k for k, v in q["facts"]]
+    labels = [row[0] for row in q["facts"]]
     assert "Depth" in labels and "Felt" in labels and "PAGER alert" in labels and "Tsunami" not in labels
-    assert all(v for k, v in q["facts"]) and q["image"] == ""
+    assert all(row[1] for row in q["facts"]) and q["image"] == ""
+    when = [row for row in q["facts"] if row[0] == "When"][0]
+    assert len(when) == 3 and abs(when[2] - 1760000000) < 1          # a time row carries its timestamp for the widget's "ago"
     assert storm_image({"id": "al082026", "source": "NHC"}) == "https://www.nhc.noaa.gov/storm_graphics/AT08/refresh/AL082026_5day_cone_with_line_and_wind_sm2+png/"
     assert storm_image({"id": "wp2526", "source": "JTWC"}) == "https://www.metoc.navy.mil/jtwc/products/wp2526.gif"
     assert storm_image({"id": "1001234", "source": "GDACS"}) == ""
     st = facts_for("storm", {"kind": "Typhoon", "cat": 2, "lat": 18.4, "lon": 134.2, "hours": 0.5, "source": "JTWC", "id": "wp2526", "cone_estimated": True},
                    {"wind": "109 mph (peak)", "ahead": "Aichi Minamihama refinery, +7", "crossed": ""})
     assert ["Position", "18.4°N 134.2°E"] in st["facts"] and ["Last fix", "30 min ago"] in st["facts"] and st["image"].endswith("wp2526.gif")
-    assert not any(k == "Crossed" for k, v in st["facts"])
+    assert not any(row[0] == "Crossed" for row in st["facts"])
     L = facts_for("launch", {"rocket": "Falcon 9", "mission": "Starlink", "orbit": "LEO", "provider": "SpaceX", "pad": "SLC-4E", "site": "Vandenberg", "net": 1760000000, "status_name": "Go for Launch", "image": "https://x/y.png"})
     assert L["image"] == "https://x/y.png" and ["Pad", "SLC-4E, Vandenberg"] in L["facts"]
 

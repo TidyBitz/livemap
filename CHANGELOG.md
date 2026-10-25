@@ -52,6 +52,9 @@ release notes written at the time; their dates are the day the version was hande
   both centres named, with every area and coast segment of either.
 - Units: the Units page now holds Speed as well as Distance (the same choice as Storms' wind unit, shown in both
   places), and the widget's bubbles follow them: depths, altitudes and orbital speeds in the units you chose.
+- Widget: every time in a bubble (when a quake struck, when a bulletin was sent, a flood's from and until, an
+  alert's since, a launch) also says how long ago or how far ahead that is - "Sat 24 Oct 21:27 · 2 h ago" -
+  ticking with the widget's clock.
 - Widget: a preview bubble. Rest the pointer on an event and a bubble beside the widget says what the feed knows:
   a storm's class, wind, position, last fix, centre and what lies in its path; a quake's depth, felt reports,
   intensity and PAGER alert; a flood's level, area, issuer and when it ends; a volcano's level, observatory and

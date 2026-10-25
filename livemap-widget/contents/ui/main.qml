@@ -438,7 +438,9 @@ PlasmoidItem {
                         required property int index
                         Layout.row: index; Layout.column: 1
                         Layout.fillWidth: true
-                        text: modelData[1]; textFormat: Text.PlainText; wrapMode: Text.Wrap; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        // a time row carries its timestamp: "Sat 24 Oct 21:27 · 2 h ago", ticking with the widget's clock
+                        text: modelData[1] + (modelData.length > 2 && modelData[2] ? " \u00b7 " + root.ago(modelData[2]) : "")
+                        textFormat: Text.PlainText; wrapMode: Text.Wrap; font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
                 }
             }
