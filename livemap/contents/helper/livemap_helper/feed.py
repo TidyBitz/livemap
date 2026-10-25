@@ -270,6 +270,10 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 _at("Until", it.get("until")),
                 ["People exposed", extra.get("people") or ""],
                 ["Headline", it.get("headline") or ""]]
+        places = [str(p) for p in (it.get("places") or []) if p]
+        if places:
+            what = "county" if it.get("source") in (None, "nws") else "area"
+            rows.append(["%d %s" % (len(places), what if len(places) == 1 else ("counties" if what == "county" else "areas")), "\u2022 " + "\n\u2022 ".join(places[:40]) + ("\n\u2022 +%d more" % (len(places) - 40) if len(places) > 40 else "")])
     elif kind == "tsunami":
         rows = [["Bulletin", it.get("event") or ""],
                 ["Severity", (it.get("severity") or "").title() if it.get("severity") else ""],

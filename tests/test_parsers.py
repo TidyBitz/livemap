@@ -512,3 +512,14 @@ def test_iss_passes_are_found_and_visibility_is_physical():
             assert not p["visible"]
     assert passes.compass(0) == "N" and passes.compass(247) == "WSW"
     assert passes.elevation_of_sun(39.74, -104.99, 1792900000 + 19 * 3600) > 0      # ~13:00 MDT: the sun is up
+
+
+def test_flood_places_listed_in_the_bubble():
+    from livemap_helper.feed import facts_for
+    f = facts_for("flood", {"source": "nws", "alert": "orange", "event": "Coastal Flood Warning", "name": "3 counties · Miami FL",
+                            "places": ["Coastal Miami-Dade", "Coastal Broward", "Coastal Palm Beach"], "onset": 1792900000, "until": 1793000000},
+                  {"by": "NWS Miami FL"})
+    row = [r for r in f["facts"] if r[0] == "3 counties"][0]
+    assert row[1].count("•") == 3 and "Coastal Broward" in row[1]
+    f = facts_for("flood", {"source": "ea", "alert": "green", "event": "Flood alert", "name": "Kent, South London and East Sussex", "places": ["Kent", "East Sussex"]}, {"by": "Environment Agency"})
+    assert ["2 areas", "• Kent\n• East Sussex"] in [r[:2] for r in f["facts"]]

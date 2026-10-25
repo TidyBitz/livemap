@@ -241,7 +241,7 @@ def fetch_nws_floods():
         counties = [c.strip() for c in str(pr.get("areaDesc") or "").split(";") if c.strip()]
         onset = _nws_epoch(pr.get("onset") or pr.get("effective") or pr.get("sent"))
         out.append({"id": "nws:" + str(aid).split("/")[-1], "source": "nws", "event": event, "name": "; ".join(counties[:3]) + (", +%d" % (len(counties) - 3) if len(counties) > 3 else ""),
-                    "counties": len(counties), "office": str(pr.get("senderName") or "").replace("NWS ", ""), "lat": round(lat, 3), "lon": round(lon, 3),
+                    "counties": len(counties), "places": counties[:60], "office": str(pr.get("senderName") or "").replace("NWS ", ""), "lat": round(lat, 3), "lon": round(lon, 3),
                     "alert": level, "severity": pr.get("severity"), "since": "", "days": None, "hours": 0,
                     "onset": onset, "until": ends, "headline": pr.get("headline") or "", "url": "https://alerts.weather.gov/search?id=" + str(aid).split("/")[-1],
                     "people": [], "area": rings})
@@ -256,12 +256,13 @@ def group_nws(alerts):
         k = (a["office"], a["event"])
         g = groups.get(k)
         if g is None:
-            g = groups[k] = dict(a, members=[], area=[], counties_list=[], lats=[], lons=[], counties=0)
+            g = groups[k] = dict(a, members=[], area=[], counties_list=[], lats=[], lons=[], counties=0, places=[])
             g["id"] = "nws:" + re.sub(r"[^A-Za-z0-9]+", "-", a["office"] + "-" + a["event"]).strip("-").lower()
         g["members"].append(a["id"])
         g["counties"] += a.get("counties") or 0
         g["area"] = (g["area"] + a["area"])[:24]
         g["counties_list"] += [c.strip() for c in a["name"].replace(", +", ";+").split(";") if c.strip() and not c.strip().startswith("+")]
+        g["places"] += [c for c in (a.get("places") or []) if c not in g["places"]]
         g["lats"].append(a["lat"]); g["lons"].append(a["lon"])
         if a.get("until") and (not g.get("until") or a["until"] > g["until"]):
             g["until"] = a["until"]
@@ -278,7 +279,9 @@ def group_nws(alerts):
                 seen.add(c); counties.append(c)
         g["lat"] = round(sum(g["lats"]) / len(g["lats"]), 3); g["lon"] = round(sum(g["lons"]) / len(g["lons"]), 3)
         g["count"] = n
-        g["counties"] = max(len(counties), g["counties"])   # the sum of the alerts' counts, or the named ones
+        g["counties"] = max(len(counties), g["counties"], len(g["places"]))   # the sum of the alerts' counts, or the named ones
+        if len(g["places"]) < len(counties):
+            g["places"] = counties
         g["name"] = ("%d counties" % g["counties"] if g["counties"] > 2 else "; ".join(counties)) + (" \u00b7 " + g["office"] if g["office"] else "")
         g["url"] = ("https://alerts.weather.gov/search?area=" + urllib.request.quote(g["office"])) if n > 1 and g.get("source") in (None, "nws") else g["url"]
         for k in ("members", "counties_list", "lats", "lons"):

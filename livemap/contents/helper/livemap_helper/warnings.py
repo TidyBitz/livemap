@@ -125,7 +125,7 @@ def parse_meteoalarm(body, slug):
         kind = {"7": "Coastal Flood Warning", "10": "Heavy Rain Warning", "12": "Flood Warning", "13": "Rain and Flood Warning"}[atype]
         aid = alert.get("identifier") or w.get("uuid") or ""
         out.append({"id": "ma:" + re.sub(r"[^A-Za-z0-9]+", "-", aid).strip("-").lower(), "source": "meteoalarm", "event": kind,
-                    "name": "; ".join(areas[:3]) + (", +%d" % (len(areas) - 3) if len(areas) > 3 else ""), "counties": len(areas),
+                    "name": "; ".join(areas[:3]) + (", +%d" % (len(areas) - 3) if len(areas) > 3 else ""), "counties": len(areas), "places": areas[:60],
                     "office": cname, "lat": round(sum(lats) / len(lats), 3), "lon": round(sum(lons) / len(lons), 3),
                     "alert": METEOALARM_LEVELS[alevel], "severity": info.get("severity", ""), "since": "", "days": None, "hours": 0,
                     "onset": onset, "until": until, "headline": str(info.get("headline") or info.get("event") or "")[:160],
@@ -180,7 +180,7 @@ def parse_eccc(body):
         aid = str(pr.get("identifier") or pr.get("id") or f.get("id") or "")
         area = str(pr.get("area") or pr.get("areaDesc") or pr.get("area_name") or pr.get("region") or pr.get("name") or pr.get("zone") or "")
         out.append({"id": "eccc:" + re.sub(r"[^A-Za-z0-9]+", "-", aid).strip("-").lower(), "source": "eccc", "event": head.title() if head.isupper() else head or "Weather Alert",
-                    "name": area, "counties": 1, "office": "Environment Canada", "lat": round(lat, 3), "lon": round(lon, 3), "alert": level,
+                    "name": area, "counties": 1, "places": [area] if area else [], "office": "Environment Canada", "lat": round(lat, 3), "lon": round(lon, 3), "alert": level,
                     "severity": str(pr.get("severity") or ""), "since": "", "days": None, "hours": 0,
                     "onset": _epoch(pr.get("effective") or pr.get("issued") or pr.get("sent") or pr.get("issue_date") or pr.get("effective_date")), "until": until,
                     "headline": head[:160], "url": str(pr.get("url") or "https://weather.gc.ca/warnings/index_e.html"), "people": [], "area": rings[:12]})
@@ -298,7 +298,9 @@ def parse_ea(body, budget=None):
             except (TypeError, ValueError):
                 continue                                           # placed next time, when its polygon has been fetched
         out.append({"id": "ea:" + re.sub(r"[^A-Za-z0-9]+", "-", area_id).lower(), "source": "ea", "event": str(it.get("severity") or "Flood warning"),
-                    "name": str(it.get("description") or fa.get("county") or area_id), "counties": 1, "office": str(it.get("eaAreaName") or "Environment Agency"),
+                    "name": str(it.get("description") or fa.get("county") or area_id), "counties": 1,
+                    "places": [p.strip() for p in str(fa.get("county") or "").split(",") if p.strip()][:60], "county": str(fa.get("county") or ""),
+                    "office": str(it.get("eaAreaName") or "Environment Agency"),
                     "lat": round(lat, 3), "lon": round(lon, 3), "alert": level, "severity": "", "since": "", "days": None, "hours": 0,
                     "onset": _epoch(it.get("timeRaised")), "until": None, "headline": str(it.get("message") or "")[:160],
                     "url": "https://check-for-flooding.service.gov.uk/", "people": [], "area": rings})
