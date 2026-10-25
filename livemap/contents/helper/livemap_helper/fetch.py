@@ -302,6 +302,11 @@ def frame_state(style, key):
     ready = meta.get("style") == style and any((FRAMES / key / f).exists() for f in ("base.jpg", "base.png", "base01.jpg"))
     age_h = (time.time() - meta.get("at", 0)) / 3600
     stale = style == "viirs" and age_h > 20       # a new day's picture
+    if style == "classic" and ready:              # a bigger picture put in place since: cut again from that one
+        try:
+            stale = classic_source().stat().st_mtime > meta.get("at", 0)
+        except (OSError, FileNotFoundError):
+            pass
     return {"ready": ready, "stale": stale, "day": meta.get("day", ""), "age_hours": round(age_h, 1)}
 
 
