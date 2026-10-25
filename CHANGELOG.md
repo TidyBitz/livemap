@@ -29,6 +29,16 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- The map imagery was rebuilt at every login, with the toast to say so: the view settles in steps as the desktop
+  comes up (the panel appears, the screen scale lands) and each step asked for a frame of its own. A change of
+  view now waits until it has held still for a moment, and the toast only appears for a build that takes
+  longer than three seconds.
+- A secondary flood-warning source failing (ECCC answering with something that is not JSON, a MeteoAlarm
+  country down) no longer sits in the desktop's corner notice for days: it is a Status matter - the settings'
+  Status page and the widget's Status tab name the source and the error. The desktop hears of it only when no
+  official source answers at all.
+- Widget: the Map controls tab ends with "This widget" - fade when idle with its opacity, and the preview on
+  hover choice - the same settings as the configuration page, in reach.
 - The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
   keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
   not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test

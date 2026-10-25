@@ -312,7 +312,11 @@ def official_floods(mask, max_age_min=10, stale_limit=6):
     if mask & ~1:
         more, more_notes = warnings_cached(mask)
         alerts += more
-        notes += ["Flood warnings - " + n for n in more_notes]
+        # a secondary source that fails (MeteoAlarm's Malta, ECCC answering with something that is not JSON) is a
+        # Status matter - the settings' Status page and the widget's Status tab show it per source - not a corner
+        # notice on the desktop for days. The desktop hears of it only when every official source is out.
+        if more_notes and not more and not (mask & 1 and alerts):
+            notes.append("Flood warnings: no official source answering (" + "; ".join(more_notes)[:120] + ")")
     return alerts, "; ".join(n for n in notes if n)
 
 

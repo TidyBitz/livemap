@@ -1002,6 +1002,38 @@ PlasmoidItem {
                     PC3.Button { text: "Clear overrides"; icon.name: "edit-clear"; enabled: !!root.mode.pause || !!root.mode.plain || !!root.mode.full || root.mode.clouds === false || (root.mode.hide || []).length > 0 || (root.mode.cloud_opacity !== undefined && root.mode.cloud_opacity !== null); onClicked: root.setMode("--clear") }
                     PC3.ToolButton { icon.name: "view-refresh"; PC3.ToolTip.text: "Re-read the overrides"; PC3.ToolTip.visible: hovered; onClicked: root.refreshMode() }
                 }
+                Heading { text: "This widget" }
+                // the widget's own behaviour, the same settings as its configuration page (Plasmoid.configuration writes through)
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Switch {
+                        text: "Fade when idle"
+                        checked: Plasmoid.configuration.FadeIdle
+                        onToggled: Plasmoid.configuration.FadeIdle = checked
+                        PC3.ToolTip.text: "On the desktop: the whole widget fades to the opacity on the right once the pointer has been away for a few seconds"; PC3.ToolTip.visible: hovered
+                    }
+                    Item { Layout.fillWidth: true }
+                    PC3.Slider {
+                        id: idleOpacityQuick
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 7
+                        from: 5; to: 100; stepSize: 5
+                        value: Plasmoid.configuration.IdleOpacity
+                        onMoved: Plasmoid.configuration.IdleOpacity = Math.round(value)
+                        PC3.ToolTip.text: "Idle opacity (100 %: the plain look)"; PC3.ToolTip.visible: hovered
+                    }
+                    PC3.Label { text: Math.round(idleOpacityQuick.value) + " %"; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.5 }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    PC3.Label { text: "Preview on hover" }
+                    Item { Layout.fillWidth: true }
+                    PC3.ComboBox {
+                        Layout.preferredWidth: Kirigami.Units.gridUnit * 10
+                        model: ["Off", "Details", "Details and pictures"]
+                        currentIndex: root.previewMode
+                        onActivated: function (i) { Plasmoid.configuration.Preview = i }
+                    }
+                }
                 Item { Layout.fillHeight: true }
                 PC3.Button {
                     Layout.fillWidth: true

@@ -756,8 +756,8 @@ WallpaperItem {
     Rectangle {
         id: imageryToast
         readonly property var fw: frameLoader.item
-        readonly property bool building: !!fw && fw.busy
-        readonly property bool ready: !!fw && fw.justReady
+        readonly property bool building: !!fw && fw.busy && (fw.tick - fw.startedAt) > 3000   // not for a build that is over in a moment
+        readonly property bool ready: !!fw && fw.justReady && fw.readyAt - fw.startedAt > 3000
         readonly property real unit: Math.max(1, Math.min(1.45, root.width / 1920))   // grows with the screen, but not all the way (an ultrawide got a billboard)
         readonly property real elapsed: building && fw.startedAt > 0 ? (fw.tick - fw.startedAt) / 1000 : 0
         visible: opacity > 0

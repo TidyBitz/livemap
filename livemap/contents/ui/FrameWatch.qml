@@ -37,7 +37,10 @@ Item {
 
     readonly property string frameArgs: " --style " + style + " --north " + north + " --south " + south + " --west " + west + " --east " + east + " --width " + widthPx + extra
     property bool askAgain: false                 // the view moved while a build ran: look again when it ends
-    onFrameArgsChanged: { ready = false; dir = ""; if (busy) askAgain = true; else ask(); }
+    // The view settles in steps at login and on a resize (the panel appears, the screen scale lands); every step
+    // would be a frame of its own to build. So a change waits until the arguments have held still for a moment.
+    onFrameArgsChanged: { ready = false; dir = ""; settle.restart(); }
+    Timer { id: settle; interval: 2500; onTriggered: { if (watch.busy) watch.askAgain = true; else watch.ask(); } }
 
     function ask() {
         if (helper === "" || busy) return;
@@ -52,6 +55,7 @@ Item {
         busy = true; done = 0; total = 0; what = ""; startedAt = Date.now(); readyAt = 0;
         note = "Map style: building the imagery for this frame (" + styleWords + ")…";
         report("building", styleWords);
+        console.warn("livemap frame: building", frameArgs);
         exec.connectSource("python3 '" + helper + "' fetch-frame" + frameArgs + " # " + Date.now());
     }
     P5Support.DataSource {
@@ -98,6 +102,6 @@ Item {
     }
     // the daily picture: look once an hour whether a new day's is due; also retries after a failure
     Timer { interval: 3600000; running: watch.helper !== ""; repeat: true; onTriggered: watch.ask() }
-    Component.onCompleted: ask()
-    onHelperChanged: ask()
+    Component.onCompleted: settle.restart()
+    onHelperChanged: settle.restart()
 }
