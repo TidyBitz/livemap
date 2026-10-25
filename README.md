@@ -37,8 +37,10 @@ CPU or GPU is busy, and a daily probe on GitHub asks every source whether it sti
 |---|---|
 | ![Matrix style](docs/screenshots/world-matrix.webp) | ![Dark cartographic style](docs/screenshots/world-dark-cartographic.webp) |
 | *Matrix: phosphor green, a scanline, monospaced labels* | *Dark cartographic: your own land and ocean colours, the events in theirs* |
-| ![Dark Matter style](docs/screenshots/world-dark-matter.webp) | ![Air raid alerts close up](docs/screenshots/air-raid-edges.webp) |
-| *Dark Matter: greys, the city lights the only colour besides the events* | *The alert edges up close: new brightest, settled steady, frontline ochre, all-clear fading blue* |
+| ![Dark Matter style](docs/screenshots/world-dark-matter.webp) | ![Classic Blue Marble style](docs/screenshots/world-classic-blue-marble.webp) |
+| *Dark Matter: greys, the city lights the only colour besides the events* | *Classic Blue Marble: NASA's 2002 composite at 5 400 px, the night side and city lights over it, typhoon In-Fa and tropical storms Vance, Otona and Champi on their tracks* |
+| ![Air raid alerts close up](docs/screenshots/air-raid-edges.webp) | |
+| *The alert edges up close: new brightest, settled steady, frontline ochre, all-clear fading blue* | |
 
 ### A closer look
 
