@@ -37,11 +37,10 @@ ColumnLayout {
     readonly property var fetchFor: ({
         "Seasonal maps (NASA Blue Marble)": "maps", "City lights (NASA Black Marble)": "maps",
         "Hi-res seasonal maps (NASA Blue Marble, for regions)": "fetch-maps --hires",
-        "Hi-res classic Blue Marble (NASA 2002)": "fetch-maps --classic",
         "Borders (Natural Earth)": "fetch-borders", "Plate boundaries (PB2002)": "fetch-borders",
         "GeoIP database (DB-IP)": "fetch-geoip", "Oil and gas infrastructure (BSEE, OpenStreetMap)": "fetch-infrastructure"
     })
-    readonly property var fetchSize: ({ "maps": "about 35 MB", "fetch-maps --hires": "about 330 MB, several minutes", "fetch-maps --classic": "about 100 MB, a minute or two", "fetch-borders": "about 12 MB", "fetch-geoip": "about 20 MB", "fetch-infrastructure": "a few MB, a minute or two" })
+    readonly property var fetchSize: ({ "maps": "about 35 MB", "fetch-maps --hires": "about 330 MB, several minutes", "fetch-borders": "about 12 MB", "fetch-geoip": "about 20 MB", "fetch-infrastructure": "a few MB, a minute or two" })
     function fetchCommand(name) {
         var c = fetchFor[name] || "";
         if (c === "maps") c = "fetch-maps" + (oceanFrom.charAt(0) === "/" ? " --ocean-from '" + oceanFrom.replace(/'/g, "'\\''") + "'" : "");

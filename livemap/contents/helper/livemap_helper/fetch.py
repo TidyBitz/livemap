@@ -202,13 +202,15 @@ def gibs_image(layer, n, so, w, e, width, height, day, log=print, progress=None)
 
 
 def crop_world_image(src, n, so, w, e, width, height):
-    """The frame cut out of a whole-world 2:1 image and scaled to width x height."""
+    """The frame cut out of a whole-world 2:1 image and scaled to width x height (one Lanczos pass; none at all when
+    the cut already is that size)."""
     from PIL import Image
     Image.MAX_IMAGE_PIXELS = None
     im = Image.open(src).convert("RGB")
     W, H = im.size
     box = (int((w + 180) / 360 * W), int((90 - n) / 180 * H), int(round((e + 180) / 360 * W)), int(round((90 - so) / 180 * H)))
-    return im.crop(box).resize((width, height), Image.LANCZOS)
+    cut = im.crop(box)
+    return cut if cut.size == (width, height) else cut.resize((width, height), Image.LANCZOS)
 
 
 def frame_progress(done, total, what=""):
@@ -266,8 +268,8 @@ def cmd_fetch_frame(args):
             print("  month %02d cropped from %s" % (i, src.name))
             frame_progress(i, 13, "month %02d" % i)
     elif args.style == "classic":                 # NASA's 2002 Blue Marble, one picture: cut to the frame like a month
-        src = classic_source()
-        crop_world_image(src, n, so, w, e, width, height).save(dest / "base.jpg", quality=90)
+        src = classic_source()                    # one picture, often scaled up: full-colour JPEG, no chroma subsampling, so the
+        crop_world_image(src, n, so, w, e, width, height).save(dest / "base.jpg", quality=96, subsampling=0)   # coasts stay clean
         print("  classic Blue Marble cropped from %s" % src)
         frame_progress(1, 2, "cropped")
     elif args.style in GIBS_LAYERS:
@@ -346,41 +348,7 @@ def chk_frames():
     return "ok", "%d frame%s (%.0f MB) under frames/ - old ones can be deleted" % (len(dirs), "" if len(dirs) == 1 else "s", mb)
 
 
-CLASSIC_URL = "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57730/land_ocean_ice_8192.tif"
-CLASSIC_PX = 8192
-
-
-def save_classic(src):
-    """A bigger 2002 Blue Marble (any format pillow reads, 2:1 equirectangular) becomes base/classic.jpg, which the classic
-    style then cuts its frames from instead of the 2 576 px picture in the package. The frames built so far are
-    rebuilt the next time the wallpaper looks (their frame.json records the source size)."""
-    from PIL import Image
-    Image.MAX_IMAGE_PIXELS = None
-    im = Image.open(src).convert("RGB")
-    W, H = im.size
-    if abs(W - 2 * H) > max(4, W // 100):
-        raise ValueError("%s is %dx%d, not a 2:1 whole-world picture" % (src, W, H))
-    if W <= 2576:
-        raise ValueError("%s is %d px across, no bigger than the picture in the package" % (src, W))
-    dest = DATA / "base" / "classic.jpg"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    im.save(dest, quality=93, subsampling=0)
-    return dest, W, H
-
-
 def cmd_fetch_maps(args):
-    if args.classic_from or args.classic:          # the 8 192 px 2002 Blue Marble for the classic style
-        if args.classic_from:
-            src = Path(args.classic_from)
-        else:
-            src = DATA / "base" / "classic-download.tif"
-            download(CLASSIC_URL, src)
-        dest, W, H = save_classic(src)
-        if not args.classic_from:
-            src.unlink(missing_ok=True)
-        print("Done. The classic style now cuts its frames from %s (%dx%d); the frames built so far are rebuilt "
-              "the next time the wallpaper looks (within a minute)." % (dest, W, H))
-        return
     if args.hires:                                # the 21600 px set, for regions: hires01..12.jpg beside the 5400 px set
         for i, name in enumerate(MONTHS, 1):
             download("%s/bmng/bmng-topography-bathymetry/%s/world.topo.bathy.2004%02d.3x21600x10800.jpg"

@@ -111,7 +111,6 @@ there). In the order you will want them:
 | Seasonal maps and city lights | Map | 35 MB | NASA's 12 monthly Blue Marble images and the Black Marble night picture - the base map and the city lights |
 | Border data | Countries | 12 MB | Coastlines, borders, rivers, country and state names, capitals and cities, time zones, plate boundaries - everything vector |
 | Hi-res seasonal maps | Map | 330 MB | The 21 600 px monthly set; only worth it for a region (Map > Show) or a 5K screen |
-| Hi-res classic Blue Marble | Map | 100 MB (kept as 10 MB) | NASA's 8 192 px original 2002 composite for the Classic style; worth it on a 4K or 5K screen or for a region |
 | Oil and gas infrastructure | Oil and gas infrastructure | a few MB | Offshore platforms and refineries; off by default |
 | GeoIP database | Network activity | 20 MB | Offline geolocation for the Network layer; off by default |
 

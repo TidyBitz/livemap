@@ -47,19 +47,6 @@ def chk_hires():
         "not downloaded: a region is cut from the 5 400 px maps, which are soft beyond about 2x (press Download, about 330 MB)"
 
 
-def chk_classic():
-    big = DATA / "base" / "classic.jpg"
-    if big.exists():
-        try:
-            from PIL import Image
-            Image.MAX_IMAGE_PIXELS = None
-            w, h = Image.open(big).size
-            return "ok", "%dx%d (%.0f MB): the Classic style cuts its frames from this copy" % (w, h, big.stat().st_size / 1e6)
-        except Exception as e:                      # noqa: BLE001 - a broken file is reported, not fatal
-            return "warn", "base/classic.jpg cannot be read (%s): delete it to fall back to the package's picture" % e
-    return "warn", "not downloaded: the 2 576 px picture in the package is used, fine for the whole world up to about 1440p; a 4K or 5K screen or a region wants the 8 192 px original (press Download, about 100 MB, kept as 10 MB)"
-
-
 def chk_night():
     f, png = DATA / "night.jpg", DATA / "lights.png"
     if png.exists() and not (DATA / "night-hires.jpg").exists():
@@ -155,7 +142,6 @@ def status_jobs(offline=False, feed="4.5_day"):
     """The checks, in the order the settings page shows them: (name, callable). The names are what the settings
     sections and contents/data/sources.json refer to."""
     jobs = [("Seasonal maps (NASA Blue Marble)", chk_maps), ("Hi-res seasonal maps (NASA Blue Marble, for regions)", chk_hires),
-            ("Hi-res classic Blue Marble (NASA 2002)", chk_classic),
             ("City lights (NASA Black Marble)", chk_night), ("Map style imagery (frames)", chk_frames),
             ("Borders (Natural Earth)", chk_borders), ("Plate boundaries (PB2002)", chk_plates), ("Oil and gas infrastructure (BSEE, OpenStreetMap)", chk_infrastructure), ("GeoIP database (DB-IP)", chk_geoip), ("Connections (ss)", chk_sockets),
             ("Power and load", chk_power)]
