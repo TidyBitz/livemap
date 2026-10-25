@@ -7,7 +7,7 @@ release notes written at the time; their dates are the day the version was hande
 
 ### Added
 - A seventh base map, "Classic Blue Marble (NASA 2002, static)": the original composite the wallpaper was built
-  around - the same in every season, with the ice and the deep blue ocean - shipped with the package at 2 576 px
+  around - the same in every season, with the ice and the deep blue ocean - shipped with the package at 5 400 px
   (a bigger copy saved as base/classic.jpg in the data folder is used instead), cut to the frame like the
   monthly maps, with the map tone and the night side applying. Also a built-in style of that name. The picture
   ships byte for byte as supplied and its frames are written as full-colour JPEGs at quality 96 (no chroma

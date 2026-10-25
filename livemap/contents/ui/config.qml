@@ -1219,7 +1219,7 @@ RowLayout {
                    "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
                    "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data; the lightest on the GPU.",
                    "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything.",
-                   "The original: NASA's 2002 Blue Marble, the picture this wallpaper was built around - one composite, the same in every season, with the ice and the deep blue ocean. Ships with the package at 2 576 px; a bigger copy saved as base/classic.jpg in the data folder is used instead."][mapStyle.currentIndex]
+                   "The original: NASA's 2002 Blue Marble, the picture this wallpaper was built around - one composite, the same in every season, with the ice and the deep blue ocean. Ships with the package at 5 400 px, the same size as the monthly maps; a bigger copy saved as base/classic.jpg in the data folder is used instead."][mapStyle.currentIndex]
         }
         RowLayout {
             visible: sec1.open && mapStyle.currentIndex === 3

@@ -230,7 +230,7 @@ def frame_progress(done, total, what=""):
 
 def classic_source():
     """The 2002 Blue Marble: a higher-resolution copy in the data folder when the user has put one there
-    (base/classic.jpg), else the 2 576 px picture that ships with the package."""
+    (base/classic.jpg), else the 5 400 px picture that ships with the package."""
     for cand in (DATA / "base" / "classic.jpg", PKG / "images" / "classic.jpg"):
         if cand.exists():
             return cand
