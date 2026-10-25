@@ -40,7 +40,8 @@ release notes written at the time; their dates are the day the version was hande
 - Widget: the Map controls tab ends with "This widget" - fade when idle with its opacity, and the preview on
   hover choice - the same settings as the configuration page, in reach.
 - Environment Canada's alerts never loaded: the request named the WMS layer (ALERTS) where the WFS wants its own
-  type name, ec-msc:Current-Alerts. Fixed; the feed answers with GeoJSON now.
+  type name, ec-msc:Current-Alerts - and the service speaks GML only (every JSON output name is refused). The
+  helper now reads the GML 3.2 answer with the same guarded XML parser as the other feeds.
 - The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
   keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
   not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test
@@ -64,6 +65,8 @@ release notes written at the time; their dates are the day the version was hande
   both centres named, with every area and coast segment of either.
 - Units: the Units page now holds Speed as well as Distance (the same choice as Storms' wind unit, shown in both
   places), and the widget's bubbles follow them: depths, altitudes and orbital speeds in the units you chose.
+- Widget: every bubble carries a dated row with its age - storms their last fix as a time, volcanoes their ash
+  advisory, and anything else "Reported" from the event's own time - so no kind is without one.
 - Widget: every time in a bubble (when a quake struck, when a bulletin was sent, a flood's from and until, an
   alert's since, a launch) also says how long ago or how far ahead that is - "Sat 24 Oct 21:27 · 2 h ago" -
   ticking with the widget's clock.

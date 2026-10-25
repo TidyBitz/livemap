@@ -150,10 +150,11 @@ def fetch_meteoalarm():
 # ---- Environment and Climate Change Canada ----------------------------------------------------------------
 # GeoMet's WFS serves every active public alert as GeoJSON with its polygon; the flood ones are the rainfall and
 # flood warnings, watches and statements (ECCC's flood *forecasting* is provincial and not in this feed).
-# the WFS type is ec-msc:Current-Alerts (the WMS layer is called ALERTS; the two names differ), and the format is
-# "geojson" (asked for application/json, MapServer looks for a template of that name and fails)
+# The WFS type is ec-msc:Current-Alerts (the WMS layer is called ALERTS; the two names differ) and the service
+# speaks GML only (its outputFormat list is four flavours of XML; every JSON name is refused), so the default
+# GML 3.2 answer is read with the stdlib parser, guarded like every other XML feed.
 ECCC_WFS = ("https://geo.weather.gc.ca/geomet?service=WFS&version=2.0.0&request=GetFeature&typename=ec-msc:Current-Alerts"
-            "&outputFormat=geojson&srsName=EPSG:4326&count=2000")      # MapServer's name for GeoJSON output
+            "&srsName=EPSG:4326&count=2000")
 ECCC_FLOOD_RE = re.compile(r"flood|rainfall|rain\b|storm surge", re.I)
 
 
@@ -162,11 +163,11 @@ def parse_eccc(body):
     out = []
     for f in body.get("features") or []:
         pr = f.get("properties") or {}
-        text = " ".join(str(pr.get(k) or "") for k in ("headline", "alert_type", "event", "descrip_en", "title", "name"))
-        head = str(pr.get("headline") or pr.get("alert_type") or pr.get("event") or "").strip()
+        text = " ".join(str(pr.get(k) or "") for k in ("headline", "alert_type", "event", "descrip_en", "title", "name", "alert_name", "type", "status", "descrip"))
+        head = str(pr.get("headline") or pr.get("alert_type") or pr.get("alert_name") or pr.get("event") or pr.get("type") or "").strip()
         if not ECCC_FLOOD_RE.search(head or text[:200]):
             continue
-        until = _epoch(pr.get("expires") or pr.get("expiry"))
+        until = _epoch(pr.get("expires") or pr.get("expiry") or pr.get("expiry_date") or pr.get("expires_at"))
         if until is not None and until < now:
             continue
         low = (head + " " + str(pr.get("alert_type") or "")).lower()
@@ -177,18 +178,68 @@ def parse_eccc(body):
         if lat is None:
             continue
         aid = str(pr.get("identifier") or pr.get("id") or f.get("id") or "")
-        area = str(pr.get("area") or pr.get("areaDesc") or pr.get("name") or "")
+        area = str(pr.get("area") or pr.get("areaDesc") or pr.get("area_name") or pr.get("region") or pr.get("name") or pr.get("zone") or "")
         out.append({"id": "eccc:" + re.sub(r"[^A-Za-z0-9]+", "-", aid).strip("-").lower(), "source": "eccc", "event": head.title() if head.isupper() else head or "Weather Alert",
                     "name": area, "counties": 1, "office": "Environment Canada", "lat": round(lat, 3), "lon": round(lon, 3), "alert": level,
                     "severity": str(pr.get("severity") or ""), "since": "", "days": None, "hours": 0,
-                    "onset": _epoch(pr.get("effective") or pr.get("issued") or pr.get("sent")), "until": until,
+                    "onset": _epoch(pr.get("effective") or pr.get("issued") or pr.get("sent") or pr.get("issue_date") or pr.get("effective_date")), "until": until,
                     "headline": head[:160], "url": str(pr.get("url") or "https://weather.gc.ca/warnings/index_e.html"), "people": [], "area": rings[:12]})
     return out
 
 
+def gml_features(text):
+    """A WFS GML answer as GeoJSON-shaped features: every element directly under a member becomes a property
+    (its local name, its text), every gml:Polygon a ring. EPSG:4326 in GML 3.2 lists latitude first; a posList
+    is read that way and turned round to lon, lat. Field names are not assumed - the alert parser looks for
+    the ones it knows among whatever the server sends."""
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(safe_xml(text))
+    if root.tag.endswith("ExceptionReport"):
+        m = re.search(r"<(?:ows:)?ExceptionText>\s*(.*?)\s*</", text, re.S)
+        raise ValueError("WFS exception: " + " ".join((m.group(1) if m else text[:200]).split())[:160])
+
+    def local(tag):
+        return tag.rsplit("}", 1)[-1]
+
+    def rings_of(el):
+        out = []
+        for poly in el.iter():
+            if local(poly.tag) != "Polygon":
+                continue
+            for pl in poly.iter():
+                if local(pl.tag) not in ("posList", "coordinates"):
+                    continue
+                nums = [float(x) for x in re.split(r"[\s,]+", (pl.text or "").strip()) if x]
+                if local(pl.tag) == "posList":
+                    pts = [(nums[i + 1], nums[i]) for i in range(0, len(nums) - 1, 2)]        # lat lon -> lon lat
+                else:
+                    pts = [(nums[i], nums[i + 1]) for i in range(0, len(nums) - 1, 2)]        # GML 2 coordinates: lon,lat
+                if len(pts) >= 4:
+                    out.append(pts)
+                break                                            # the exterior ring; holes are not needed
+        return out
+
+    feats = []
+    for member in root:
+        if local(member.tag) not in ("member", "featureMember", "featureMembers"):
+            continue
+        for feat in (list(member) or [member]):
+            props, rings = {}, []
+            for child in feat:
+                name = local(child.tag)
+                if any(local(g.tag) == "Polygon" for g in child.iter()):
+                    rings += rings_of(child)
+                    continue
+                if len(child) == 0:
+                    props[name] = (child.text or "").strip()
+            geom = {"type": "MultiPolygon", "coordinates": [[r] for r in rings]} if rings else None
+            feats.append({"type": "Feature", "id": feat.get("{http://www.opengis.net/gml/3.2}id") or feat.get("fid") or "", "properties": props, "geometry": geom})
+    return {"type": "FeatureCollection", "features": feats}
+
+
 def fetch_eccc():
-    body = fetch_json(ECCC_WFS, timeout=20)
-    return {"alerts": parse_eccc(body), "failed": []}
+    text = _http(ECCC_WFS, timeout=25)[2].decode("utf-8", "replace")
+    return {"alerts": parse_eccc(gml_features(text)), "failed": []}
 
 
 # ---- UK Environment Agency ---------------------------------------------------------------------------------

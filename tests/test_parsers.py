@@ -345,7 +345,8 @@ def test_feed_facts_and_pictures():
     assert storm_image({"id": "1001234", "source": "GDACS"}) == ""
     st = facts_for("storm", {"kind": "Typhoon", "cat": 2, "lat": 18.4, "lon": 134.2, "hours": 0.5, "source": "JTWC", "id": "wp2526", "cone_estimated": True},
                    {"wind": "109 mph (peak)", "ahead": "Aichi Minamihama refinery, +7", "crossed": ""})
-    assert ["Position", "18.4°N 134.2°E"] in st["facts"] and ["Last fix", "30 min ago"] in st["facts"] and st["image"].endswith("wp2526.gif")
+    fix = [row for row in st["facts"] if row[0] == "Last fix"][0]
+    assert ["Position", "18.4°N 134.2°E"] in st["facts"] and len(fix) == 3 and abs(fix[2] - (time.time() - 1800)) < 5 and st["image"].endswith("wp2526.gif")
     assert not any(row[0] == "Crossed" for row in st["facts"])
     L = facts_for("launch", {"rocket": "Falcon 9", "mission": "Starlink", "orbit": "LEO", "provider": "SpaceX", "pad": "SLC-4E", "site": "Vandenberg", "net": 1760000000, "status_name": "Go for Launch", "image": "https://x/y.png"})
     assert L["image"] == "https://x/y.png" and ["Pad", "SLC-4E, Vandenberg"] in L["facts"]
@@ -452,3 +453,41 @@ def test_fetch_json_says_what_came_back(no_network):
         fetch_json("https://example.org/down")
     except ValueError as e:
         assert "503 Service Unavailable" in str(e)
+
+
+def test_eccc_gml_is_read():
+    from livemap_helper.warnings import gml_features, parse_eccc
+    gml = '''<?xml version='1.0' encoding="UTF-8" ?>
+<wfs:FeatureCollection xmlns:ec-msc="urn:x-msc-smc:md:weather-meteo" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:wfs="http://www.opengis.net/wfs/2.0">
+ <wfs:member>
+  <ec-msc:Current-Alerts gml:id="Current-Alerts.1">
+   <gml:boundedBy><gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326"><gml:lowerCorner>49 -124</gml:lowerCorner><gml:upperCorner>50 -122</gml:upperCorner></gml:Envelope></gml:boundedBy>
+   <ec-msc:msGeometry><gml:Polygon srsName="urn:ogc:def:crs:EPSG::4326" gml:id="p1"><gml:exterior><gml:LinearRing><gml:posList srsDimension="2">49.0 -124.0 50.0 -124.0 50.0 -122.0 49.0 -122.0 49.0 -124.0</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></ec-msc:msGeometry>
+   <ec-msc:identifier>urn:oid:2.49.0.1.124.1</ec-msc:identifier>
+   <ec-msc:area>Metro Vancouver</ec-msc:area>
+   <ec-msc:alert_type>rainfall warning</ec-msc:alert_type>
+   <ec-msc:headline>RAINFALL WARNING IN EFFECT</ec-msc:headline>
+   <ec-msc:expires>2099-01-01T00:00:00Z</ec-msc:expires>
+  </ec-msc:Current-Alerts>
+ </wfs:member>
+ <wfs:member>
+  <ec-msc:Current-Alerts gml:id="Current-Alerts.2">
+   <ec-msc:msGeometry><gml:Polygon srsName="urn:ogc:def:crs:EPSG::4326" gml:id="p2"><gml:exterior><gml:LinearRing><gml:posList>45 -75 46 -75 46 -74 45 -74 45 -75</gml:posList></gml:LinearRing></gml:exterior></gml:Polygon></ec-msc:msGeometry>
+   <ec-msc:identifier>urn:oid:2.49.0.1.124.2</ec-msc:identifier>
+   <ec-msc:area>Ottawa</ec-msc:area>
+   <ec-msc:alert_type>wind warning</ec-msc:alert_type>
+   <ec-msc:expires>2099-01-01T00:00:00Z</ec-msc:expires>
+  </ec-msc:Current-Alerts>
+ </wfs:member>
+</wfs:FeatureCollection>'''
+    fc = gml_features(gml)
+    assert len(fc["features"]) == 2 and fc["features"][0]["properties"]["area"] == "Metro Vancouver"
+    assert fc["features"][0]["geometry"]["coordinates"][0][0][0] == (-124.0, 49.0)        # lon, lat
+    out = parse_eccc(fc)
+    assert len(out) == 1 and out[0]["name"] == "Metro Vancouver" and out[0]["alert"] == "orange" and 49.0 <= out[0]["lat"] <= 50.0 and -124.0 <= out[0]["lon"] <= -122.0
+    try:
+        gml_features('<?xml version="1.0"?><ows:ExceptionReport xmlns:ows="http://www.opengis.net/ows/1.1"><ows:Exception><ows:ExceptionText>TYPENAME nope</ows:ExceptionText></ows:Exception></ows:ExceptionReport>')
+    except ValueError as e:
+        assert "TYPENAME nope" in str(e)
+    else:
+        raise AssertionError("an exception report must raise")

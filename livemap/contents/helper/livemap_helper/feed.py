@@ -1,6 +1,7 @@
 """The Events widget's list: every layer's events, history, the newest-first bookkeeping."""
 import json
 import re
+import time
 import os
 import urllib.error
 import urllib.request
@@ -198,7 +199,7 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
         rows = [["Class", "%s%s" % (it.get("kind") or "", " \u00b7 category %d" % it["cat"] if it.get("cat") else "")],
                 ["Wind", extra.get("wind") or ""],
                 ["Position", _pos(it.get("lat"), it.get("lon"))],
-                ["Last fix", ("just now" if float(it["hours"]) < 0.02 else _hours(it["hours"]) + " ago") if it.get("hours") is not None else ""],
+                _at("Last fix", time.time() - float(it["hours"]) * 3600) if it.get("hours") is not None else ["Last fix", ""],
                 ["Centre", (it.get("source") or "GDACS") + (" \u00b7 cone from JTWC's mean errors" if it.get("cone_estimated") else "")],
                 ["Was named", str(it.get("was_named") or "").title() if it.get("was_named") else ""],
                 ["In its path", extra.get("ahead") or ""],
@@ -207,7 +208,8 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
     elif kind == "volcano":
         rows = [["Alert level", "%s%s" % (it.get("level") or "", " (%s)" % it["alert"] if it.get("alert") else "")],
                 ["Observatory", it.get("observatory") or "USGS / Smithsonian"],
-                ["Ash", ("to FL%s" % it["ash_top_fl"] if it.get("ash_top_fl") else "advisory in force") + (" \u00b7 %s ago" % _hours(it["ash_hours"]) if it.get("ash_hours") is not None else "") if it.get("ash_hours") is not None or it.get("ash_top_fl") else ""],
+                ["Ash", ("to FL%s" % it["ash_top_fl"] if it.get("ash_top_fl") else "advisory in force") if it.get("ash_hours") is not None or it.get("ash_top_fl") else ""],
+                _at("Ash advisory", time.time() - float(it["ash_hours"]) * 3600) if it.get("ash_hours") is not None else ["Ash advisory", ""],
                 ["Status", it.get("status") or ""],
                 ["Position", _pos(it.get("lat"), it.get("lon"))]]
     elif kind == "fire":
@@ -451,6 +453,15 @@ def cmd_feed(args):
             items.append(it)
     except Exception:
         pass
+    # every bubble says when: an item whose facts carry no dated row gets "Reported" from the event's own time
+    for it in items:
+        if it.get("pin") or not it.get("when"):
+            continue
+        facts = it.get("facts") or []
+        if not any(len(row) > 2 for row in facts):
+            label = "Launch" if it.get("future") else "Reported"
+            facts = facts + [_at(label, it["when"])] if it.get("future") else [_at(label, it["when"])] + facts
+            it["facts"] = [row for row in facts if row[1]]
     try:
         alert_strip = alert_history(6)
     except Exception as e:
