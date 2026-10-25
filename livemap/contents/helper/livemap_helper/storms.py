@@ -7,7 +7,7 @@ from collections import Counter
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import _http, _split, emit, haversine_km, last_good, remember_events, safe_xml, stale_note, storm_kind
+from .common import _http, _split, emit, haversine_km, last_good, remember_events, safe_xml, stale_note, storm_kind, fetch_json
 from .infra import _remember_impacts, impact_text, storm_impacts
 
 
@@ -64,7 +64,7 @@ def gdacs_list():
     last = None
     for attempt in range(2):
         try:
-            return json.loads(_http(GDACS, timeout=20)[2])
+            return fetch_json(GDACS, timeout=20)
         except Exception as e:
             last = e
     raise last
@@ -233,7 +233,7 @@ def fetch_storms_nhc():
     import time
     from datetime import datetime, timezone
     now, storms = time.time(), []
-    body = json.loads(_http(NHC, timeout=15)[2].decode("utf-8", "replace"))
+    body = fetch_json(NHC, timeout=15)
     for st in body.get("activeStorms") or []:
         try:
             lat, lon = float(st["latitudeNumeric"]), float(st["longitudeNumeric"])

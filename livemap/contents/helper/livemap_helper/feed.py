@@ -11,7 +11,7 @@ import urllib.request
 from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, dist_text, speed_text, _http
+    wind_text, dist_text, speed_text, _http, fetch_json
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -125,7 +125,7 @@ def quake_pictures(ids):
         looked += 1
         image = ""
         try:
-            d = json.loads(_http(USGS_DETAIL % qid, timeout=8)[2].decode("utf-8", "replace"))
+            d = fetch_json(USGS_DETAIL % qid, timeout=8)
             sm = ((d.get("properties") or {}).get("products") or {}).get("shakemap") or []
             contents = (sm[0].get("contents") or {}) if sm else {}
             for key in ("download/intensity.jpg", "download/pga.jpg", "download/pin-thumbnail.png"):

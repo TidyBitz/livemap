@@ -10,7 +10,7 @@ import urllib.request
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .common import DATA, MAX_BODY, UA, _http, _places_index, emit, haversine_km, last_good, remember_events, \
-    stale_note
+    stale_note, fetch_json
 from .floods import _ring_centre, flood_area
 from .storms import gdacs_list
 
@@ -359,7 +359,7 @@ def _poly_centre(rings):
 def fetch_nifc():
     """US incidents with perimeters: one per open wildfire (prescribed burns left out by the query)."""
     from datetime import datetime
-    geo = json.loads(_http(NIFC, timeout=40, limit=MAX_BODY)[2])
+    geo = fetch_json(NIFC, timeout=40, limit=MAX_BODY)
     if "error" in geo:
         raise ValueError("NIFC: %s" % (geo["error"].get("message") or geo["error"]))
     now, out = time.time(), []
@@ -391,10 +391,10 @@ def fetch_cwfis():
     """Canada: the active-fires list joined to the nearest M3 perimeter estimate of the last two weeks."""
     from datetime import datetime
     now = time.time()
-    fires = json.loads(_http(CWFIS_FIRES, timeout=30)[2]).get("features", [])
+    fires = fetch_json(CWFIS_FIRES, timeout=30).get("features", [])
     try:
         since_day = datetime.utcfromtimestamp(now - 14 * 86400).strftime("%Y-%m-%d")
-        perims = json.loads(_http(CWFIS_PERIMS % since_day, timeout=40, limit=MAX_BODY)[2]).get("features", [])
+        perims = fetch_json(CWFIS_PERIMS % since_day, timeout=40, limit=MAX_BODY).get("features", [])
     except Exception:
         perims = []
     polys = []
@@ -443,7 +443,7 @@ def fetch_effis():
     from datetime import datetime
     now = time.time()
     since_day = datetime.utcfromtimestamp(now - 21 * 86400).strftime("%Y-%m-%d")
-    geo = json.loads(_http(EFFIS % since_day, timeout=40, limit=MAX_BODY)[2])
+    geo = fetch_json(EFFIS % since_day, timeout=40, limit=MAX_BODY)
     out = []
     for f in geo.get("features", []):
         pr = f.get("properties") or {}

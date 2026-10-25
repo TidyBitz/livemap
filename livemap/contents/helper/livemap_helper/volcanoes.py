@@ -11,7 +11,7 @@ from collections import Counter
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .common import DATA, EVENTS, MAX_BODY, PKG, UA, VERSION, _http, _plain, emit, last_good, remember_events, safe_xml, \
-    stale_note
+    stale_note, fetch_json
 
 
 # ------------------------------------------------------------ volcanoes -----
@@ -128,10 +128,10 @@ def fetch_usgs_alerts(now=None):
     mentioned in (remembered in events.json so a notice is read once)."""
     import time
     now = now or time.time()
-    rows = json.loads(_http(USGS_HANS + "volcano/getElevatedVolcanoes")[2].decode("utf-8", "replace"))
+    rows = fetch_json(USGS_HANS + "volcano/getElevatedVolcanoes")
     caps = {}
     try:
-        for c in json.loads(_http(USGS_HANS + "volcano/getCapElevated")[2].decode("utf-8", "replace")):
+        for c in fetch_json(USGS_HANS + "volcano/getCapElevated"):
             caps[str(c.get("vnum"))] = c
     except Exception:
         pass
@@ -149,7 +149,7 @@ def fetch_usgs_alerts(now=None):
         if lat is None and r.get("notice_data") and r["notice_data"] not in fetched:
             fetched.add(r["notice_data"])
             try:                                            # one notice names every volcano it covers, with lat/lng
-                notice = json.loads(_http(r["notice_data"])[2].decode("utf-8", "replace"))
+                notice = fetch_json(r["notice_data"])
                 for sec in notice.get("notice_sections") or []:
                     if sec.get("lat") is not None and sec.get("vnum"):
                         coords[str(sec["vnum"])] = [float(sec["lat"]), float(sec["lng"])]
@@ -203,7 +203,7 @@ def parse_geonet(body):
 
 
 def fetch_geonet_alerts():
-    body = json.loads(_http(GEONET_VAL, timeout=12, headers=GEONET_HEADERS)[2].decode("utf-8", "replace"))
+    body = fetch_json(GEONET_VAL, timeout=12, headers=GEONET_HEADERS)
     return parse_geonet(body)
 
 
@@ -256,7 +256,7 @@ def parse_jma(body, table=None):
 
 
 def fetch_jma_alerts():
-    body = json.loads(_http(JMA_WARNINGS, timeout=12)[2].decode("utf-8", "replace"))
+    body = fetch_json(JMA_WARNINGS, timeout=12)
     return parse_jma(body)
 
 
@@ -332,7 +332,7 @@ def gvp_eruptions(max_age_h=24):
             return c["eruptions"]
     except (OSError, ValueError):
         pass
-    body = json.loads(_http(GVP_WFS)[2].decode("utf-8", "replace"))
+    body = fetch_json(GVP_WFS)
     out = {}
     for f in body.get("features", []):
         p = f.get("properties") or {}

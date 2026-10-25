@@ -338,7 +338,7 @@ NWS_UA = dict(UA, Accept="application/geo+json")
 
 def _nws_get(url, timeout=12):
     """api.weather.gov wants a GeoJSON Accept header and an identifiable user agent."""
-    return json.loads(_http(url, timeout=timeout, headers=NWS_UA)[2])
+    return fetch_json(url, timeout=timeout, headers=NWS_UA)
 
 
 def _plain(t):
@@ -572,6 +572,21 @@ def _http(url, method="GET", timeout=6, limit=MAX_BODY, headers=None):
         if len(body) > limit:
             raise ValueError("response larger than %d MB" % (limit // 1048576))
         return r.status, r.headers, body, time.time() - t0
+
+
+def fetch_json(url, timeout=6, limit=MAX_BODY, headers=None, what=""):
+    """GET a JSON document, and when it is not one say what came back instead: the content type and the first
+    line of the body - an OGC ExceptionReport names its own error, an HTML page names the outage. "Expecting
+    value: line 1 column 1" told nobody that Environment Canada's WFS did not know the type name."""
+    status, hdrs, body, _t = _http(url, timeout=timeout, limit=limit, headers=headers)
+    try:
+        return json.loads(body)
+    except ValueError:
+        ctype = str(hdrs.get("Content-Type", "") if hasattr(hdrs, "get") else "").split(";")[0].strip() or "unknown type"
+        text = body[:4000].decode("utf-8", "replace")
+        m = re.search(r"<(?:ows:)?ExceptionText>\s*(.*?)\s*</", text, re.S) or re.search(r"<title>\s*(.*?)\s*</title>", text, re.S | re.I)
+        gist = " ".join((m.group(1) if m else text.strip().splitlines()[0] if text.strip() else "empty body").split())[:140]
+        raise ValueError("%snot JSON (%s, HTTP %s): %s" % ((what + ": ") if what else "", ctype, status, gist))
 
 
 def safe_xml(text):

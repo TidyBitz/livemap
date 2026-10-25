@@ -5,7 +5,7 @@ import re
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import DATA, _http, emit, last_good, stale_note
+from .common import DATA, _http, emit, last_good, stale_note, fetch_json
 
 
 # ---------------------------------------------------------------- space -----
@@ -211,7 +211,7 @@ def fetch_crews(max_age_h=4):
             return c["crews"]
     except (OSError, ValueError):
         c = {}
-    body = json.loads(_http(LL2_IN_SPACE, timeout=12)[2].decode("utf-8", "replace"))
+    body = fetch_json(LL2_IN_SPACE, timeout=12)
     crews = {"ISS": [], "Tiangong": []}
     for a in body.get("results", []):
         ag = a.get("agency") or {}
@@ -252,7 +252,7 @@ def fetch_launches(max_age_h=1):
     except (OSError, ValueError):
         pass
     from datetime import datetime, timezone
-    body = json.loads(_http(LL2)[2].decode("utf-8", "replace"))
+    body = fetch_json(LL2)
     out = []
     for L in body.get("results", []):
         pad = L.get("pad") or {}

@@ -10,7 +10,7 @@ import re
 import time
 import unicodedata
 
-from .common import DATA, PKG, UA, _http, _split, last_good, safe_xml  # noqa: F401
+from .common import DATA, PKG, UA, _http, _split, fetch_json, last_good, safe_xml  # noqa: F401
 
 # which official warning sources join the flood layer: a bitmask like the fire sources (NWS is its own switch)
 WARN_METEOALARM, WARN_ECCC, WARN_EA = 2, 4, 8
@@ -138,7 +138,7 @@ def fetch_meteoalarm():
     out, failed = [], []
     for slug in METEOALARM_COUNTRIES:
         try:
-            body = json.loads(_http(METEOALARM % slug, timeout=12, headers=dict(UA, Accept="*/*"))[2].decode("utf-8", "replace"))
+            body = fetch_json(METEOALARM % slug, timeout=12, headers=dict(UA, Accept="*/*"))
             out += parse_meteoalarm(body, slug)
         except Exception as e:
             failed.append("%s: %s" % (slug, str(e)[:40]))
@@ -186,7 +186,7 @@ def parse_eccc(body):
 
 
 def fetch_eccc():
-    body = json.loads(_http(ECCC_WFS, timeout=20)[2].decode("utf-8", "replace"))
+    body = fetch_json(ECCC_WFS, timeout=20)
     return {"alerts": parse_eccc(body), "failed": []}
 
 
@@ -213,7 +213,7 @@ def ea_area_rings(area_id, polygon_url, budget):
     if budget[0] <= 0 or not polygon_url:
         return [], 0
     budget[0] -= 1
-    geo = json.loads(_http(polygon_url.replace("http://", "https://"), timeout=12)[2].decode("utf-8", "replace"))
+    geo = fetch_json(polygon_url.replace("http://", "https://"), timeout=12)
     rings = flood_area(geo if geo.get("type") == "FeatureCollection" else {"features": [geo]})[:6]
     try:
         f.write_text(json.dumps(rings, separators=(",", ":")), encoding="utf-8")
@@ -254,7 +254,7 @@ def parse_ea(body, budget=None):
 
 
 def fetch_ea():
-    body = json.loads(_http(EA_FLOODS, timeout=15)[2].decode("utf-8", "replace"))
+    body = fetch_json(EA_FLOODS, timeout=15)
     return {"alerts": parse_ea(body), "failed": []}
 
 

@@ -7,7 +7,7 @@ import urllib.request
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import PKG, DATA, MAX_BODY, UA, _http, emit, last_good, stale_note
+from .common import PKG, DATA, MAX_BODY, UA, _http, emit, last_good, stale_note, fetch_json
 
 
 # ---------------------------------------------------------------- air raid alerts ----
@@ -102,7 +102,7 @@ def fetch_air_alerts(token=""):
                 e["latest"] = since                           # the newest alert inside the oblast: a raion or city joining
         source = "alerts.in.ua"
     else:
-        data = json.loads(_http(ALERTS_MIRROR, timeout=15)[2])
+        data = fetch_json(ALERTS_MIRROR, timeout=15)
         for title, st in (data.get("states") or {}).items():
             if not (st or {}).get("alertnow"):
                 continue

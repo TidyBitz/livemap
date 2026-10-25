@@ -8,7 +8,7 @@ import urllib.request
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .common import DATA, MAX_BODY, NWS_UA, VERSION, _http, _nws_get, _split, emit, last_good, remember_events, \
-    stale_note
+    stale_note, fetch_json
 from .storms import gdacs_list
 
 
@@ -105,11 +105,11 @@ def fetch_floods(detail_levels=("orange", "red")):
         if fl["alert"] in detail_levels:
             urls = pr.get("url") or {}
             try:
-                fl["people"] = _sendai_summary(json.loads(_http(urls.get("details"), timeout=12)[2]))
+                fl["people"] = _sendai_summary(fetch_json(urls.get("details"), timeout=12))
             except Exception as e:
                 fl["problem"] = "details: %s" % e
             try:
-                fl["area"] = flood_area(json.loads(_http(urls.get("geometry"), timeout=15, limit=MAX_BODY)[2]))
+                fl["area"] = flood_area(fetch_json(urls.get("geometry"), timeout=15, limit=MAX_BODY))
             except Exception as e:
                 fl["problem"] = "geometry: %s" % e
         floods.append(fl)

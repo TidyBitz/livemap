@@ -5,7 +5,7 @@ import os
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import DATA, _age, _http, emit, last_good, safe_xml, stale_note
+from .common import DATA, _age, _http, emit, last_good, safe_xml, stale_note, fetch_json
 
 
 # -------------------------------------------------------------- tsunami -----
@@ -103,7 +103,7 @@ def tsunami_segments(json_url):
     """The threatened coast from the bulletin's own JSON: [[name, lat, lon, lat2, lon2, category], ...] from the
     breakpoint segments, and the named areas. Empty for an information statement."""
     try:
-        d = json.loads(_http(json_url.replace("http://", "https://"), timeout=12)[2].decode("utf-8", "replace"))
+        d = fetch_json(json_url.replace("http://", "https://"), timeout=12)
     except Exception:
         return [], []
     segs, areas = [], []

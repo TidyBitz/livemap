@@ -432,3 +432,23 @@ def test_alert_history_spans(data_dir, monkeypatch):
     monkeypatch.setattr(time, "time", lambda: t0 + 7500)
     rows = alerts.alert_history(6)["rows"]
     assert len(rows) == 1 and rows[0]["name"] == "Kyiv" and rows[0]["active"] and len(rows[0]["spans"]) == 2 and rows[0]["on_minutes"] == 60
+
+
+def test_fetch_json_says_what_came_back(no_network):
+    """A source answering with XML or HTML must name its own error, not 'Expecting value: line 1 column 1'."""
+    from livemap_helper.common import fetch_json
+    no_network("example.org/ogc", '<?xml version="1.0"?><ows:ExceptionReport><ows:Exception exceptionCode="InvalidParameterValue" locator="typename">'
+                                  '<ows:ExceptionText>msWFSGetFeature(): WFS server error. TYPENAME \'ALERTS\' doesn\'t exist in this server.</ows:ExceptionText></ows:Exception></ows:ExceptionReport>')
+    no_network("example.org/down", "<html><head><title>503 Service Unavailable</title></head><body>later</body></html>")
+    no_network("example.org/ok", '{"a": 1}')
+    assert fetch_json("https://example.org/ok") == {"a": 1}
+    try:
+        fetch_json("https://example.org/ogc", what="ECCC")
+    except ValueError as e:
+        assert "ECCC: not JSON" in str(e) and "TYPENAME 'ALERTS' doesn't exist" in str(e)
+    else:
+        raise AssertionError("no error for XML")
+    try:
+        fetch_json("https://example.org/down")
+    except ValueError as e:
+        assert "503 Service Unavailable" in str(e)

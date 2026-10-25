@@ -1,0 +1,41 @@
+# Every data source, against the live internet, once a day. The parsers' unit tests run on recorded fixtures and
+# pass for as long as the fixtures do; this is what notices a source that changed its format, moved, or went away
+# (Environment Canada's WFS type name was wrong for weeks while every test was green). A failing run is the signal:
+# the job's log names the source and what it answered.
+name: sources
+
+on:
+  schedule:
+    - cron: "17 6 * * *"        # daily, 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ask every source
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/data
+        run: |
+          python3 livemap/contents/helper/livemap-helper.py status --feed 4.5_day > status.json || true
+          python3 - <<'PY'
+          import json, sys
+          st = json.load(open("status.json"))
+          bad, warn = [], []
+          for c in st.get("checks", []):
+              line = "%-48s %-5s %s" % (c["name"], c["state"], c.get("detail", "")[:140])
+              print(line)
+              (bad if c["state"] == "error" else warn if c["state"] == "warn" else []).append(line)
+          # local files are not expected on a runner: maps, borders, GeoIP, lights, infrastructure
+          local = ("Seasonal maps", "Hi-res seasonal maps", "City lights", "Map style imagery", "Borders", "GeoIP", "Oil and gas infrastructure", "Plate boundaries", "Connections (ss)", "Power and load")
+          bad = [b for b in bad if not b.startswith(local)]
+          print("\n%d sources failing, %d warnings" % (len(bad), len(warn)))
+          if bad:
+              print("\nFAILING:\n" + "\n".join(bad))
+              sys.exit(1)
+          PY

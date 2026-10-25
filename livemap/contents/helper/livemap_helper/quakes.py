@@ -6,7 +6,7 @@ import json
 import time
 from datetime import datetime, timezone
 
-from .common import DATA, _age, _http, haversine_km
+from .common import DATA, _age, _http, haversine_km, fetch_json
 
 USGS = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/%s.geojson"
 EMSC = "https://www.seismicportal.eu/fdsnws/event/1/query?format=json&orderby=time&limit=600&minmag=%s&start=%s"
@@ -18,7 +18,7 @@ SAME_KM, SAME_SECONDS = 120, 90                   # the same quake in both catal
 
 
 def fetch_usgs(feed):
-    body = json.loads(_http(USGS % feed, timeout=12)[2].decode("utf-8", "replace"))
+    body = fetch_json(USGS % feed, timeout=12)
     if "features" not in body:
         raise ValueError("not a USGS feed")
     for f in body["features"]:
