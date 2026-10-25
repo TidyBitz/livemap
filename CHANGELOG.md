@@ -5,6 +5,15 @@ release notes written at the time; their dates are the day the version was hande
 
 ## 0.48 - unreleased
 
+### Added
+- ISS and Tiangong passes over your home place. Satellites > "Passes over you": from the same orbital elements,
+  when a station will cross your sky - rise, highest point and set with compass directions and how long you
+  can see it - in the widget's Satellites group an hour ahead (SOON when minutes away; the launch sound covers
+  it) and the next three in the station's bubble. A pass counts as visible only when your sky is dark and the
+  station is still in sunlight, which is physics, not a setting; daytime passes are left out unless you ask for
+  every pass. Cloud over your home from the live cloud image is shown as a hint and never hides a pass.
+  Helper: `passes --lat --lon [--all] [--table]`.
+
 ### Changed
 - Air raid alerts redrawn. Edge lights (new default): an oblast under alert has its border glow in the alert
   colour and the imagery inside it - the city lights, the terrain - stays as it is; a new alert breathes
