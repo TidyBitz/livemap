@@ -19,10 +19,19 @@ CPU or GPU is busy, and a daily probe on GitHub asks every source whether it sti
 
 | | |
 |---|---|
-| ![Ukraine's air raid alerts as edge lights over the night map](docs/screenshots/air-raid-edges.webp) | ![The widget's Air raid alerts group with its six-hour strip](docs/screenshots/widget-air-raid-strip.webp) |
+| ![Europe at night: flood warnings in blue and orange, the air raid alerts as edge lights](docs/screenshots/europe-night-air-raid.webp) | ![The widget's Air raid alerts group with its six-hour strip](docs/screenshots/widget-air-raid-strip.webp) |
 | *Air raid alerts as edge lights: a new alert breathes brightest red, settled ones hold a steady edge, the frontline's long-running ones drop to ochre, all-clears fade in cool blue - the city lights inside stay* | *The widget: under the Air raid alerts header, one row per oblast for the last six hours - a bar for every alert, newest on the right* |
 | ![The widget's preview bubble for a storm: the satellite's view and the facts](docs/screenshots/widget-storm-bubble.webp) | ![The settings' Essentials page](docs/screenshots/settings-essentials.webp) |
 | *Rest the pointer on an event and a bubble says what the feed knows - here In-Fa, with NASA's latest satellite pass, winds, position, the last fix and when the record changed* | *Settings: a sidebar with a switch and a health dot per layer, Essentials first - style, profile, home, framing and the widget* |
+
+### Styles
+
+| | |
+|---|---|
+| ![Matrix style](docs/screenshots/world-matrix.webp) | ![Dark cartographic style](docs/screenshots/world-dark-cartographic.webp) |
+| *Matrix: phosphor green, a scanline, monospaced labels* | *Dark cartographic: your own land and ocean colours, the events in theirs* |
+| ![Dark Matter style](docs/screenshots/world-dark-matter.webp) | ![Air raid alerts close up](docs/screenshots/air-raid-edges.webp) |
+| *Dark Matter: greys, the city lights the only colour besides the events* | *The alert edges up close: new brightest, settled steady, frontline ochre, all-clear fading blue* |
 
 ### A closer look
 

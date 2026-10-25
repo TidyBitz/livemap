@@ -487,11 +487,18 @@ def cmd_incidents(args):
     """`incidents --sources nifc,cwfis,effis [--min-ha 100] [--table]`: the named fires, with perimeters where mapped."""
     notes, items = [], []
     wanted = [x for x in (args.sources or ",".join(INCIDENT_SOURCES)).split(",") if x in INCIDENT_SOURCES]
+    failed, answered = [], 0
     for src in wanted:
         data, stale_h, err = incidents_cached(src, args.max_age)
         if err:
-            notes.append(stale_note({"nifc": "US fire incidents", "cwfis": "Canadian fires", "effis": "European burnt areas"}[src], stale_h, err, args.stale))
+            failed.append(stale_note({"nifc": "US fire incidents", "cwfis": "Canadian fires", "effis": "European burnt areas"}[src], stale_h, err, args.stale))
+        else:
+            answered += 1
         items += [it for it in (data or []) if it["area_ha"] >= args.min_ha]
+    # one source down among several (EFFIS 502 for a day) is a Status matter - the Status page and the widget's
+    # Status tab name it; the desktop's corner notice only when no incident source answers at all
+    if failed and answered == 0:
+        notes += failed
     try:
         items = remember_events("incident", items, lambda it: it["id"], args.keep, sig_of=lambda it: "%s/%s" % (it.get("stage"), (it.get("contained") or 0) // 25))
     except Exception as e:

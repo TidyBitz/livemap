@@ -304,14 +304,19 @@ def official_floods(mask, max_age_min=10, stale_limit=6):
     """Every official flood warning source in the mask (1 NWS, 2 MeteoAlarm, 4 ECCC, 8 EA): (alerts, note)."""
     from .warnings import warnings_cached
     alerts, notes = [], []
+    nws_note = ""
     if mask & 1:
         data, stale_h, err = nws_floods_cached(max_age_min)
         if err:
-            notes.append(stale_note("US flood alerts", stale_h, err, stale_limit))
+            nws_note = stale_note("US flood alerts", stale_h, err, stale_limit)
         alerts += data or []
     if mask & ~1:
         more, more_notes = warnings_cached(mask)
         alerts += more
+        if nws_note and not more:
+            notes.append(nws_note)                         # NWS down and nothing else answering either
+    elif nws_note:
+        notes.append(nws_note)                             # NWS is the only official source asked
         # a secondary source that fails (MeteoAlarm's Malta, ECCC answering with something that is not JSON) is a
         # Status matter - the settings' Status page and the widget's Status tab show it per source - not a corner
         # notice on the desktop for days. The desktop hears of it only when every official source is out.
