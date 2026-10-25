@@ -158,8 +158,12 @@ WallpaperItem {
     readonly property bool hiresMaps: frameLoader.item ? frameLoader.item.hires : false
     readonly property bool wantFrame: mapStyle !== 0 || (cfg.Seasonal && (hiresMaps || (!viewIsWorld && (viewE - viewW) < 200)))
     // 3 dark cartographic (own colours), 4 Dark Matter (greys), 5 Matrix (phosphor green): all drawn by the helper as land over ocean
-    readonly property bool flatStyle: mapStyle >= 3
-    readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : flatStyle ? "dark" : "seasonal"
+    readonly property bool flatStyle: mapStyle >= 3 && mapStyle <= 5
+    // 6 classic: NASA's 2002 Blue Marble, one picture, shipped with the package (a hi-res copy in base/ if the user has one)
+    readonly property bool classicStyle: mapStyle === 6
+    readonly property string classicUrl: Qt.resolvedUrl("../images/classic.jpg")
+    readonly property string plainUrl: classicStyle ? classicUrl : fallbackUrl       // the whole-world picture for the styles with one
+    readonly property string frameStyle: mapStyle === 1 ? "viirs" : mapStyle === 2 ? "relief" : flatStyle ? "dark" : classicStyle ? "classic" : "seasonal"
     readonly property string landColour: mapStyle === 4 ? "#2a2a2a" : mapStyle === 5 ? "#0b2a14" : String(cfg.LandColor)
     readonly property string oceanColour: mapStyle === 4 ? "#121212" : mapStyle === 5 ? "#020804" : String(cfg.OceanColor)
     onMapStyleChanged: Look.matrix = mapStyle === 5
@@ -272,7 +276,7 @@ WallpaperItem {
                     asynchronous: true
                     visible: root.wantFrame && !root.viewIsWorld && !root.flatStyle
                     sourceSize: Qt.size(4096, 2048)
-                    source: !visible || !map.sized ? "" : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
+                    source: !visible || !map.sized ? "" : root.seasonal && !root.classicStyle ? root.monthUrl(root.season.a) : root.plainUrl
                     opacity: root.mapStyle === 0 ? 1 : 0.6     // the same picture as the frame in the seasonal style: only the sharpness changes at the edge
                 }
                 Image {
@@ -282,10 +286,10 @@ WallpaperItem {
                     sourceSize: baseGroup.ftex
                     source: !map.sized ? ""
                         : root.wantFrame ? (baseGroup.framed ? baseGroup.frameUrl(root.mapStyle === 0 ? "base" + (root.season.a < 10 ? "0" : "") + root.season.a + ".jpg" : root.flatStyle ? "base.png" : "base.jpg")
-                                                             : root.flatStyle ? "" : root.seasonal && root.mapStyle === 0 ? root.monthUrl(root.season.a) : root.fallbackUrl)
-                        : root.seasonal ? root.monthUrl(root.season.a) : root.fallbackUrl
+                                                             : root.flatStyle ? "" : root.seasonal && root.mapStyle === 0 ? root.monthUrl(root.season.a) : root.plainUrl)
+                        : root.seasonal && !root.classicStyle ? root.monthUrl(root.season.a) : root.plainUrl
                     onStatusChanged: {
-                        if (status === Image.Error && root.seasonal && !baseGroup.framed) root.seasonalOk = false;
+                        if (status === Image.Error && root.seasonal && !root.classicStyle && !baseGroup.framed) root.seasonalOk = false;
                         if (status === Image.Ready || status === Image.Error)
                             console.warn("livemap: base map", status === Image.Ready ? "loaded" : "FAILED", source);
                     }

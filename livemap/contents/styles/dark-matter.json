@@ -1,6 +1,6 @@
 {
  "name": "Dark Matter",
- "order": 4,
+ "order": 5,
  "description": "Near-black cartographic base; every line and label in greys, events in muted warm colours.",
  "version": 1,
  "values": {

@@ -142,7 +142,7 @@ def main():
     fs = sub.add_parser("frame-state"); fs.add_argument("--set", choices=["building", "ready", "failed"]); fs.add_argument("--note", default=""); fs.add_argument("--style", default="")
     fs.set_defaults(fn=cmd_frame_state)
     for name, fn in (("fetch-frame", cmd_fetch_frame), ("frame", cmd_frame)):
-        fr = sub.add_parser(name); fr.add_argument("--style", default="seasonal", choices=["seasonal", "viirs", "relief", "dark"])
+        fr = sub.add_parser(name); fr.add_argument("--style", default="seasonal", choices=["seasonal", "viirs", "relief", "dark", "classic"])
         fr.add_argument("--land", default="#2b3542"); fr.add_argument("--ocean", default="#0b1119"); fr.add_argument("--detail", default="50m", choices=["110m", "50m"])
         fr.add_argument("--north", type=float, default=90); fr.add_argument("--south", type=float, default=-90)
         fr.add_argument("--west", type=float, default=-180); fr.add_argument("--east", type=float, default=180)

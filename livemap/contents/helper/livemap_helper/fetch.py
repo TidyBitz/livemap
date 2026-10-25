@@ -10,7 +10,7 @@ from datetime import date
 # Python tries a host's addresses one after another and waits for each to time out. On a network
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
-from .common import BORDERS, DATA, GEOIP, MAX_DOWNLOAD, MONTHS, NASA, NIGHT_URL, _http, download, emit, have_hires
+from .common import BORDERS, DATA, PKG, GEOIP, MAX_DOWNLOAD, MONTHS, NASA, NIGHT_URL, _http, download, emit, have_hires
 
 
 def cmd_fetch_geoip(_args):
@@ -226,6 +226,15 @@ def frame_progress(done, total, what=""):
         pass
 
 
+def classic_source():
+    """The 2002 Blue Marble: a higher-resolution copy in the data folder when the user has put one there
+    (base/classic.jpg), else the 2 576 px picture that ships with the package."""
+    for cand in (DATA / "base" / "classic.jpg", PKG / "images" / "classic.jpg"):
+        if cand.exists():
+            return cand
+    raise FileNotFoundError("the classic Blue Marble picture is missing from the package")
+
+
 def cmd_fetch_frame(args):
     """Imagery for one frame and style into frames/<key>/ (see the notes above). Needs python3-pillow."""
     from datetime import date, timedelta
@@ -256,6 +265,11 @@ def cmd_fetch_frame(args):
             crop_world_image(src, n, so, w, e, width, height).save(dest / ("base%02d.jpg" % i), quality=90)
             print("  month %02d cropped from %s" % (i, src.name))
             frame_progress(i, 13, "month %02d" % i)
+    elif args.style == "classic":                 # NASA's 2002 Blue Marble, one picture: cut to the frame like a month
+        src = classic_source()
+        crop_world_image(src, n, so, w, e, width, height).save(dest / "base.jpg", quality=90)
+        print("  classic Blue Marble cropped from %s" % src)
+        frame_progress(1, 2, "cropped")
     elif args.style in GIBS_LAYERS:
         if args.style == "viirs":                  # today's picture is still being taken: yesterday's is whole
             day = (date.today() - timedelta(days=1)).isoformat() if not args.date else args.date

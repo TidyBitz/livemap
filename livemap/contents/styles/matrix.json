@@ -1,6 +1,6 @@
 {
  "name": "Matrix",
- "order": 5,
+ "order": 6,
  "description": "Black ocean, darkest-green land, graticule, monospace labels with a green glow, scanlines; every line and label green.",
  "version": 1,
  "values": {

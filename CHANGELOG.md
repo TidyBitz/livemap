@@ -6,6 +6,10 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- A seventh base map, "Classic Blue Marble (NASA 2002, static)": the original composite the wallpaper was built
+  around - the same in every season, with the ice and the deep blue ocean - shipped with the package at 2 576 px
+  (a bigger copy saved as base/classic.jpg in the data folder is used instead), cut to the frame like the
+  monthly maps, with the map tone and the night side applying. Also a built-in style of that name.
 - ISS and Tiangong passes over your home place. Satellites > "Passes over you": from the same orbital elements,
   when a station will cross your sky - rise, highest point and set with compass directions and how long you
   can see it - in the widget's Satellites group an hour ahead (SOON when minutes away; the launch sound covers

@@ -46,7 +46,7 @@ Item {
         if (helper === "" || busy) return;
         exec.connectSource("python3 '" + helper + "' frame" + frameArgs + " # " + Date.now());
     }
-    readonly property string styleWords: style === "viirs" ? "yesterday's satellite picture" : style === "relief" ? "relief and bathymetry" : style === "dark" ? "land and ocean" : "the monthly maps cut to size"
+    readonly property string styleWords: style === "viirs" ? "yesterday's satellite picture" : style === "relief" ? "relief and bathymetry" : style === "dark" ? "land and ocean" : style === "classic" ? "the classic Blue Marble cut to size" : "the monthly maps cut to size"
     // the settings page shows what is going on here (helper `frame-state`): building, ready, or why not
     function report(state, text) { if (helper !== "") exec.connectSource("python3 '" + helper + "' frame-state --set " + state + " --style " + style + " --note '" + String(text).replace(/'/g, "") + "' # " + Date.now()); }
     function fetch() {

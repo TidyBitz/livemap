@@ -1,0 +1,9 @@
+{
+ "name": "Classic Blue Marble",
+ "order": 1,
+ "description": "NASA's 2002 Blue Marble, the one picture the wallpaper was built around: static, the same in every season.",
+ "version": 1,
+ "values": {
+  "MapStyle": 6
+ }
+}

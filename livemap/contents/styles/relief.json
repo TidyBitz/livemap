@@ -1,6 +1,6 @@
 {
  "name": "Relief",
- "order": 2,
+ "order": 3,
  "description": "Shaded relief and bathymetry, default colours.",
  "version": 1,
  "values": {

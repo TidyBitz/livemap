@@ -841,7 +841,7 @@ RowLayout {
     // cartographic, 4 Dark Matter, 5 Matrix)
     function swatchColours(base) {
         return [["#2d5f8a", "#3b6b3a", "#ffffff"], ["#0a2a4a", "#15528f", "#ffffff"], ["#d9c9a3", "#7f9a62", "#2b2418"],
-                ["#1b2129", "#2e3946", "#ffffff"], ["#0d0d0d", "#2b2b2b", "#ffffff"], ["#000000", "#0b3b1f", "#7dffb0"]][base] || ["#4a4f55", "#6b7178", "#ffffff"];
+                ["#1b2129", "#2e3946", "#ffffff"], ["#0d0d0d", "#2b2b2b", "#ffffff"], ["#000000", "#0b3b1f", "#7dffb0"], ["#0a1a33", "#3f6b2e", "#ffffff"]][base] || ["#4a4f55", "#6b7178", "#ffffff"];
     }
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
@@ -1202,14 +1202,14 @@ RowLayout {
         // #################################################################### Map base
 
         // ==================================================================== Map
-        SectionHeader { id: sec1; title: "Map"; group: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && mapStyle.currentIndex < 3 ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
+        SectionHeader { id: sec1; title: "Map"; group: "Map"; sourceNames: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"]; twin: null; summary: mapStyle.currentText.replace(/ \(.*\)/, "") + (mapTone.currentIndex > 0 && (mapStyle.currentIndex < 3 || mapStyle.currentIndex === 6) ? ", " + mapTone.currentText.toLowerCase() : "") + " · " + framePreset.currentText + " · " + fillMode.currentText }
         Source { visible: sec1.open; names: ["Seasonal maps (NASA Blue Marble)", "Hi-res seasonal maps (NASA Blue Marble, for regions)", "NASA image server"] }
 
         QQC2.ComboBox {
             visible: sec1.open
             id: mapStyle
             Kirigami.FormData.label: "Base map:"
-            model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)"]
+            model: ["Seasonal Blue Marble (NASA, monthly)", "Today's satellite view (NASA GIBS, daily)", "Blue Marble with relief and bathymetry (NASA GIBS)", "Dark cartographic (no imagery, your colours)", "Dark Matter (no imagery, greys)", "Matrix (no imagery, phosphor green)", "Classic Blue Marble (NASA 2002, static)"]
         }
         Note {
             visible: sec1.open
@@ -1218,7 +1218,8 @@ RowLayout {
                    "NASA's Blue Marble with shaded terrain and the ocean floor, static. Fetched once for the frame on screen (python3-pillow needed).",
                    "No imagery at all: land and ocean as flat colours from the border data, so the events and labels carry the picture. The lightest on the GPU; the border download is needed.",
                    "The flat dark basemap look: land in dark grey over a near-black ocean, from the border data; the lightest on the GPU.",
-                   "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything."][mapStyle.currentIndex]
+                   "Black ocean, land in the darkest green, a faint graticule every 10 degrees, every label in a monospace face with a green glow, and scanlines over everything.",
+                   "The original: NASA's 2002 Blue Marble, the picture this wallpaper was built around - one composite, the same in every season, with the ice and the deep blue ocean. Ships with the package at 2 576 px; a bigger copy saved as base/classic.jpg in the data folder is used instead."][mapStyle.currentIndex]
         }
         RowLayout {
             visible: sec1.open && mapStyle.currentIndex === 3
@@ -1233,7 +1234,7 @@ RowLayout {
             visible: sec1.open
             id: mapTone
             Kirigami.FormData.label: "Map tone:"
-            enabled: mapStyle.currentIndex < 3
+            enabled: mapStyle.currentIndex < 3 || mapStyle.currentIndex === 6
             model: ["Natural", "Muted", "Monochrome", "Blue-tinted", "Sepia"]
         }
         QQC2.CheckBox {

@@ -619,7 +619,7 @@
       "regions": [
         "world"
       ],
-      "gives": "monthly basemaps, night lights, today's satellite view",
+      "gives": "monthly basemaps, the 2002 Blue Marble (shipped), night lights, today's satellite view",
       "lead": "static",
       "cadence": "downloaded once; satellite view daily",
       "official": true,
