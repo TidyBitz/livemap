@@ -30,6 +30,7 @@ Item {
     property string what: ""
     property real startedAt: 0
     property real readyAt: 0
+    property int builds: 0                        // counts rebuilds of the same frame, so the map reloads files whose names did not change
     readonly property bool justReady: !busy && readyAt > 0 && (tick - readyAt) < 6000
     property real tick: Date.now()
     Timer { interval: 2000; running: watch.busy || watch.justReady; repeat: true; triggeredOnStart: true
@@ -67,7 +68,7 @@ Item {
             if (source.indexOf("' fetch-frame ") >= 0) {
                 watch.busy = false;
                 if (data["exit code"] === 0) {
-                    watch.failedAt = 0; watch.note = ""; watch.readyAt = Date.now(); watch.tick = watch.readyAt;
+                    watch.failedAt = 0; watch.note = ""; watch.readyAt = Date.now(); watch.tick = watch.readyAt; watch.builds += 1;
                     watch.report("ready", watch.styleWords);
                     watch.askAgain = false; watch.ask();
                 } else if (watch.askAgain) {

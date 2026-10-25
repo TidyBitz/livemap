@@ -183,6 +183,7 @@ WallpaperItem {
                                        : mapStyle === 0 && !cfg.SeasonalHires ? " --lowres" : ""
     readonly property int frameWidthPx: Math.min(16384, Math.ceil(Math.max(1024, (viewE - viewW) * sx * Screen.devicePixelRatio) / 256) * 256)
     readonly property string frameDir: frameLoader.item && frameLoader.item.ready ? frameLoader.item.dir : ""
+    readonly property int frameBuild: frameLoader.item ? frameLoader.item.builds : 0
     Loader {
         id: frameLoader
         active: root.width > 0 && (root.wantFrame || (root.mapStyle === 0 && cfg.Seasonal))   // the seasonal style asks too, to learn of the hi-res set
@@ -288,7 +289,9 @@ WallpaperItem {
                 readonly property real fw: framed ? (root.viewE - root.viewW) * root.sx : map.width
                 readonly property real fh: framed ? (root.viewN - root.viewS) * root.sy : map.height
                 readonly property size ftex: Qt.size(Math.ceil(fw * Screen.devicePixelRatio), Math.ceil(fh * Screen.devicePixelRatio))
-                function frameUrl(name) { return "file://" + root.frameDir + "/" + name }
+                // the fragment changes with every rebuild: a frame cut again under the same name (a new day's picture, a
+                // newer classic.jpg) is a new URL to the image cache, so it is read from disk instead of shown as before
+                function frameUrl(name) { return "file://" + root.frameDir + "/" + name + "#" + root.frameBuild }
                 Image {                                       // the monthly map, soft, under the picture while it is on its way (and past the world's edge)
                     anchors.fill: parent
                     asynchronous: true
