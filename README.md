@@ -24,6 +24,13 @@ CPU or GPU is busy, and a daily probe on GitHub asks every source whether it sti
 | ![The widget's preview bubble for a storm: the satellite's view and the facts](docs/screenshots/widget-storm-bubble.webp) | ![The settings' Essentials page](docs/screenshots/settings-essentials.webp) |
 | *Rest the pointer on an event and a bubble says what the feed knows - here In-Fa, with NASA's latest satellite pass, winds, position, the last fix and when the record changed* | *Settings: a sidebar with a switch and a health dot per layer, Essentials first - style, profile, home, framing and the widget* |
 
+### Space
+
+| | |
+|---|---|
+| ![The ISS bubble: position, altitude, speed, and the crew with flags and days aloft](docs/screenshots/widget-iss-crew.webp) | ![A launch bubble: the rocket's picture, mission, orbit, pad, time and status](docs/screenshots/widget-launch-bubble.webp) |
+| *The ISS right now: where it is, how high and how fast, and the seven people aboard - flag, agency's country and days in space* | *A launch five days out: GSLV Mk. II with its picture, the mission, orbit, pad, local launch time and status; the widget sorted soonest launch first* |
+
 ### Styles
 
 | | |
