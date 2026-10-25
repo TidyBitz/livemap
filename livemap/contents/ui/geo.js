@@ -50,7 +50,18 @@ function nightAlpha(data, w, h, sunLat, sunLon, maxAlpha) {
 // gradient sampled every 3 deg of latitude. Strip edges are whole pixels, so neighbours
 // never overlap or leave seams whatever the canvas width. Daylight strips are left
 // untouched. Returns how many strips needed a gradient (for the diagnostics line).
-function paintNight(ctx, w, h, sunLat, sunLon, maxA, rgb, twilight, cols) {
+// the sun's elevation above the horizon at a place, in degrees (negative: below)
+function sunElevation(lat, lon, sunLat, sunLon) {
+    var e = Math.sin(lat * RAD) * Math.sin(sunLat * RAD) + Math.cos(lat * RAD) * Math.cos(sunLat * RAD) * Math.cos((lon - sunLon) * RAD);
+    return Math.asin(Math.max(-1, Math.min(1, e))) / RAD;
+}
+
+function paintNight(ctx, w, h, sunLat, sunLon, maxA, rgb, twilight, cols, everywhere) {
+    if (everywhere) {                                 // night mode: the whole map on the night side, no terminator
+        ctx.fillStyle = "rgba(" + rgb + "," + maxA.toFixed(3) + ")";
+        ctx.fillRect(0, 0, w, h);
+        return 0;
+    }
     var M = 60, ss = Math.sin(sunLat * RAD), cs = Math.cos(sunLat * RAD);
     var fade = Math.max(2, twilight || 15);        // degrees of sun elevation the dusk band spans
     var hi = Math.sin(3 * RAD), lo = Math.sin((3 - fade) * RAD), span = hi - lo;

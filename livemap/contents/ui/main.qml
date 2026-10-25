@@ -93,6 +93,15 @@ WallpaperItem {
     function again(n) { return n % 2 ? "/./" : "/" }
 
     readonly property var sun: Geo.sun(now)
+    // Night mode: 0 the night side as the sun leaves it (the terminator); 1 the whole map at night, always;
+    // 2 the whole map at night during your own night - the sun more than 6 degrees under the horizon at the home
+    // place (civil dusk to dawn) - and the terminator by day. The city lights follow: everywhere when it is night
+    // everywhere, when they are on at all.
+    readonly property int nightMode: cfg.NightMode === undefined ? 0 : cfg.NightMode
+    readonly property real homeLatN: parseFloat(cfg.HomeLat); readonly property real homeLonN: parseFloat(cfg.HomeLon)
+    readonly property bool homeKnown: !isNaN(homeLatN) && !isNaN(homeLonN)
+    readonly property real homeSunElevation: homeKnown ? Geo.sunElevation(homeLatN, homeLonN, sun.lat, sun.lon) : 90
+    readonly property bool nightEverywhere: nightMode === 1 || (nightMode === 2 && homeKnown && homeSunElevation < -6)
     readonly property var season: Geo.monthBlend(now)
     readonly property int cloudStamp: Math.floor(now.getTime() / 10800000)   // changes every 3 h
 
@@ -370,13 +379,13 @@ WallpaperItem {
                     ctx.globalCompositeOperation = "source-over";
                     ctx.clearRect(0, 0, width, height);
                     var n = Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon,
-                                           cfg.NightDarkness / 100, "3,5,14", cfg.Twilight);
+                                           cfg.NightDarkness / 100, "3,5,14", cfg.Twilight, 0, root.nightEverywhere);
                     if (paints++ < 3) console.warn("livemap 0.48: night shade painted (screen scale " + Screen.devicePixelRatio + ") - sun over", root.sun.lat.toFixed(1) + "," + root.sun.lon.toFixed(1),
                                  "- gradient columns:", n, "- map", Math.round(map.width) + "x" + Math.round(map.height));
                 }
                 onAvailableChanged: if (available) requestPaint()
                 onVisibleChanged: if (visible) requestPaint()
-                readonly property string look: cfg.NightDarkness + "/" + cfg.Twilight
+                readonly property string look: cfg.NightDarkness + "/" + cfg.Twilight + "/" + root.nightEverywhere
                 onLookChanged: requestPaint()
                 Connections { target: root; function onSunChanged() { shade.requestPaint() } }
             }
@@ -418,14 +427,14 @@ WallpaperItem {
                     ctx.globalCompositeOperation = "source-over";
                     ctx.clearRect(0, 0, width, height);
                     if (!wanted || !isImageLoaded(picture)) return;
-                    Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon, 1, "0,0,0", cfg.Twilight, 360);
+                    Geo.paintNight(ctx, width, height, root.sun.lat, root.sun.lon, 1, "0,0,0", cfg.Twilight, 360, root.nightEverywhere);
                     ctx.globalCompositeOperation = "source-in";          // keep the picture only where the mask is
                     ctx.drawImage(picture, 0, 0, width, height);
                     ctx.globalCompositeOperation = "source-over";
                     if (paints++ < 2) console.warn("livemap: city lights painted at", width + "x" + height);
                 }
                 onAvailableChanged: if (available) requestPaint()
-                readonly property string look: cfg.Twilight + "/" + width
+                readonly property string look: cfg.Twilight + "/" + width + "/" + root.nightEverywhere
                 onLookChanged: requestPaint()
                 // the lights' edge may trail the shade a little: repainting this big canvas every 10 min is plenty
                 Timer { interval: 600000; running: glow.wanted; repeat: true; onTriggered: glow.requestPaint() }

@@ -54,6 +54,7 @@ RowLayout {
     property alias cfg_StaleHours: staleHours.value
     // sun and sky
     property alias cfg_ShowDayNight: dayNight.checked
+    property alias cfg_NightMode: nightMode.currentIndex
     property alias cfg_ShowCityLights: cityLights.checked
     property int cfg_NightDarkness
     property int cfg_Twilight
@@ -1345,10 +1346,22 @@ RowLayout {
         }
 
         // ============================================================ Day and night
-        SectionHeader { id: sec2; title: "Day and night"; group: "Map"; sourceNames: ["City lights (NASA Black Marble)"]; twin: dayNight; summary: (dayNight.checked ? "Night side " + form.cfg_NightDarkness + " % dark" : "No day and night") + (cityLights.checked ? " · city lights" : "") }
+        SectionHeader { id: sec2; title: "Day and night"; group: "Map"; keywords: "night mode dark terminator sun dusk city lights"; sourceNames: ["City lights (NASA Black Marble)"]; twin: dayNight; summary: (dayNight.checked ? (nightMode.currentIndex === 1 ? "Night everywhere" : nightMode.currentIndex === 2 ? "Night everywhere during your night" : "Night side") + " " + form.cfg_NightDarkness + " % dark" : "No day and night") + (cityLights.checked ? " · city lights" : "") }
         Source { visible: sec2.open; names: ["City lights (NASA Black Marble)"] }
 
         QQC2.CheckBox { visible: sec2.open; id: dayNight; Kirigami.FormData.label: "Sun:"; text: "Day and night" }
+        QQC2.ComboBox {
+            visible: sec2.open
+            id: nightMode
+            Kirigami.FormData.label: "Night:"
+            enabled: dayNight.checked
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+            model: ["Where the sun has set (the terminator moves across the map)", "Everywhere, all the time", "Everywhere during your own night, the terminator by day"]
+        }
+        Note { visible: sec2.open; text: ["The night side follows the sun: a dusk band sweeps round the world once a day, and the city lights come on behind it.",
+                                           "The whole map sits in night: the imagery dimmed to the darkness below everywhere, the city lights (if on) everywhere. A night map, whatever the hour.",
+                                           "From civil dusk to civil dawn where you are (the home place on Essentials - the sun more than 6° under your horizon) the whole map is night, with the city lights everywhere; by day the terminator moves across the map as usual. A map that goes dark when your room does."][nightMode.currentIndex]
+                                          + (nightMode.currentIndex === 2 && (homeLat.text === "" || homeLon.text === "") ? " No home place is set yet: until it is, the terminator is used." : "") }
         Amount {
             visible: sec2.open
             Kirigami.FormData.label: "Night darkness:"

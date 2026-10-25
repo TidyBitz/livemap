@@ -276,6 +276,7 @@
     <entry name="BorderWidth" type="Int"><default>100</default></entry>
     <!-- Earth -->
     <entry name="ShowDayNight" type="Bool"><default>true</default></entry>
+    <entry name="NightMode" type="Int"><default>0</default></entry>              <!-- 0 the terminator, 1 night everywhere always, 2 night everywhere during your local night -->
     <entry name="ShowCityLights" type="Bool"><default>true</default></entry>
     <entry name="NightDarkness" type="Int"><default>78</default></entry>
     <entry name="Twilight" type="Int"><default>15</default></entry>
