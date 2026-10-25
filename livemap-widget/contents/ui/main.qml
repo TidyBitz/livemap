@@ -823,12 +823,36 @@ PlasmoidItem {
                 visible: tabs.currentIndex === 1
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: Kirigami.Units.smallSpacing
-                readonly property string liveUrl: Plasmoid.configuration.LiveUrl || ""
-                readonly property string videoId: (function () {
-                    var u = chosenUrl;
+                // the broadcast NASA ended in October 2026: a saved copy of that old default is read as the current one
+                readonly property string liveUrl: (Plasmoid.configuration.LiveUrl || "").indexOf("awQzjn72bI0") >= 0
+                    ? "https://www.youtube.com/watch?v=ROboUHfPUrU&list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz" : (Plasmoid.configuration.LiveUrl || "")
+                function idOf(u) {
                     var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
                     return m ? m[1] : "";
-                })()
+                }
+                // a channel's /live page (youtube.com/@NASA/live) names no video: the page is read once and its canonical
+                // watch link gives the stream that is on now, so these embed like a fixed id
+                property var resolved: ({})
+                property string resolving: ""
+                readonly property bool channelLive: /youtube\.com\/(@[\w.-]+|channel\/[\w-]+|c\/[\w-]+|user\/[\w-]+)\/live\/?(\?.*)?$/.test(chosenUrl)
+                function resolve(u) {
+                    if (!channelLive || resolved[u] !== undefined || resolving === u) return;
+                    resolving = u;
+                    var xhr = new XMLHttpRequest();
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+                        var t = xhr.status === 200 ? xhr.responseText : "";
+                        var m = t.match(/rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{6,})"/) || t.match(/"videoId":"([\w-]{6,})"/);
+                        var r = {}; for (var k in resolved) r[k] = resolved[k];
+                        r[u] = m ? m[1] : "";                       // "" = asked, nothing on now: not asked again this popup session
+                        resolved = r; if (resolving === u) resolving = "";
+                    };
+                    xhr.open("GET", u); xhr.send();
+                }
+                onChosenUrlChanged: resolve(chosenUrl)
+                onVisibleChanged: if (visible) resolve(chosenUrl)
+                readonly property string videoId: idOf(chosenUrl) || (channelLive ? (resolved[chosenUrl] || "") : "")
+                readonly property string playlist: (function () { var m = chosenUrl.match(/[?&]list=([\w-]{10,})/); return m ? m[1] : ""; })()
                 property bool playHere: false              // "Play here" on the placeholder: embed for this popup session
                 readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.expanded && visible
                 property int chosen: 0                     // 0 = the ISS stream from the settings; then the launches with a webcast
@@ -851,14 +875,17 @@ PlasmoidItem {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     active: liveTab.embed && liveTab.videoId !== ""
                     source: "LiveWeb.qml"
-                    onLoaded: item.videoId = Qt.binding(function () { return liveTab.videoId })
+                    onLoaded: { item.playlist = Qt.binding(function () { return liveTab.playlist }); item.videoId = Qt.binding(function () { return liveTab.videoId }) }
                 }
                 PlasmaExtras.PlaceholderMessage {
                     visible: !liveWeb.active || liveWeb.status === Loader.Error
                     Layout.fillWidth: true; Layout.fillHeight: true
                     iconName: "camera-video"
-                    text: liveWeb.status === Loader.Error ? "Embedded player unavailable" : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Not a YouTube stream" : Plasmoid.configuration.LiveEmbed ? "Player starts when the popup is open" : "Stream not embedded"
+                    text: liveWeb.status === Loader.Error ? "Embedded player unavailable"
+                        : liveTab.channelLive && liveTab.videoId === "" ? (liveTab.resolving !== "" ? "Looking for the stream that is on now…" : "Nothing live on that channel right now")
+                        : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Not a YouTube stream" : Plasmoid.configuration.LiveEmbed ? "Player starts when the popup is open" : "Stream not embedded"
                     explanation: liveWeb.status === Loader.Error ? "QtWebEngine's QML module is not installed (qt6-qtwebengine). Use a player below."
+                               : liveTab.channelLive && liveTab.videoId === "" ? (liveTab.resolving !== "" ? "" : "The channel's /live page named no broadcast. Open it in the browser, or try again later.")
                                : liveTab.chosenUrl !== "" && liveTab.videoId === "" ? "Only YouTube streams can be embedded; use a player or the browser for this one."
                                : Plasmoid.configuration.LiveEmbed ? "" : "Play it here (a browser engine runs inside the widget while the popup is open), in a player, or in the browser."
                     helpfulAction: Kirigami.Action {
@@ -878,8 +905,9 @@ PlasmoidItem {
                     PC3.Button { text: "Open in browser"; icon.name: "internet-web-browser"; enabled: root.webUrl(liveTab.chosenUrl) !== ""; onClicked: root.openWeb(liveTab.chosenUrl) }
                     PC3.Button { text: "Who is aboard"; icon.name: "user-group-new"; onClicked: root.openWeb("https://issinfo.net/whos-in-space"); PC3.ToolTip.text: "issinfo.net: everyone in space right now, by station"; PC3.ToolTip.visible: hovered }
                     PC3.Button {
-                        visible: liveWeb.status === Loader.Ready
-                        text: "Reload"; icon.name: "view-refresh"; onClicked: liveWeb.item.show()
+                        visible: liveWeb.status === Loader.Ready || (liveTab.channelLive && liveTab.videoId === "" && liveTab.resolving === "")
+                        text: "Reload"; icon.name: "view-refresh"
+                        onClicked: { if (liveTab.channelLive) { var r = {}; for (var k in liveTab.resolved) if (k !== liveTab.chosenUrl) r[k] = liveTab.resolved[k]; liveTab.resolved = r; liveTab.resolve(liveTab.chosenUrl); } if (liveWeb.item) liveWeb.item.show() }
                     }
                 }
                 PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize

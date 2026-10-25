@@ -13,19 +13,22 @@ import QtWebEngine
 WebEngineView {
     id: web
     property string videoId: ""
+    property string playlist: ""                  // a YouTube list= id: the player moves on to the next video when this one is gone
     settings.playbackRequiresUserGesture: false
     settings.pluginsEnabled: false
     settings.javascriptCanOpenWindows: false
     backgroundColor: "black"
     function show() {
         if (videoId === "") { loadHtml("<html><body style='background:#000'></body></html>", "https://livemap.local/"); return; }
-        var src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1";
+        var src = "https://www.youtube-nocookie.com/embed/" + videoId + "?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1"
+                + (playlist !== "" ? "&list=" + playlist : "");
         loadHtml("<!doctype html><html><head><meta name='referrer' content='origin'>"
                  + "<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{width:100%;height:100%;border:0}</style></head>"
                  + "<body><iframe src='" + src + "' allow='autoplay; encrypted-media; picture-in-picture' allowfullscreen referrerpolicy='origin'></iframe></body></html>",
                  "https://livemap.local/");
     }
     onVideoIdChanged: show()
+    onPlaylistChanged: show()
     Component.onCompleted: show()
     onNewWindowRequested: function (request) {
         var u = String(request.requestedUrl)

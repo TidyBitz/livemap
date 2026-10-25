@@ -28,8 +28,12 @@
     <entry name="FadeIdle" type="Bool"><default>true</default></entry>
     <entry name="IdleSeconds" type="Int"><default>3</default></entry>
     <entry name="Preview" type="Int"><default>2</default></entry>      <!-- hover bubble: 0 off, 1 details, 2 details and pictures -->
-    <entry name="LiveUrl" type="String"><default>https://www.youtube.com/watch?v=awQzjn72bI0</default></entry>
-    <entry name="LiveExtra" type="String"><default>NASA TV | https://www.youtube.com/@NASA/live
+    <!-- NASA restarts its ISS broadcast every few months under a new video id; the list= playlist is NASA's own "Space Station
+         Views", so the player moves on to the current broadcast when the id goes stale -->
+    <entry name="LiveUrl" type="String"><default>https://www.youtube.com/watch?v=ROboUHfPUrU&amp;list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz</default></entry>
+    <entry name="LiveExtra" type="String"><default>ISS inside and out (NASA, crew at work when on duty) | https://www.youtube.com/watch?v=M3HKLzjvKPc
+Sen 4K Earth views (Columbus module) | https://www.youtube.com/@sen/live
+NASA TV | https://www.youtube.com/@NASA/live
 CGTN (Tiangong events) | https://www.youtube.com/@CGTN/live</default></entry>
     <entry name="LiveEmbed" type="Bool"><default>true</default></entry>
     <entry name="LivePlayer" type="String"><default>mpv --ytdl --force-window=immediate --ontop --geometry=640x360-20-60 --title="ISS live"</default></entry>

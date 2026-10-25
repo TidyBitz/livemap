@@ -44,6 +44,13 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- Widget, Live tab: NASA ended its ISS broadcast awQzjn72bI0 on 22 October 2026 and restarted it as ROboUHfPUrU,
+  so the tab had shown "Video unavailable" for days. The default now names the new broadcast together with NASA's
+  "Space Station Views" playlist (&list=), so the embedded player moves on by itself the next time NASA rotates
+  the id; a saved copy of the old default is read as the new one. A channel's /live page (youtube.com/@NASA/live,
+  @sen/live) is now embeddable too: the page is read once and its canonical watch link names the broadcast that is
+  on now ("Looking for the stream that is on now…", "Nothing live on that channel right now", Reload asks again).
+  More streams by default: NASA's inside-and-out stream (M3HKLzjvKPc) and Sen's 4K Earth views.
 - The map imagery was rebuilt at every login, with the toast to say so: the view settles in steps as the desktop
   comes up (the panel appears, the screen scale lands) and each step asked for a frame of its own. A change of
   view now waits until it has held still for a moment, and the toast only appears for a build that takes
