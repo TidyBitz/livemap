@@ -52,6 +52,8 @@ WallpaperItem {
             item.fireSources = Qt.binding(function () { return cfg.FireSources });
             item.floodSources = Qt.binding(function () { return (cfg.FloodNws ? 1 : 0) | cfg.FloodWarnSources });
             item.quakeSources = Qt.binding(function () { return cfg.QuakeSources });
+            item.home = Qt.binding(function () { return cfg.HomeLat !== "" && cfg.HomeLon !== "" ? cfg.HomeLat + "," + cfg.HomeLon : "" });
+            item.passes = Qt.binding(function () { return cfg.SatPasses === undefined ? 0 : cfg.SatPasses });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false

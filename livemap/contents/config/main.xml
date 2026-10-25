@@ -156,6 +156,7 @@
     <entry name="SatIss" type="Bool"><default>true</default></entry>
     <entry name="SatHubble" type="Bool"><default>true</default></entry>
     <entry name="SatTiangong" type="Bool"><default>true</default></entry>
+    <entry name="SatPasses" type="Int"><default>1</default></entry>              <!-- ISS passes over the home place in the widget: 0 off, 1 the visible ones, 2 every pass -->
     <entry name="SatColor" type="Color"><default>#9fe8ff</default></entry>
     <entry name="SatTrack" type="Bool"><default>true</default></entry>
     <entry name="SatLabels" type="Int"><default>2</default></entry>

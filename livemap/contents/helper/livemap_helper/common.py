@@ -469,7 +469,17 @@ def read_layers_int(key, default):
         return default
 
 
-def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None):
+def read_layers_str(key, default=""):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        v = d.get(key) if isinstance(d, dict) else None
+        return str(v) if v is not None else default
+    except (OSError, ValueError):
+        return default
+
+
+def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None,
+                 home=None, passes=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if units is not None:
         try:
@@ -483,7 +493,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
     if read_layers() == shown and (units is None or read_units() == units) and (fire_focus is None or read_fire_focus() == fire_focus) \
             and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)) \
             and (fire_sources is None or read_fire_sources() == int(fire_sources)) and (flood_sources is None or read_layers_int("flood_sources", 15) == int(flood_sources)) \
-            and (quake_sources is None or read_layers_int("quake_sources", 3) == int(quake_sources)):
+            and (quake_sources is None or read_layers_int("quake_sources", 3) == int(quake_sources)) \
+            and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -494,7 +505,10 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    "nws_each": bool(nws_each) if nws_each is not None else read_layers_flag("nws_each"),
                                    "fire_sources": int(fire_sources) if fire_sources is not None else read_fire_sources(),
                                    "flood_sources": int(flood_sources) if flood_sources is not None else read_layers_int("flood_sources", 15),
-                                   "quake_sources": int(quake_sources) if quake_sources is not None else read_layers_int("quake_sources", 3), "at": int(time.time())}), encoding="utf-8")
+                                   "quake_sources": int(quake_sources) if quake_sources is not None else read_layers_int("quake_sources", 3),
+                                   "home": home if home is not None else read_layers_str("home"),          # "lat,lon" of the home place
+                                   "passes": int(passes) if passes is not None else read_layers_int("passes", 0),   # 0 off, 1 visible passes, 2 every pass
+                                   "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
         pass

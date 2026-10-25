@@ -10,7 +10,7 @@ import urllib.request
 # where IPv6 is advertised but does not actually work, that turned every download into a ~50 s
 # wait (seen in the field). Trying IPv4 first fixes that; IPv6 stays available as the fallback.
 from .alerts import alert_history, fetch_air_alerts, ua_regions
-from .common import DATA, EVENTS, PKG, HISTORY, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
+from .common import DATA, EVENTS, PKG, HISTORY, read_layers_str, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
     wind_text, dist_text, speed_text, _http, fetch_json
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
@@ -20,6 +20,7 @@ from .floods import official_floods, group_nws, people_text
 from .infra import impact_text
 from .power import cpu_busy, gpu_busy
 from .space import SATS, fetch_crews, fetch_launches, fetch_tles
+from .passes import cloud_over, passes_for, PASSES
 from .tsunami import tsunami_cached
 
 
@@ -71,7 +72,41 @@ SAT_BLURB = {
 }
 
 
-def sat_facts(short, tles, crews=None, units=(0, 0)):
+def home_passes(now, mode):
+    """The ISS passes over the home place for the widget: from the hour-cached prediction (passes.json, the
+    `passes` command's cache; computed here when it is missing or stale). [] when off or no home place."""
+    if not mode:
+        return [], None
+    home = read_layers_str("home")
+    try:
+        lat, lon = (float(x) for x in home.split(","))
+    except (ValueError, AttributeError):
+        return [], None
+    key = "%.2f,%.2f,3" % (lat, lon)
+    try:
+        c = json.loads(PASSES.read_text(encoding="utf-8"))
+        if c.get("key") != key or now - c.get("at", 0) > 3600:
+            raise ValueError
+        passes = c["passes"]
+    except (OSError, ValueError, KeyError):
+        passes = passes_for(lat, lon, now, days=3)
+        try:
+            PASSES.parent.mkdir(parents=True, exist_ok=True)
+            PASSES.write_text(json.dumps({"key": key, "at": now, "passes": passes}), encoding="utf-8")
+        except OSError:
+            pass
+    return [p for p in passes if p["set"] > now and (mode >= 2 or p["visible"])], cloud_over(lat, lon)
+
+
+def pass_text(p):
+    """'rises WSW 19:42 · peaks 61° S · sets ENE · 6 min, 4 visible'"""
+    import time
+    return "rises %s %s \u00b7 peaks %d\u00b0 %s \u00b7 sets %s \u00b7 %d min%s" % (
+        p["rise_dir"], time.strftime("%H:%M", time.localtime(p["rise"])), p["max_el"], p["peak_dir"], p["set_dir"], round(p["duration"] / 60),
+        (", %d visible" % round(p["visible_seconds"] / 60)) if p.get("visible") and p.get("visible_seconds") else "")
+
+
+def sat_facts(short, tles, crews=None, units=(0, 0), passes=None, cloud=None):
     """Where a spacecraft is right now, from the wallpaper's cached orbital elements (no network), and who is
     aboard (Launch Library 2, cached four hours)."""
     import math
@@ -90,6 +125,11 @@ def sat_facts(short, tles, crews=None, units=(0, 0)):
                      ["One orbit", "%.0f min" % period], ["Elements", "%s old (CelesTrak)" % _hours((now - el["epoch"]) / 3600)]]
         except Exception as e:
             rows.append(["Position", "not computed: %s" % e])
+    if passes:                                             # the next three over the home place
+        for i, p in enumerate(passes[:3]):
+            rows.append(["Over you" if i == 0 else " ", "%s \u00b7 %s%s" % (time.strftime("%a %H:%M", time.localtime(p["rise"])), pass_text(p), "" if p.get("visible") else " \u00b7 in daylight, not visible")])
+        if cloud is not None:
+            rows.append(["Cloud now", "%d %% over your home (from the cloud image; a hint, not a forecast)" % cloud])
     crew = (crews or {}).get(short) or []
     for i, c in enumerate(crew):
         stay = ("%d days" % c["days"] if c.get("days") is not None and c["days"] >= 2 else "arrived %s" % c["since"] if c.get("since") else "")
@@ -442,16 +482,38 @@ def cmd_feed(args):
             crews = fetch_crews()
         except Exception as e:
             crews, _ = {}, problems.append("crews: %s" % e)
+        pass_mode = read_layers_int("passes", 0)
+        try:
+            upcoming, cloud = home_passes(now, pass_mode)
+        except Exception as e:
+            upcoming, cloud = [], None
+            problems.append("passes: %s" % e)
         for short, catnr, longname in SATS:
             it = {"kind": "sat", "when": now, "title": longname, "detail": "live position on the map",
                   "url": "https://www.n2yo.com/satellite/?s=%s" % catnr, "lat": None, "lon": None, "level": 0, "pin": True, "links": [],
-                  **sat_facts(short, tles, crews, units)}
+                  **sat_facts(short, tles, crews, units, [p for p in upcoming if p["sat"] == short], cloud if short == "ISS" else None)}
             if short == "ISS":                            # the people on board, and the station's own news
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             elif short == "Tiangong":
                 it["links"] = [{"label": "Who is in space right now", "icon": "user-group-new", "url": "https://issinfo.net/whos-in-space"}]
             items.append(it)
     except Exception:
+        pass
+    # a pass over the home place within the hour (and while it lasts) is an event of its own, like a launch:
+    # sorted by its time, SOON when minutes away, and the sound's "launch about to happen" rule covers it
+    try:
+        for p in upcoming:
+            if p["rise"] - now > 3600:
+                continue
+            facts = [_at("Rises", p["rise"]), ["From", p["rise_dir"]], _at("Highest", p["peak"]), ["Highest point", "%d\u00b0 above the horizon, %s" % (p["max_el"], p["peak_dir"])],
+                     _at("Sets", p["set"]), ["Towards", p["set_dir"]], ["Visible for", "%d min" % round(p["visible_seconds"] / 60) if p.get("visible") else "not visible: daylight"]]
+            if cloud is not None:
+                facts.append(["Cloud now", "%d %% over your home" % cloud])
+            items.append({"kind": "sat", "when": p["rise"], "title": "%s over you \u00b7 %s" % (p["sat"], pass_text(p)),
+                          "detail": "look %s, it climbs to %d\u00b0 in the %s" % (p["rise_dir"], p["max_el"], p["peak_dir"]) + ("" if p.get("visible") else " \u00b7 daylight, not visible"),
+                          "url": "https://spotthestation.nasa.gov/", "lat": None, "lon": None, "level": 2 if p.get("visible") else 1, "future": True,
+                          "key": "pass:%s:%d" % (p["sat"], p["rise"]), "facts": [r for r in facts if r[1]], "image": sat_picture(p["sat"])})
+    except NameError:
         pass
     # every bubble says when: an item whose facts carry no dated row gets "Reported" from the event's own time
     for it in items:

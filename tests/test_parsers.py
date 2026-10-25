@@ -491,3 +491,24 @@ def test_eccc_gml_is_read():
         assert "TYPENAME nope" in str(e)
     else:
         raise AssertionError("an exception report must raise")
+
+
+def test_iss_passes_are_found_and_visibility_is_physical():
+    """Denver, a real ISS element set: about six passes a day, ten minutes each; the visible ones only in the
+    evening or before dawn (sky dark, station still lit); a pass at local noon is never 'visible'."""
+    from livemap_helper import passes
+    from livemap_helper.space import parse_tle
+    el = parse_tle("1 25544U 98067A   26298.50000000  .00016717  00000-0  10270-3 0  9000",
+                   "2 25544  51.6400 208.9163 0006703 130.5360 325.0288 15.49000000000000")
+    t0 = 1792900000
+    ps = passes.find_passes(el, 39.74, -104.99, t0, 2)
+    assert 8 <= len(ps) <= 16 and all(300 <= p["duration"] <= 720 for p in ps)
+    assert all(p["max_el"] >= passes.MIN_PEAK for p in ps)
+    for p in ps:
+        hour_local = ((p["peak"] - 6 * 3600) % 86400) / 3600          # MDT
+        if p["visible"]:
+            assert hour_local < 7 or hour_local > 17, hour_local        # only around dusk or dawn
+        if 10 < hour_local < 15:
+            assert not p["visible"]
+    assert passes.compass(0) == "N" and passes.compass(247) == "WSW"
+    assert passes.elevation_of_sun(39.74, -104.99, 1792900000 + 19 * 3600) > 0      # ~13:00 MDT: the sun is up

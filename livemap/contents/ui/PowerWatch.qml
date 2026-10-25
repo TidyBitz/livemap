@@ -32,6 +32,8 @@ Item {
     property int fireSources: 29                  // the wildfire sources on, likewise
     property int floodSources: 15                 // the official flood warning sources on (1 NWS, 2 MeteoAlarm, 4 ECCC, 8 EA)
     property int quakeSources: 3                  // 1 USGS, 2 EMSC
+    property string home: ""                      // "lat,lon" of the home place, for the ISS passes
+    property int passes: 0                        // 0 off, 1 visible passes in the widget, 2 every pass
     property bool helperOk: true
 
     P5Support.DataSource {
@@ -74,6 +76,6 @@ Item {
         running: watch.helper !== ""
         repeat: true
         triggeredOnStart: true
-        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " --fire-sources " + watch.fireSources + " --flood-sources " + watch.floodSources + " --quake-sources " + watch.quakeSources + " # " + Date.now())
+        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " --fire-sources " + watch.fireSources + " --flood-sources " + watch.floodSources + " --quake-sources " + watch.quakeSources + (watch.home !== "" ? " --home '" + watch.home.replace(/[^0-9.,-]/g, "") + "'" : "") + " --passes " + watch.passes + " # " + Date.now())
     }
 }

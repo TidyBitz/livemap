@@ -358,6 +358,7 @@ RowLayout {
     property alias cfg_SatIss: satIss.checked
     property alias cfg_SatHubble: satHubble.checked
     property alias cfg_SatTiangong: satTiangong.checked
+    property alias cfg_SatPasses: satPasses.currentIndex
     property alias cfg_SatColor: satColor.color
     property alias cfg_SatMarkerStyle: satMarkerStyle.currentIndex
     property alias cfg_SatPictureSize: satPictureSize.value
@@ -2260,6 +2261,15 @@ RowLayout {
             QQC2.CheckBox { id: satTiangong; text: "Tiangong" }
         }
         Note { visible: sec10.open; text: "Orbital elements from CelesTrak, refreshed every six hours, propagated by the helper (Kepler + J2: within a few km of the full SGP4 model for these low orbits). The marker moves along a precomputed track once a second; the dashed line is the ground track from 15 minutes ago to 100 minutes ahead." }
+        QQC2.ComboBox {
+            visible: sec10.open
+            id: satPasses
+            Kirigami.FormData.label: "Passes over you:"
+            enabled: sats.checked
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 20
+            model: ["Not listed", "The ones you can see, in the widget", "Every pass, seen or not"]
+        }
+        Note { visible: sec10.open; text: "Experimental. When the ISS will cross the sky over your home place (Essentials), from the same orbital elements: rise, highest point and set with compass directions, in the widget's Satellites group an hour ahead and in the station's bubble. A pass can be seen only when your sky is dark and the station is still in sunlight - the first hours after dusk and before dawn - so the daytime passes are left out unless you ask for every pass. Cloud over your home from the live cloud image is shown beside it as a hint; it never hides a pass." + (homeLat.text === "" || homeLon.text === "" ? " No home place is set yet." : "") }
         RowLayout {
             visible: sec10.open
             Kirigami.FormData.label: "Satellite marker:"
