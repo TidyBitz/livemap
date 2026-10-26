@@ -249,15 +249,17 @@ ColumnLayout {
                                 readonly property var day: dayRow.modelData
                                 readonly property var cell: (day.cells || [])[stripHover.hour] || null
                                 readonly property string line: (day.lines || [])[stripHover.hour] || ""
-                                // above the strip when the rows above give it room, else below - never over the hour scale
-                                readonly property bool below: dayRow.y < height + Kirigami.Units.smallSpacing
-                                readonly property real pad: Kirigami.Units.largeSpacing
-                                width: Math.min(strip.width, bubbleIcon.width + Kirigami.Units.largeSpacing + Math.max(bubbleHead.implicitWidth, bubbleBody.implicitWidth) + pad * 2)
-                                height: Math.max(bubbleIcon.height, bubbleHead.implicitHeight + bubbleBody.implicitHeight + 2) + pad * 2
-                                x: Math.max(0, Math.min(strip.width - width, stripHover.hour / 24 * strip.width + strip.width / 48 - width / 2))
-                                y: below ? strip.height + Kirigami.Units.smallSpacing : -height - Kirigami.Units.smallSpacing
+                                // beside the hovered hour: to its right, or to its left near the end of the strip - never under the
+                                // pointer, never over the hour scale or the text below; vertically centred on the strip and kept
+                                // inside the block of rows
+                                readonly property real hourX: stripHover.hour / 24 * strip.width
+                                readonly property real gap: Kirigami.Units.largeSpacing
+                                x: hourX + strip.width / 24 + gap + width <= strip.width ? hourX + strip.width / 24 + gap : hourX - gap - width
+                                y: Math.max(-dayRow.y, Math.min(dayRow.parent.height - dayRow.y - height, (strip.height - height) / 2))
                                 radius: 4
-                                color: Kirigami.Theme.backgroundColor
+                                Kirigami.Theme.inherit: false
+                                Kirigami.Theme.colorSet: Kirigami.Theme.Tooltip
+                                color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 1)   // opaque: the popup's own is see-through
                                 border.color: Kirigami.Theme.highlightColor; border.width: 1
                                 Kirigami.Icon {
                                     id: bubbleIcon
