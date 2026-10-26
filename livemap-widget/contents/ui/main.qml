@@ -938,13 +938,15 @@ PlasmoidItem {
 
             // ---- Map controls: quick settings on top of the wallpaper's own (mode.json, read within 20 s) ----
             PC3.ScrollView {
+                id: mapScroll
                 visible: tabs.currentIndex === 3
                 Layout.fillWidth: true; Layout.fillHeight: true
                 contentWidth: availableWidth
+                QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
                 onVisibleChanged: if (visible && root.checks.length === 0) root.checkStatus()   // the chips' health dots
             ColumnLayout {
                 id: mapControls
-                width: parent.width
+                width: mapScroll.availableWidth
                 spacing: Kirigami.Units.smallSpacing
 
                 // what the wallpaper is holding back right now, and why - this used to be a line in the map's corner

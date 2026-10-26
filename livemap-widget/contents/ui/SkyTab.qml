@@ -7,6 +7,7 @@
  * today; hovering a strip opens a bubble with that hour's line.
  */
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
@@ -83,11 +84,13 @@ ColumnLayout {
 
     // ---- the tab ----
     PC3.ScrollView {
+        id: scroll
         visible: sky.ready
         Layout.fillWidth: true; Layout.fillHeight: true
         contentWidth: availableWidth
+        QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff     // nothing here may be wider than the tab
         ColumnLayout {
-            width: parent.width
+            width: scroll.availableWidth
             spacing: Kirigami.Units.smallSpacing
             readonly property var d: sky.doc
             readonly property var now: sky.doc.now || ({})
@@ -246,7 +249,8 @@ ColumnLayout {
                                 readonly property var day: dayRow.modelData
                                 readonly property var cell: (day.cells || [])[stripHover.hour] || null
                                 readonly property string line: (day.lines || [])[stripHover.hour] || ""
-                                readonly property bool below: dayRow.index < 2
+                                // above the strip when the rows above give it room, else below - never over the hour scale
+                                readonly property bool below: dayRow.y < height + Kirigami.Units.smallSpacing
                                 readonly property real pad: Kirigami.Units.largeSpacing
                                 width: Math.min(strip.width, bubbleIcon.width + Kirigami.Units.largeSpacing + Math.max(bubbleHead.implicitWidth, bubbleBody.implicitWidth) + pad * 2)
                                 height: Math.max(bubbleIcon.height, bubbleHead.implicitHeight + bubbleBody.implicitHeight + 2) + pad * 2
@@ -275,7 +279,7 @@ ColumnLayout {
                     }
                 }
             }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
+            PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
                         text: "Each bar is the day, midnight to midnight: colour is the temperature hour by hour, the dark ends are night, blue hatching is rain (white, snow), the white line is now. Hover for the hour." }
 
             // sun and moon · tonight's sky
@@ -319,7 +323,7 @@ ColumnLayout {
                     }
                 }
             }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.topMargin: Kirigami.Units.smallSpacing
+            PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.topMargin: Kirigami.Units.smallSpacing
                         text: "Open-Meteo (forecast, air quality) · NOAA SWPC (Kp) · sun, moon and passes computed here · fetched every 20 minutes" }
         }
     }
