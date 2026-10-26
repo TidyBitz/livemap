@@ -497,10 +497,11 @@ PlasmoidItem {
         KSvg.FrameSvgItem { id: frame; anchors.fill: parent; imagePath: "widgets/background"; visible: root.onDesktop }
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: root.onDesktop ? frame.fixedMargins.left : 0
-            anchors.rightMargin: root.onDesktop ? frame.fixedMargins.right : 0
-            anchors.topMargin: root.onDesktop ? frame.fixedMargins.top : 0
-            anchors.bottomMargin: root.onDesktop ? frame.fixedMargins.bottom : 0
+            // the frame's own margins plus a little air, so the text does not sit on the edge of the window
+            anchors.leftMargin: (root.onDesktop ? frame.fixedMargins.left : 0) + Kirigami.Units.largeSpacing
+            anchors.rightMargin: (root.onDesktop ? frame.fixedMargins.right : 0) + Kirigami.Units.largeSpacing
+            anchors.topMargin: (root.onDesktop ? frame.fixedMargins.top : 0) + Kirigami.Units.smallSpacing
+            anchors.bottomMargin: (root.onDesktop ? frame.fixedMargins.bottom : 0) + Kirigami.Units.largeSpacing
             spacing: Kirigami.Units.smallSpacing
 
             PC3.TabBar {
