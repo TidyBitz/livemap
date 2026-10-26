@@ -239,7 +239,7 @@ def build(lat, lon, u, cache, now):
     span = max(1.0, tmax - tmin)
     for di, dstart in enumerate(d_times):
         dcode = int((dy.get("weather_code") or [0] * 7)[di] or 0)
-        cells, lines = [], []
+        cells, lines, day_codes = [], [], []
         for h in range(24):
             t = dstart + h * 3600
             try:
@@ -255,11 +255,23 @@ def build(lat, lon, u, cache, now):
             isday = bool((hr.get("is_day") or [1] * len(h_times))[i])
             ws = (hr.get("wind_speed_10m") or [0] * len(h_times))[i] or 0
             wd = (hr.get("wind_direction_10m") or [0] * len(h_times))[i] or 0
-            cells.append({"t": round((tc - tmin) / span, 3) if tc is not None else None, "p": round(pp / 100, 2), "mm": pr, "snow": sn > 0, "day": isday, "c": round(cc / 100, 2),
+            if isday:
+                day_codes.append(hc)
+            # Open-Meteo's chance and amount come from different model fields, so a trace of drizzle can carry a
+            # 0 % chance: the strip's band is the stronger of the two readings (an amount counts as a chance of its
+            # own), and the bubble says "chance not given" rather than a contradictory 0 %
+            strength = max(pp / 100, min(0.6, pr / 2) if pr > 0 else 0)
+            chance = ("%d %% chance of %s" % (round(pp), "snow" if sn > 0 else "rain")) if pp > 0 else ("chance not given" if pr > 0 else "0 % chance")
+            cells.append({"t": round((tc - tmin) / span, 3) if tc is not None else None, "p": round(strength, 2), "mm": pr, "snow": sn > 0, "day": isday, "c": round(cc / 100, 2),
                           "icon": ICONS.get(hc, "cloud")})
-            lines.append("%s · %s · %s%s · %d %% chance%s · cloud %d %% · wind %s %s" % (
+            lines.append("%s · %s · %s%s · %s · cloud %d %% · wind %s %s" % (
                 hour_label(h, u), temp_text(tc, u), CODES.get(hc, "–"), (" (" + ("snow " if sn > 0 else "") + precip_text(pr, u) + ")") if pr > 0 else "",
-                round(pp), " of %s" % ("snow" if sn > 0 else "rain") if pp > 0 else "", round(cc), wind_text(ws, u), compass(wd)))
+                chance, round(cc), wind_text(ws, u), compass(wd)))
+        # the day's icon: Open-Meteo's daily code is the worst hour of the day, so one hour of drizzle at 3 am makes a
+        # dry day "rain"; keep the worst code only when the day really is wet, else the commonest daytime hour
+        wet = ((dy.get("precipitation_sum") or [0] * 7)[di] or 0) >= 1 or ((dy.get("precipitation_probability_max") or [0] * 7)[di] or 0) >= 30
+        if not wet and day_codes:
+            dcode = max(set(day_codes), key=day_codes.count)
         sr, ss = (dy.get("sunrise") or [None] * 7)[di], (dy.get("sunset") or [None] * 7)[di]
         days.append({
             "name": "Today" if di == 0 else "Tomorrow" if di == 1 else datetime.datetime.fromtimestamp(dstart, tz).strftime("%A"),

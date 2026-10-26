@@ -218,11 +218,12 @@ ColumnLayout {
                                             Rectangle {
                                                 anchors.fill: parent
                                                 visible: !!modelData && modelData.p > 0.15
-                                                color: modelData && modelData.snow ? Qt.rgba(0.92, 0.95, 0.98, Math.min(0.85, (modelData ? modelData.p : 0))) : Qt.rgba(0.3, 0.62, 0.9, Math.min(0.85, (modelData ? modelData.p : 0)))
+                                                // the band: at least a third strong once there is any rain, so it reads against the temperature colour
+                                                color: modelData && modelData.snow ? Qt.rgba(0.92, 0.95, 0.98, Math.max(0.35, Math.min(0.9, (modelData ? modelData.p : 0)))) : Qt.rgba(0.25, 0.6, 0.95, Math.max(0.35, Math.min(0.9, (modelData ? modelData.p : 0))))
                                                 Canvas {
                                                     anchors.fill: parent
-                                                    onPaint: { var c = getContext("2d"); c.clearRect(0, 0, width, height); c.strokeStyle = "rgba(255,255,255,0.25)"; c.lineWidth = 1;
-                                                               for (var x = -height; x < width + height; x += 4) { c.beginPath(); c.moveTo(x, height); c.lineTo(x + height, 0); c.stroke(); } }
+                                                    onPaint: { var c = getContext("2d"); c.clearRect(0, 0, width, height); c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1.5;
+                                                               for (var x = -height; x < width + height; x += 5) { c.beginPath(); c.moveTo(x, height); c.lineTo(x + height, 0); c.stroke(); } }
                                                 }
                                             }
                                         }
@@ -237,8 +238,9 @@ ColumnLayout {
                                 Rectangle {
                                     visible: dayRow.index === 0 && sky.doc.now_h !== null && sky.doc.now_h !== undefined
                                     readonly property real h: sky.doc.now_h === null || sky.doc.now_h === undefined ? 0 : sky.doc.now_h + (sky.tick / 1000 - (sky.doc.at || sky.tick / 1000)) / 3600
-                                    x: Math.max(0, Math.min(strip.width - 2, h / 24 * strip.width)); y: -1; width: 2; height: strip.height + 2
+                                    x: Math.max(0, Math.min(strip.width - 3, h / 24 * strip.width)); y: -2; width: 3; height: strip.height + 4
                                     color: "white"
+                                    Rectangle { anchors.fill: parent; anchors.margins: -2; color: "transparent"; border.color: Qt.rgba(0, 0, 0, 0.6); border.width: 2; z: -1 }
                                 }
                                 // the hover: which hour; the bubble is drawn in the popup itself, above the strip (below it for the
                                 // first rows), so it never sits under the pointer - a tooltip window there flickered on and off
