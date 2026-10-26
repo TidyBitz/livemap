@@ -12,7 +12,8 @@ release notes written at the time; their dates are the day the version was hande
   its say - this screen in the highlight colour, every other screen in amber - so a laptop panel's trimming is
   seen here, not on the desktop. "Keep the box in this screen's shape" makes resizing a zoom with nothing
   trimmed or stretched. The Show presets place the box; the degree fields on the Map page are the same box in
-  numbers (FramePicker.qml).
+  numbers (FramePicker.qml). The Map page's Show, North to south, West to east and Fit to screen rows have gone:
+  the picker, the Show presets and Fit to screen live on Essentials only, and the Map page is about the imagery.
 - Fit to screen: Auto, now the default. Stretch while it hardly shows (up to 12 % taller or wider than true) and
   Crop beyond that, so the 72°N-56°S view fills a 2.4:1 monitor as before while a 16:10 laptop panel trims the
   sides instead of squeezing the continents to 60 % of their width. The settings preview says what a screen

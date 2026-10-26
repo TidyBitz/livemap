@@ -1138,9 +1138,57 @@ RowLayout {
         }
         Note { visible: secE.open; text: (citySearch.status === Loader.Error ? "The city search could not be loaded; type the coordinates. " : "Searched offline in Natural Earth's list of about 7 000 towns and cities (part of the border download); pick one to fill in the coordinates, or type them. ") + "Where you are decides where the network arcs start and what Coverage says about your area; nothing about it leaves this machine." }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "On screen"; topPadding: Kirigami.Units.largeSpacing }
-        MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
-        // the frame on a map: drag it, resize it, zoom it; the presets above place it, the degree fields on the Map
-        // page are the same box in numbers (FramePicker.qml)
+        QQC2.ComboBox {
+            visible: secE.open
+            id: framePreset
+            Kirigami.FormData.label: "Show:"
+            model: form.framePresets.map(function (f) { return f.name })
+            Component.onCompleted: currentIndex = form.framePresetIndex()
+            onActivated: function (i) {
+                var f = form.framePresets[i];
+                if (f.n === 0) return;
+                frameNorth.value = f.n; frameSouth.value = f.s; frameWest.value = f.w; frameEast.value = f.e;
+            }
+        }
+        // the degree values behind the picker: the settings' truth, kept but not shown (the picker and its readout are the control)
+        RowLayout {
+            visible: false
+            Kirigami.FormData.label: "North to south:"
+            QQC2.SpinBox {
+                id: frameNorth
+                from: -80; to: 90
+                textFromValue: function (v) { return form.degrees(v, "N", "S") }
+                valueFromText: function (t) { return form.fromDegrees(t, "S") }
+                onValueModified: framePreset.currentIndex = form.framePresetIndex()
+            }
+            QQC2.SpinBox {
+                id: frameSouth
+                from: -90; to: 80
+                textFromValue: function (v) { return form.degrees(v, "N", "S") }
+                valueFromText: function (t) { return form.fromDegrees(t, "S") }
+                onValueModified: framePreset.currentIndex = form.framePresetIndex()
+            }
+        }
+        RowLayout {
+            visible: false
+            Kirigami.FormData.label: "West to east:"
+            QQC2.SpinBox {
+                id: frameWest
+                from: -180; to: 170; stepSize: 5
+                textFromValue: function (v) { return form.degrees(v, "E", "W") }
+                valueFromText: function (t) { return form.fromDegrees(t, "W") }
+                onValueModified: framePreset.currentIndex = form.framePresetIndex()
+            }
+            QQC2.SpinBox {
+                id: frameEast
+                from: -170; to: 180; stepSize: 5
+                textFromValue: function (v) { return form.degrees(v, "E", "W") }
+                valueFromText: function (t) { return form.fromDegrees(t, "W") }
+                onValueModified: framePreset.currentIndex = form.framePresetIndex()
+            }
+        }
+        // the frame on a map: drag it, resize it, zoom it; the presets above place it, the hidden degree fields above
+        // hold the values (FramePicker.qml)
         FramePicker {
             visible: secE.open
             Kirigami.FormData.label: "Frame:"
@@ -1155,8 +1203,23 @@ RowLayout {
             }
         }
         QQC2.CheckBox { id: lockShape; visible: secE.open; text: "Keep the box in this screen's shape - nothing trimmed, nothing stretched; resizing zooms" }
-        Note { visible: secE.open; text: "The dashed outline is what this screen really shows of the box once Fit to screen has had its say (a second outline for each other screen); the box itself is the setting. Presets place it; the exact degrees are on the Map page." }
-        MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
+        Note { visible: secE.open; text: "The dashed outline is what this screen really shows of the box once Fit to screen has had its say (a second outline for each other screen); the box itself is the setting, whole degrees, at least 10° wide and 5° tall, not across the date line. A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000. Imagery is built for exactly what is on screen by the wallpaper itself when the box or the style changes (the 5 400 px maps go soft past about 2x: the hi-res set on the Map page keeps regions sharp); Status > Map style imagery lists what has been built." }
+        QQC2.ComboBox {
+            visible: secE.open
+            id: fillMode
+            Kirigami.FormData.label: "Fit to screen:"
+            model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions", "Fill, true proportions, trimming the edges", "Auto: stretch a little, then crop"]
+        }
+        Note {
+            visible: secE.open
+            text: ["Stretch: all of the chosen area fills the screen; shapes get taller or wider as needed.",
+                   "Fit: all of the chosen area at true proportions; spare space shows more map, or bars.",
+                   "Crop: true proportions filling the screen, trimmed where it does not fit.",
+                   "Fill: Fit without bars. All of the chosen area at true proportions, with more map around it where the screen has room instead of bars; the view zooms in only as far as it must to stay inside the world, so the whole world on a 16:10 screen loses the middle of the Pacific (on a wide screen, the poles), like a printed map.",
+                   "Auto: Stretch while it hardly shows (up to 12 % taller or wider than true), Crop beyond that - so a wide monitor fills as before and a laptop panel trims the sides instead of squeezing the continents. The one setting that suits every screen."][fillMode.currentIndex]
+        }
+        // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
+        // here that every full-width frame comes out as the whole latitude range in Fill mode
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Events widget"; topPadding: Kirigami.Units.largeSpacing }
         // the companion widget: a card that says what it is and puts it on the desktop (helper `widget --add`, through
@@ -1273,75 +1336,6 @@ RowLayout {
         }
         // Framing: which part of the world must be on screen, and how it is fitted to the screen's shape
 
-        QQC2.ComboBox {
-            visible: sec1.open
-            id: framePreset
-            Kirigami.FormData.label: "Show:"
-            model: form.framePresets.map(function (f) { return f.name })
-            Component.onCompleted: currentIndex = form.framePresetIndex()
-            onActivated: function (i) {
-                var f = form.framePresets[i];
-                if (f.n === 0) return;
-                frameNorth.value = f.n; frameSouth.value = f.s; frameWest.value = f.w; frameEast.value = f.e;
-            }
-        }
-        RowLayout {
-            visible: sec1.open
-            Kirigami.FormData.label: "North to south:"
-            QQC2.SpinBox {
-                id: frameNorth
-                from: -80; to: 90
-                textFromValue: function (v) { return form.degrees(v, "N", "S") }
-                valueFromText: function (t) { return form.fromDegrees(t, "S") }
-                onValueModified: framePreset.currentIndex = form.framePresetIndex()
-            }
-            QQC2.SpinBox {
-                id: frameSouth
-                from: -90; to: 80
-                textFromValue: function (v) { return form.degrees(v, "N", "S") }
-                valueFromText: function (t) { return form.fromDegrees(t, "S") }
-                onValueModified: framePreset.currentIndex = form.framePresetIndex()
-            }
-        }
-        RowLayout {
-            visible: sec1.open
-            Kirigami.FormData.label: "West to east:"
-            QQC2.SpinBox {
-                id: frameWest
-                from: -180; to: 170; stepSize: 5
-                textFromValue: function (v) { return form.degrees(v, "E", "W") }
-                valueFromText: function (t) { return form.fromDegrees(t, "W") }
-                onValueModified: framePreset.currentIndex = form.framePresetIndex()
-            }
-            QQC2.SpinBox {
-                id: frameEast
-                from: -170; to: 180; stepSize: 5
-                textFromValue: function (v) { return form.degrees(v, "E", "W") }
-                valueFromText: function (t) { return form.fromDegrees(t, "W") }
-                onValueModified: framePreset.currentIndex = form.framePresetIndex()
-            }
-        }
-        Note {
-            visible: sec1.open
-            text: "A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000, every platform named. The frame must be at least 10° wide and 5° tall and cannot cross the date line yet. Imagery is built for exactly what is on screen - edge to edge, whatever the fit - cut from the monthly maps (the 5 400 px set is soft beyond about 2x: download the hi-res set on the source line above and every view, the whole world included, is cut from the 21 600 px maps instead) or fetched from NASA GIBS for the other styles, by the wallpaper itself when the view or the style changes; the 'Map style imagery' row under Status lists what has been built."
-        }
-        QQC2.ComboBox {
-            visible: sec1.open
-            id: fillMode
-            Kirigami.FormData.label: "Fit to screen:"
-            model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions", "Fill, true proportions, trimming the edges", "Auto: stretch a little, then crop"]
-        }
-        Note {
-            visible: sec1.open
-            text: ["Stretch: all of the chosen area fills the screen; shapes get taller or wider as needed.",
-                   "Fit: all of the chosen area at true proportions; spare space shows more map, or bars.",
-                   "Crop: true proportions filling the screen, trimmed where it does not fit.",
-                   "Fill: Fit without bars. All of the chosen area at true proportions, with more map around it where the screen has room instead of bars; the view zooms in only as far as it must to stay inside the world, so the whole world on a 16:10 screen loses the middle of the Pacific (on a wide screen, the poles), like a printed map.",
-                   "Auto: Stretch while it hardly shows (up to 12 % taller or wider than true), Crop beyond that - so a wide monitor fills as before and a laptop panel trims the sides instead of squeezing the continents. The one setting that suits every screen."][fillMode.currentIndex]
-        }
-        // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
-        // here that every full-width frame comes out as the whole latitude range in Fill mode
-        Note { visible: sec1.open && form.fitPreview !== ""; text: form.fitPreview }
         Amount {
             visible: sec1.open
             Kirigami.FormData.label: "Dim the imagery:"
