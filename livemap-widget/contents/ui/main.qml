@@ -420,8 +420,14 @@ PlasmoidItem {
                 cache: true
                 sourceSize.width: Kirigami.Units.gridUnit * 44
                 PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible }
+                // a picture the helper has not fetched yet (it fetches a few per feed run and hands over files) is loaded from
+                // the source directly; past ten seconds say so, so a spinner is never the whole story
+                Timer { id: slow; interval: 10000; running: picture.status === Image.Loading; onTriggered: slowNote.visible = true }
+                onStatusChanged: if (status !== Image.Loading) slowNote.visible = false
             }
-            PC3.Label { visible: bubbleBody.picture !== "" && picture.status === Image.Error; text: "The picture could not be loaded"; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+            PC3.Label { id: slowNote; visible: false; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        text: "Still loading from " + bubbleBody.picture.replace(/^https?:\/\/([^/]+).*$/, "$1") + "\u2026 the helper will keep a copy for next time" }
+            PC3.Label { visible: bubbleBody.picture !== "" && picture.status === Image.Error; text: "The picture could not be loaded" + (bubbleBody.picture.indexOf("file://") === 0 ? " (the helper's copy is unreadable: Map controls > Sources > Bubble pictures)" : " from " + bubbleBody.picture.replace(/^https?:\/\/([^/]+).*$/, "$1")); opacity: 0.6; wrapMode: Text.Wrap; Layout.fillWidth: true; font.pointSize: Kirigami.Theme.smallFont.pointSize }
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2

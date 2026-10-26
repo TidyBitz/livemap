@@ -12,7 +12,7 @@ import urllib.request
 from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, read_layers_str, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, dist_text, speed_text, _http, fetch_json
+    wind_text, dist_text, speed_text, _http, fetch_json, UA
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -184,6 +184,84 @@ def quake_pictures(ids):
         except OSError:
             pass
     return {k: v.get("image") or "" for k, v in cache.items()}
+
+
+PICTURES = DATA / "pictures"                  # the bubbles' pictures, fetched by the helper and handed to the widget as files
+PICTURES_INDEX = DATA / "pictures.json"       # url -> {"file", "at"} or {"error", "at"}
+PICTURE_FETCHES_PER_RUN = 3
+PICTURE_LIMIT = 8 * 1024 * 1024
+
+
+def local_pictures(items):
+    """The widget used to load each bubble's picture itself, straight from the source, and some never arrived: a
+    ShakeMap of a few megabytes behind a redirect, a NOAA chart that insists on a browser, all without a timeout
+    or a word about what went wrong. The helper fetches them instead - with its user agent, a timeout, a size cap,
+    scaled to 1 200 px when pillow is there - and keeps them under pictures/; the record's image becomes the
+    file's URL. At most a few fetches per feed run; a failure is noted and tried again after an hour, the source
+    URL left in place meanwhile so the widget can still try. Files older than a fortnight go."""
+    import hashlib
+    now = time.time()
+    try:
+        index = json.loads(PICTURES_INDEX.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        index = {}
+    fetched = 0
+    for it in items:
+        url = it.get("image") or ""
+        if not url.startswith("http"):
+            continue
+        e = index.get(url) or {}
+        f = e.get("file")
+        if f and (PICTURES / f).exists():
+            it["image"] = (PICTURES / f).as_uri()
+            continue
+        if e.get("error") and now - e.get("at", 0) < 3600:
+            continue
+        if fetched >= PICTURE_FETCHES_PER_RUN:
+            continue
+        fetched += 1
+        name = hashlib.sha1(url.encode("utf-8")).hexdigest()[:20]
+        try:
+            req = urllib.request.Request(url, headers=dict(UA, Accept="image/*,*/*;q=0.8"))
+            with urllib.request.urlopen(req, timeout=12) as r:
+                ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                body = r.read(PICTURE_LIMIT + 1)
+            if len(body) > PICTURE_LIMIT:
+                raise ValueError("larger than %d MB" % (PICTURE_LIMIT // 1048576))
+            if not ctype.startswith("image/") and not body[:4] in (b"\x89PNG", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"GIF8"):
+                raise ValueError("not an image (%s)" % (ctype or "no content type"))
+            ext = "png" if ctype.endswith("png") or body[:4] == b"\x89PNG" else "gif" if ctype.endswith("gif") or body[:4] == b"GIF8" else "jpg"
+            PICTURES.mkdir(parents=True, exist_ok=True)
+            dest = PICTURES / ("%s.%s" % (name, ext))
+            try:                                                  # smaller on disk and in the widget's memory
+                from PIL import Image
+                import io
+                im = Image.open(io.BytesIO(body))
+                if ext != "gif" and im.width > 1200:
+                    im = im.convert("RGB")
+                    im.thumbnail((1200, 1200 * 4))
+                    dest = PICTURES / ("%s.jpg" % name)
+                    im.save(dest, quality=88)
+                else:
+                    dest.write_bytes(body)
+            except Exception:                                     # noqa: BLE001 - no pillow, or a picture it cannot read: keep the bytes as they came
+                dest = PICTURES / ("%s.%s" % (name, ext))
+                dest.write_bytes(body)
+            index[url] = {"file": dest.name, "at": now}
+            it["image"] = dest.as_uri()
+        except Exception as e:                                    # noqa: BLE001 - the Status row shows it
+            index[url] = {"error": str(e)[:120], "at": now}
+    if fetched:
+        try:
+            for url in [u for u, e in index.items() if now - e.get("at", 0) > 14 * 86400]:
+                f = index[url].get("file")
+                if f:
+                    (PICTURES / f).unlink(missing_ok=True)
+                del index[url]
+            PICTURES_INDEX.parent.mkdir(parents=True, exist_ok=True)
+            PICTURES_INDEX.write_text(json.dumps(index), encoding="utf-8")
+        except OSError:
+            pass
 
 
 def satellite_snapshot(lat, lon, now=None):
@@ -554,6 +632,10 @@ def cmd_feed(args):
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
     items = sorted(keep + rest, key=lambda it: (1 if it.get("pin") else 0, -(it.get("updated") or it["when"])))
+    try:
+        local_pictures(items)
+    except Exception as e:                        # noqa: BLE001 - pictures are a bonus
+        problems.append("pictures: %s" % e)
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip,
           "saving": read_layers_int("saving", 0), "why": read_layers_str("why")})
 

@@ -582,3 +582,32 @@ def test_kp_rows_both_shapes(monkeypatch):
     assert sky.fetch_kp() == {"time": "2026-10-26 03:00:00.000", "kp": 2.33}
     monkeypatch.setattr(sky, "fetch_json", lambda *a, **k: [{"time_tag": "2026-10-26T03:00:00", "kp_index": 3, "estimated_kp": 2.67}])
     assert sky.fetch_kp()["kp"] == 3.0
+
+
+def test_bubble_pictures_fetched_to_files(tmp_path, monkeypatch):
+    """The helper fetches a bubble's picture once, hands the widget a file URL, and remembers a failure for an hour."""
+    import io, urllib.request
+    from livemap_helper import feed
+    monkeypatch.setattr(feed, "PICTURES", tmp_path / "pictures")
+    monkeypatch.setattr(feed, "PICTURES_INDEX", tmp_path / "pictures.json")
+    png = b"\x89PNG\r\n\x1a\n" + b"\0" * 64
+    class R:
+        def __init__(self, body, ctype): self.body, self.headers = body, {"Content-Type": ctype}
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self, n=-1): return self.body
+    calls = []
+    def fake_urlopen(req, timeout=0):
+        calls.append(req.full_url)
+        if "bad" in req.full_url:
+            raise urllib.error.URLError("timed out")
+        return R(png, "image/png")
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    items = [{"image": "https://earthquake.usgs.gov/product/x/intensity.jpg"}, {"image": "https://bad.example/x.png"}, {"image": ""}]
+    feed.local_pictures(items)
+    assert items[0]["image"].startswith("file://") and items[0]["image"].endswith(".png")
+    assert items[1]["image"].startswith("https://bad.example")           # left for the widget to try
+    feed.local_pictures(items)                                             # the second run asks for nothing
+    assert len(calls) == 2
+    idx = json.loads((tmp_path / "pictures.json").read_text())
+    assert idx["https://bad.example/x.png"]["error"].startswith("<urlopen error") or "timed out" in idx["https://bad.example/x.png"]["error"]

@@ -83,6 +83,12 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
+  fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
+  now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps
+  them under pictures/ for a fortnight and hands the widget a file, a few per feed run. A picture not fetched yet
+  is still loaded directly, and past ten seconds the bubble says so; a failure is named ("could not be loaded from
+  earthquake.usgs.gov"). Map controls > Sources > "Bubble pictures" counts the kept pictures and names the failures.
 - The last notices still drawn in the map's corner - "Live layers off: load guard…", "Animations paused…", "Full
   speed from the widget" - have moved where the others went: the widget's Map controls tab shows the state and
   the reason above the quick settings (with the way out: Full speed, or the thresholds in Performance and power),
