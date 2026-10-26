@@ -165,6 +165,7 @@ Item {
         id: mouse
         anchors.fill: parent
         hoverEnabled: true
+        preventStealing: true                      // the settings page scrolls: without this the Flickable takes the drag after a few pixels and the box snaps back
         property string mode: ""                               // "move", "new", or a mix of n/s/w/e being pulled
         property real px: 0; property real py: 0               // where the press was
         property var start: null                               // the box at the press
