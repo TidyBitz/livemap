@@ -33,7 +33,7 @@ PlasmoidItem {
     property bool busy: false
     property var mode: ({})
     property int unread: 0
-    property var checks: []                       // from `livemap-helper status`, for the Status tab
+    property var checks: []                       // from `livemap-helper status`, for the Sources section of Map controls and the chips' dots
     property string statusVersion: ""
     property real statusAt: 0
     property bool statusBusy: false
@@ -508,8 +508,8 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 PC3.TabButton { text: "Events" }
                 PC3.TabButton { text: "Live" }
+                PC3.TabButton { text: "Sky" }
                 PC3.TabButton { text: "Map controls" }
-                PC3.TabButton { text: "Status" }
                 onCurrentIndexChanged: if (currentIndex === 3 && (root.checks.length === 0 || Date.now() / 1000 - root.statusAt > 300)) root.checkStatus()
             }
 
@@ -927,9 +927,18 @@ PlasmoidItem {
                             text: liveTab.chosenUrl + (root.webcasts.length === 0 ? "   ·   no launch webcasts listed yet (they appear a day or so before lift-off)" : "") }
             }
 
+            // ---- Sky: the weather, sun, moon and tonight's sky at the home place (SkyTab.qml) ----
+            SkyTab {
+                visible: tabs.currentIndex === 2
+                active: visible && root.expanded
+                helperShell: root.helperShell
+                Layout.fillWidth: true; Layout.fillHeight: true
+            }
+
             // ---- Map controls: quick settings on top of the wallpaper's own (mode.json, read within 20 s) ----
             ColumnLayout {
-                visible: tabs.currentIndex === 2
+                id: mapControls
+                visible: tabs.currentIndex === 3
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: Kirigami.Units.smallSpacing
                 onVisibleChanged: if (visible && root.checks.length === 0) root.checkStatus()   // the chips' health dots
@@ -996,7 +1005,7 @@ PlasmoidItem {
 
                 Heading { text: "Layers on the map" }
                 // a chip per layer: on when the wallpaper shows it and the widget is not hiding it; the dot is its
-                // sources' health, as the Status tab sees them. A click hides or shows it from here.
+                // sources' health, as the Sources section below sees them. A click hides or shows it from here.
                 Flow {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
@@ -1082,23 +1091,22 @@ PlasmoidItem {
                         onActivated: function (i) { Plasmoid.configuration.Preview = i }
                     }
                 }
-                Item { Layout.fillHeight: true }
-                PC3.Button {
-                    Layout.fillWidth: true
-                    text: "Open the wallpaper settings\u2026"; icon.name: "configure"
-                    onClicked: exec.connectSource(root.helperShell + "widget --configure # " + Date.now())
-                }
-            }
-
-            // ---- Status: every data source and local file, as the wallpaper's own Status section sees them ----
-            ColumnLayout {
-                visible: tabs.currentIndex === 3
-                Layout.fillWidth: true; Layout.fillHeight: true
-                spacing: Kirigami.Units.smallSpacing
+                // ---- Sources: every data source and local file, as the wallpaper's own Status section sees them - the
+                // former Status tab, folded under the controls; the header line is the summary, it opens by itself on a problem
+                Kirigami.Separator { Layout.fillWidth: true; Layout.topMargin: Kirigami.Units.smallSpacing }
+                property bool sourcesOpen: false
+                readonly property int problemCount: root.checks.filter(function (c) { return c.state === "error" }).length
+                onProblemCountChanged: if (problemCount > 0) sourcesOpen = true
                 RowLayout {
                     Layout.fillWidth: true
+                    PC3.ToolButton {
+                        icon.name: mapControls.sourcesOpen ? "arrow-down" : "arrow-right"
+                        onClicked: mapControls.sourcesOpen = !mapControls.sourcesOpen
+                        PC3.ToolTip.text: mapControls.sourcesOpen ? "Hide the sources" : "Show every source"; PC3.ToolTip.visible: hovered
+                    }
+                    Heading { text: "Sources"; Layout.topMargin: 0; MouseArea { anchors.fill: parent; onClicked: mapControls.sourcesOpen = !mapControls.sourcesOpen } }
                     PC3.Label {
-                        Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7
+                        Layout.fillWidth: true; elide: Text.ElideRight; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
                         text: root.statusBusy ? (root.statusAt > 0 ? "Checking again\u2026 (last answers shown)" : "Checking every source\u2026") : root.checks.length === 0 ? "Not checked yet"
                             : (root.checks.filter(function (c) { return c.state === "error" }).length + " problems, "
                                + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
@@ -1107,9 +1115,11 @@ PlasmoidItem {
                     PC3.BusyIndicator { visible: root.statusBusy; running: visible; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
                     PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
                 }
-                PC3.Label { visible: root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
+                PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
                 PC3.ScrollView {
-                    Layout.fillWidth: true; Layout.fillHeight: true
+                    visible: mapControls.sourcesOpen
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Kirigami.Units.gridUnit * 14
                     contentWidth: availableWidth
                     ListView {
                         model: root.checks
@@ -1139,9 +1149,16 @@ PlasmoidItem {
                         }
                     }
                 }
-                PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                PC3.Label { visible: mapControls.sourcesOpen; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
                             text: "Green: working. Yellow: something to download or a source that is slow or stale (the map keeps its last good data). Red: a source or file that is not working." }
+                Item { Layout.fillHeight: true }
+                PC3.Button {
+                    Layout.fillWidth: true
+                    text: "Open the wallpaper settings\u2026"; icon.name: "configure"
+                    onClicked: exec.connectSource(root.helperShell + "widget --configure # " + Date.now())
+                }
             }
+
         }
     }
 }

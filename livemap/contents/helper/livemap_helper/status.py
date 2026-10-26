@@ -1,5 +1,6 @@
 """The health report: one check per source, the wallpaper's log."""
 import json
+import time
 import re
 import shutil
 import subprocess
@@ -45,6 +46,37 @@ def chk_hires():
     have = sum((DATA / "base" / ("hires%02d.jpg" % i)).exists() for i in range(1, 13))
     return "warn", ("%d of 12 - run: livemap-helper fetch-maps --hires" % have) if have else \
         "not downloaded: a region is cut from the 5 400 px maps, which are soft beyond about 2x (press Download, about 330 MB)"
+
+
+def _sky_entry(key):
+    """The Sky tab's cache (sky.json): the age and the last error of one of its sources."""
+    try:
+        c = json.loads((DATA / "sky.json").read_text(encoding="utf-8"))
+        return c.get(key) or {}
+    except (OSError, ValueError):
+        return {}
+
+
+def chk_open_meteo():
+    """Not probed live: the Sky tab asks every 20 min and its cache says how that went (a probe here would be a
+    second request per check for a source that is only used when the tab is open)."""
+    e = _sky_entry("forecast")
+    if not e:
+        return "ok", "not asked yet - the widget's Sky tab fetches it when opened (no home place: nothing to ask)"
+    age = (_age(time.time() - e["good_at"]) + " ago") if e.get("good_at") else "never"
+    if e.get("error"):
+        return ("warn" if e.get("data") else "error"), "last answer %s; the latest request failed: %s" % (age, e["error"])
+    return "ok", "forecast for the home place, fetched %s" % age
+
+
+def chk_swpc():
+    e = _sky_entry("kp")
+    if not e:
+        return "ok", "not asked yet - fetched with the Sky tab"
+    age = (_age(time.time() - e["good_at"]) + " ago") if e.get("good_at") else "never"
+    if e.get("error"):
+        return ("warn" if e.get("data") else "error"), "last answer %s; the latest request failed: %s" % (age, e["error"])
+    return "ok", "planetary K index %s, fetched %s" % ((e.get("data") or {}).get("kp", "?"), age)
 
 
 def chk_night():
@@ -147,7 +179,7 @@ def status_jobs(offline=False, feed="4.5_day"):
             ("Power and load", chk_power)]
     if not offline:
         jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Volcano alert levels (GeoNet)", chk_geonet), ("Volcano alert levels (JMA)", chk_jma), ("Ash advisories (Washington VAAC)", chk_vaac), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
-                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats),
+                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats), ("Weather at home (Open-Meteo)", chk_open_meteo), ("Space weather (NOAA SWPC)", chk_swpc),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Earthquakes, secondary (EMSC)", chk_emsc), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
     return jobs

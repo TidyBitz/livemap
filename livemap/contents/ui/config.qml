@@ -421,6 +421,7 @@ RowLayout {
     property int cfg_TextOpacity
     property alias cfg_LabelLines: labelLines.currentIndex
     property alias cfg_DistanceUnits: distanceUnits.currentIndex
+    property alias cfg_TempUnits: tempUnits.currentIndex
     property int cfg_MarkerScale
     property alias cfg_AgeFade: ageFade.checked
     property alias cfg_AgeFadeStart: ageStart.value
@@ -1616,10 +1617,9 @@ RowLayout {
             enabled: timeZones.checked
             QQC2.CheckBox { id: zoneLabels; text: "Labels" }
             QQC2.ComboBox { id: zoneClock; enabled: zoneLabels.checked; model: ["UTC offset", "Offset and local time", "Offset, time and date", "Local time", "Time and date"] }
-            QQC2.CheckBox { id: zoneClock12; enabled: zoneLabels.checked && zoneClock.currentIndex > 0; text: "12-hour clock" }
             Px { id: zoneLabelSize; enabled: zoneLabels.checked; from: 4; to: 24 }
         }
-        Note { visible: sec5.open && zoneClock.currentIndex > 0; text: "The clock is the real time of each zone's main place, summer time included, from the system's time zone database (the date goes on a second line). A zone that straddles places with different summer-time rules shows its main place's time. Updated every minute; the summer-time changes are known from the border download, so download again if a label looks an hour off." }
+        Note { visible: sec5.open && zoneClock.currentIndex > 0; text: "12- or 24-hour: the Clock choice under Units. The clock is the real time of each zone's main place, summer time included, from the system's time zone database (the date goes on a second line). A zone that straddles places with different summer-time rules shows its main place's time. Updated every minute; the summer-time changes are known from the border download, so download again if a label looks an hour off." }
         RowLayout {
             visible: sec5.open
             Kirigami.FormData.label: "Time zone label text:"
@@ -2478,7 +2478,7 @@ RowLayout {
         // #################################################################### Global settings
 
         // ================================================================== Units
-        SectionHeader { id: sec13; title: "Units"; group: "Shared"; twin: null; keywords: "units distance speed wind miles kilometres knots mph acres hectares"; summary: distanceUnits.currentText + " \u00b7 " + stormUnits.currentText }
+        SectionHeader { id: sec13; title: "Units"; group: "Shared"; twin: null; keywords: "units distance speed wind miles kilometres knots mph acres hectares temperature celsius fahrenheit clock 12 24 hour"; summary: distanceUnits.currentText + " \u00b7 " + stormUnits.currentText + " \u00b7 " + (zoneClock12.checked ? "12-hour" : "24-hour") }
         QQC2.ComboBox {
             visible: sec13.open
             id: distanceUnits
@@ -2488,6 +2488,14 @@ RowLayout {
         Note { visible: sec13.open; text: "Lengths and areas everywhere: satellite altitudes, earthquake depths, burned areas, the widget's facts." }
         MirrorCombo { visible: sec13.open; Kirigami.FormData.label: "Speed:"; twin: stormUnits }
         Note { visible: sec13.open; text: "Storm winds on the map and in the widget, and the spacecraft's orbital speed. The same choice as under Storms." }
+        QQC2.ComboBox {
+            visible: sec13.open
+            id: tempUnits
+            Kirigami.FormData.label: "Temperature:"
+            model: ["Follow the distance unit (miles: °F, otherwise °C)", "Celsius", "Fahrenheit"]
+        }
+        QQC2.CheckBox { visible: sec13.open; id: zoneClock12; Kirigami.FormData.label: "Clock:"; text: "12-hour clock (am / pm)" }
+        Note { visible: sec13.open; text: "The temperature and the clock in the widget's Sky tab, and the clock on the time zone labels and the band. Rain is in inches with miles, millimetres otherwise; pressure in inches of mercury with miles, hectopascals otherwise." }
 
         // ============================================================ Label styling
         SectionHeader { id: sec14; title: "Markers and labels"; group: "Shared"; twin: null; summary: "Layout: " + labelLines.currentText.toLowerCase() + " · plate " + form.cfg_PlateOpacity + " % · text " + form.cfg_TextOpacity + " %" }

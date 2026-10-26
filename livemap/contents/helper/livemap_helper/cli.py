@@ -18,6 +18,7 @@
   livemap-helper infrastructure      the platforms and refineries as compact JSON (the wallpaper calls this)
   livemap-helper fetch-geoip         download the free DB-IP City Lite database (~20 MB, monthly)
   livemap-helper live-url URL        the YouTube broadcast a channel's /live page shows now (the widget's Live tab)
+  livemap-helper sky [--lat --lon]   the weather, sun, moon and tonight's sky at the home place (the widget's Sky tab; Open-Meteo, NOAA SWPC)
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
       --hires                        the 21600x10800 monthly set beside the small one, for regions (~330 MB)
@@ -57,6 +58,7 @@ from .tsunami import cmd_tsunami
 from .volcanoes import cmd_volcanoes
 from .widget import cmd_widget
 from .live import cmd_live_url
+from .sky import cmd_sky
 
 
 def main():
@@ -80,7 +82,7 @@ def main():
     pw = sub.add_parser("power"); pw.add_argument("--layers"); pw.add_argument("--units"); pw.add_argument("--fire-focus", dest="fire_focus", type=int)
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
-    pw.add_argument("--home"); pw.add_argument("--passes", type=int)
+    pw.add_argument("--home"); pw.add_argument("--home-name"); pw.add_argument("--passes", type=int)
     pw.add_argument("--saving", type=int); pw.add_argument("--why")           # what the wallpaper holds back and why, for the widget
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
@@ -91,6 +93,7 @@ def main():
     mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
     wd = sub.add_parser("widget"); wd.add_argument("--add", action="store_true"); wd.add_argument("--configure", action="store_true"); wd.set_defaults(fn=cmd_widget)
+    sk = sub.add_parser("sky"); sk.add_argument("--lat"); sk.add_argument("--lon"); sk.add_argument("--units"); sk.set_defaults(fn=cmd_sky)
     lv = sub.add_parser("live-url"); lv.add_argument("url"); lv.add_argument("--fresh", action="store_true"); lv.set_defaults(fn=cmd_live_url)
     fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60)
     fe.add_argument("--since", type=float); fe.add_argument("--until", type=float); fe.set_defaults(fn=cmd_feed)    # epoch seconds: past events from history.json
