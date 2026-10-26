@@ -1139,6 +1139,23 @@ RowLayout {
         Note { visible: secE.open; text: (citySearch.status === Loader.Error ? "The city search could not be loaded; type the coordinates. " : "Searched offline in Natural Earth's list of about 7 000 towns and cities (part of the border download); pick one to fill in the coordinates, or type them. ") + "Where you are decides where the network arcs start and what Coverage says about your area; nothing about it leaves this machine." }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "On screen"; topPadding: Kirigami.Units.largeSpacing }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Show:"; twin: framePreset }
+        // the frame on a map: drag it, resize it, zoom it; the presets above place it, the degree fields on the Map
+        // page are the same box in numbers (FramePicker.qml)
+        FramePicker {
+            visible: secE.open
+            Kirigami.FormData.label: "Frame:"
+            Layout.preferredWidth: implicitWidth; Layout.preferredHeight: implicitHeight
+            Layout.maximumWidth: implicitWidth
+            north: frameNorth.value; south: frameSouth.value; west: frameWest.value; east: frameEast.value
+            fitMode: fillMode.currentIndex
+            lockToScreen: lockShape.checked
+            onChanged: function (n, s, w, e) {
+                frameNorth.value = n; frameSouth.value = s; frameWest.value = w; frameEast.value = e;
+                framePreset.currentIndex = form.framePresetIndex();
+            }
+        }
+        QQC2.CheckBox { id: lockShape; visible: secE.open; text: "Keep the box in this screen's shape - nothing trimmed, nothing stretched; resizing zooms" }
+        Note { visible: secE.open; text: "The dashed outline is what this screen really shows of the box once Fit to screen has had its say (a second outline for each other screen); the box itself is the setting. Presets place it; the exact degrees are on the Map page." }
         MirrorCombo { visible: secE.open; Kirigami.FormData.label: "Fit to screen:"; twin: fillMode }
         Note { visible: secE.open && form.fitPreview !== ""; text: form.fitPreview }
         Kirigami.Heading { visible: secE.open; Kirigami.FormData.isSection: true; level: 4; text: "Events widget"; topPadding: Kirigami.Units.largeSpacing }

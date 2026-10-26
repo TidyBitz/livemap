@@ -17,6 +17,7 @@
   livemap-helper fetch-infrastructure download offshore platforms (BSEE Gulf of Mexico, OpenStreetMap) and refineries (OpenStreetMap)
   livemap-helper infrastructure      the platforms and refineries as compact JSON (the wallpaper calls this)
   livemap-helper fetch-geoip         download the free DB-IP City Lite database (~20 MB, monthly)
+  livemap-helper live-url URL        the YouTube broadcast a channel's /live page shows now (the widget's Live tab)
   livemap-helper fetch-maps          download NASA's 12 monthly Blue Marble images + night lights (~35 MB)
       --ocean-from IMAGE             keep the dark ocean of IMAGE (your current wallpaper); needs numpy + pillow
       --hires                        the 21600x10800 monthly set beside the small one, for regions (~330 MB)
@@ -55,6 +56,7 @@ from .styles import cmd_styles
 from .tsunami import cmd_tsunami
 from .volcanoes import cmd_volcanoes
 from .widget import cmd_widget
+from .live import cmd_live_url
 
 
 def main():
@@ -89,6 +91,7 @@ def main():
     mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
     wd = sub.add_parser("widget"); wd.add_argument("--add", action="store_true"); wd.add_argument("--configure", action="store_true"); wd.set_defaults(fn=cmd_widget)
+    lv = sub.add_parser("live-url"); lv.add_argument("url"); lv.add_argument("--fresh", action="store_true"); lv.set_defaults(fn=cmd_live_url)
     fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60)
     fe.add_argument("--since", type=float); fe.add_argument("--until", type=float); fe.set_defaults(fn=cmd_feed)    # epoch seconds: past events from history.json
     vo = sub.add_parser("volcanoes"); vo.add_argument("--table", action="store_true"); vo.add_argument("--keep", type=float, default=48)

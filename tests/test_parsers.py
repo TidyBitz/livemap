@@ -523,3 +523,13 @@ def test_flood_places_listed_in_the_bubble():
     assert row[1].count("•") == 3 and "Coastal Broward" in row[1]
     f = facts_for("flood", {"source": "ea", "alert": "green", "event": "Flood alert", "name": "Kent, South London and East Sussex", "places": ["Kent", "East Sussex"]}, {"by": "Environment Agency"})
     assert ["2 areas", "• Kent\n• East Sussex"] in [r[:2] for r in f["facts"]]
+
+
+def test_live_url_page_reading():
+    from livemap_helper.live import video_from_page
+    assert video_from_page("https://www.youtube.com/watch?v=ROboUHfPUrU", "") == "ROboUHfPUrU"
+    page = '<html><link rel="canonical" href="https://www.youtube.com/watch?v=M3HKLzjvKPc"><body>'
+    assert video_from_page("https://www.youtube.com/@NASA/live", page) == "M3HKLzjvKPc"
+    page = '{"videoId":"aaaaaaaaaaa","title":"old"} ... {"videoId":"bbbbbbbbbbb","isLiveNow":true}'
+    assert video_from_page("https://www.youtube.com/@sen/live", page) == "bbbbbbbbbbb"
+    assert video_from_page("https://www.youtube.com/@sen", "<html>nothing</html>") == ""

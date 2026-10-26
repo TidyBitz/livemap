@@ -6,6 +6,13 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Essentials: a frame picker. The world (the Classic picture) with the frame drawn on it: drag inside the box to
+  move it, its edges and corners to resize, the wheel to zoom about the pointer, drag outside to draw a fresh
+  box; everything outside dims. Dashed outlines show what each screen really displays once Fit to screen has had
+  its say - this screen in the highlight colour, every other screen in amber - so a laptop panel's trimming is
+  seen here, not on the desktop. "Keep the box in this screen's shape" makes resizing a zoom with nothing
+  trimmed or stretched. The Show presets place the box; the degree fields on the Map page are the same box in
+  numbers (FramePicker.qml).
 - Fit to screen: Auto, now the default. Stretch while it hardly shows (up to 12 % taller or wider than true) and
   Crop beyond that, so the 72°N-56°S view fills a 2.4:1 monitor as before while a 16:10 laptop panel trims the
   sides instead of squeezing the continents to 60 % of their width. The settings preview says what a screen
@@ -59,7 +66,9 @@ release notes written at the time; their dates are the day the version was hande
   the id; a saved copy of the old default is read as the new one. A channel's /live page (youtube.com/@NASA/live,
   @sen/live) is now embeddable too: the page is read once and its canonical watch link names the broadcast that is
   on now ("Looking for the stream that is on now…", "Nothing live on that channel right now", Reload asks again).
-  More streams by default: NASA's inside-and-out stream (M3HKLzjvKPc) and Sen's 4K Earth views.
+  More streams by default: NASA's inside-and-out stream (M3HKLzjvKPc) and Sen's 4K Earth views. The /live page is
+  read by the helper (`live-url`, browser headers, the redirect followed, canonical link or the player's
+  "isLiveNow" read, answers kept ten minutes) - the widget's own request got a consent page and said "Nothing live".
 - The map imagery was rebuilt at every login, with the toast to say so: the view settles in steps as the desktop
   comes up (the panel appears, the screen scale lands) and each step asked for a frame of its own. A change of
   view now waits until it has held still for a moment, and the toast only appears for a build that takes
