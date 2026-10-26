@@ -89,6 +89,9 @@ release notes written at the time; their dates are the day the version was hande
   them under pictures/ for a fortnight and hands the widget a file, a few per feed run. A picture not fetched yet
   is still loaded directly, and past ten seconds the bubble says so; a failure is named ("could not be loaded from
   earthquake.usgs.gov"). Map controls > Sources > "Bubble pictures" counts the kept pictures and names the failures.
+  Quakes without a ShakeMap yet are asked again every 20 minutes for a day and a half (a miss used to wait six
+  hours, so a fresh quake stayed pictureless), newest first; one that has none shows the satellite's view of the
+  place, as storms without a chart do.
 - The last notices still drawn in the map's corner - "Live layers off: load guard…", "Animations paused…", "Full
   speed from the widget" - have moved where the others went: the widget's Map controls tab shows the state and
   the reason above the quick settings (with the way out: Full speed, or the thresholds in Performance and power),

@@ -374,10 +374,12 @@ def test_quake_pictures_and_snapshots(no_network, data_dir, monkeypatch):
     monkeypatch.setattr(feed, "QUAKE_PICTURES", data_dir / "quake-pictures.json")
     no_network("detail/us1.geojson", json.dumps({"properties": {"products": {"shakemap": [{"contents": {"download/intensity.jpg": {"url": "https://earthquake.usgs.gov/x/intensity.jpg"}}}]}}}))
     no_network("detail/us2.geojson", json.dumps({"properties": {"products": {}}}))
-    pics = feed.quake_pictures(["us1", "us2", "emsc123"])
+    import time as _t
+    old = _t.time() - 3 * 86400                                        # old quakes: a miss waits six hours
+    pics = feed.quake_pictures([("us1", old), ("us2", old), ("emsc123", old)])
     assert pics["us1"].endswith("intensity.jpg") and pics["us2"] == "" and "emsc123" not in pics
     # a second run asks for nothing new (us1 is kept for good, us2 waits six hours) - the fake serves nothing else
-    pics2 = feed.quake_pictures(["us1", "us2", "us3", "us4", "us5", "us6", "us7"])
+    pics2 = feed.quake_pictures([("us%d" % i, old) for i in range(1, 8)])
     assert pics2["us1"] == pics["us1"] and len([k for k in pics2 if k.startswith("us") and k not in ("us1", "us2")]) <= feed.LOOKUPS_PER_RUN
     url = feed.satellite_snapshot(18.4, 134.2, now=1792764800)   # 2026-10-23 14:13 UTC: evening in the western Pacific, the afternoon pass is in -> today
     assert url.startswith("https://wvs.earthdata.nasa.gov/api/v1/snapshot?") and "BBOX=13.40,127.20,23.40,141.20" in url and "TIME=2026-10-23" in url

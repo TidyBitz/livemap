@@ -144,8 +144,9 @@ LOOKUPS_PER_RUN = 4
 def quake_pictures(ids):
     """USGS's ShakeMap intensity picture for each quake that has one: the event's detail record names it. One
     request per quake, at most LOOKUPS_PER_RUN new ones per feed run (the rest wait for the next), the answer
-    kept for good when there is a picture and re-asked after six hours when there is not yet (ShakeMaps can
-    arrive an hour after the quake). EMSC's events have none."""
+    kept for good when there is a picture and re-asked every 20 min for a day and a half when there is not yet
+    (ShakeMaps can arrive hours after the quake), then every six hours. EMSC's events have none. `ids` are
+    (id, unix time) pairs, newest first."""
     import time
     now = time.time()
     try:
@@ -153,12 +154,13 @@ def quake_pictures(ids):
     except (OSError, ValueError):
         cache = {}
     looked = 0
-    for qid in ids:
+    for qid, when in ids:                         # (id, unix time), newest first: the quakes people hover are the new ones
         qid = str(qid)
         if not qid or qid.startswith("emsc"):
             continue
         c = cache.get(qid)
-        if c and (c.get("image") or now - c.get("at", 0) < 6 * 3600):
+        fresh = now - (when or 0) < 36 * 3600     # a ShakeMap arrives within the first hours: ask again every 20 min while it may
+        if c and (c.get("image") or now - c.get("at", 0) < (20 * 60 if fresh else 6 * 3600)):
             continue
         if looked >= LOOKUPS_PER_RUN:
             break
@@ -390,7 +392,7 @@ def cmd_feed(args):
         qfeatures, qproblems = quakes_cached(args.feed, read_layers_int("quake_sources", 3))
         problems += qproblems
         try:
-            qpics = quake_pictures([f.get("id") for f in qfeatures])
+            qpics = quake_pictures(sorted(((f.get("id"), ((f.get("properties") or {}).get("time") or 0) / 1000) for f in qfeatures), key=lambda x: -x[1]))
         except Exception as e:
             qpics, _ = {}, problems.append("quake pictures: %s" % e)
         for f in qfeatures:
@@ -398,7 +400,7 @@ def cmd_feed(args):
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
                           "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
                           "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f, None, units),
-                          "image": qpics.get(str(f.get("id") or ""), "")})
+                          "image": qpics.get(str(f.get("id") or ""), "") or satellite_snapshot(c[1], c[0], now)})
     except Exception as e:
         problems.append("quakes: %s" % e)
     # remembered events: storms, volcanoes, fires (first seen / changed)
