@@ -44,6 +44,11 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- The last notices still drawn in the map's corner - "Live layers off: load guard…", "Animations paused…", "Full
+  speed from the widget" - have moved where the others went: the widget's Map controls tab shows the state and
+  the reason above the quick settings (with the way out: Full speed, or the thresholds in Performance and power),
+  and Settings > Status > Power and load turns amber with the same words. The wallpaper passes the state to the
+  helper with its layers (layers.json: saving, why) and the feed carries it to the widget.
 - Widget, Live tab: NASA ended its ISS broadcast awQzjn72bI0 on 22 October 2026 and restarted it as ROboUHfPUrU,
   so the tab had shown "Video unavailable" for days. The default now names the new broadcast together with NASA's
   "Space Station Views" playlist (&list=), so the embedded player moves on by itself the next time NASA rotates

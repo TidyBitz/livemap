@@ -2586,7 +2586,7 @@ RowLayout {
             }
         }
         Source { visible: sec16.open; names: ["Power and load"] }
-        Note { visible: sec16.open; text: "CPU busy % is read from /proc/stat; GPU busy % from the driver where it offers one (AMD: sysfs, NVIDIA: nvidia-smi). Intel exposes no busy figure without root, so its GPU clock at the top of its range stands in for 'busy'; with no GPU reading at all the CPU alone decides. The higher of the two counts. A level is entered after two busy polls (40 s) and left after three quiet ones (a minute), so a spike does not flap the map. A game or a render pins the GPU, so it is caught either way; the corner notice says when the guard is on." }
+        Note { visible: sec16.open; text: "CPU busy % is read from /proc/stat; GPU busy % from the driver where it offers one (AMD: sysfs, NVIDIA: nvidia-smi). Intel exposes no busy figure without root, so its GPU clock at the top of its range stands in for 'busy'; with no GPU reading at all the CPU alone decides. The higher of the two counts. A level is entered after two busy polls (40 s) and left after three quiet ones (a minute), so a spike does not flap the map. A game or a render pins the GPU, so it is caught either way; the widget's Map controls tab and Status > Power and load say when the guard is on." }
         QQC2.CheckBox { visible: sec16.open; id: cacheStill; text: "Render the still part of the map once and reuse it" }
         Note { visible: sec16.open; text: "Untick only if the map goes blank." }
         QQC2.ComboBox {

@@ -479,8 +479,10 @@ def read_layers_str(key, default=""):
 
 
 def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None,
-                 home=None, passes=None):
+                 home=None, passes=None, saving=None, why=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
+    if why is not None:
+        why = why.strip()[:120]
     if units is not None:
         try:
             units = [max(0, min(2, int(x))) for x in units.split(",")][:2]
@@ -494,7 +496,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
             and (flood_level is None or read_flood_level() == flood_level) and (nws_each is None or read_layers_flag("nws_each") == bool(nws_each)) \
             and (fire_sources is None or read_fire_sources() == int(fire_sources)) and (flood_sources is None or read_layers_int("flood_sources", 15) == int(flood_sources)) \
             and (quake_sources is None or read_layers_int("quake_sources", 3) == int(quake_sources)) \
-            and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)):
+            and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)) \
+            and (saving is None or read_layers_int("saving", 0) == int(saving)) and (why is None or read_layers_str("why") == why):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -508,6 +511,10 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    "quake_sources": int(quake_sources) if quake_sources is not None else read_layers_int("quake_sources", 3),
                                    "home": home if home is not None else read_layers_str("home"),          # "lat,lon" of the home place
                                    "passes": int(passes) if passes is not None else read_layers_int("passes", 0),   # 0 off, 1 visible passes, 2 every pass
+                                   # what the wallpaper is holding back and why (0 nothing, 1 animations paused, 2 live layers off):
+                                   # the widget and the Status check say so, the map itself no longer does
+                                   "saving": int(saving) if saving is not None else read_layers_int("saving", 0),
+                                   "why": why if why is not None else read_layers_str("why"),
                                    "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:

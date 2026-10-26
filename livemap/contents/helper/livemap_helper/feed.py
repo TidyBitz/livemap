@@ -554,7 +554,8 @@ def cmd_feed(args):
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
     items = sorted(keep + rest, key=lambda it: (1 if it.get("pin") else 0, -(it.get("updated") or it["when"])))
-    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip})
+    emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip,
+          "saving": read_layers_int("saving", 0), "why": read_layers_str("why")})
 
 
 HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version
@@ -649,6 +650,10 @@ def remember_history(items, now):
 
 def chk_power():
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
-    return "ok", "%s; CPU %s, GPU %s (%s)" % ("on battery" if on_battery() else "on mains power",
-                                              "%d %%" % cpu if cpu is not None else "n/a", "%d %%" % gpu if gpu is not None else "n/a",
-                                              {"amd": "sysfs", "nvidia": "nvidia-smi", "intel-clock": "Intel clock estimate", "none": "no reading, CPU decides"}[how])
+    detail = "%s; CPU %s, GPU %s (%s)" % ("on battery" if on_battery() else "on mains power",
+                                          "%d %%" % cpu if cpu is not None else "n/a", "%d %%" % gpu if gpu is not None else "n/a",
+                                          {"amd": "sysfs", "nvidia": "nvidia-smi", "intel-clock": "Intel clock estimate", "none": "no reading, CPU decides"}[how])
+    saving, why = read_layers_int("saving", 0), read_layers_str("why")
+    if saving:                                    # the wallpaper is holding back: say so here, where the user looks for it
+        return "warn", ("live layers off - " if saving == 2 else "animations paused - ") + (why or "power saving") + "; " + detail
+    return "ok", detail

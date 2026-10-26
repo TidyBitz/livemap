@@ -71,6 +71,9 @@ PlasmoidItem {
     }
     readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
+    property int saving: 0                        // what the wallpaper holds back: 0 nothing, 1 animations paused, 2 live layers off
+    property string savingWhy: ""                 // and why: "load guard: CPU 63 %, GPU ?", "on battery", "paused from the widget"
+    readonly property string savingText: saving === 0 ? "" : (saving === 2 ? "Live layers off on the map" : "Animations paused on the map") + (savingWhy ? " \u00b7 " + savingWhy : "")
     property var alertStrip: ({ hours: 6, rows: [] })   // the air raid alerts of the last hours, one row per oblast (the strip under the group header)
     property var ages: ({})                       // minutes since each kind's source was last read: "as of", so an empty kind says whether it was reached
     function asOf(k) { var m = ages[k]; return m === undefined ? "no data yet" : m < 1.5 ? "as of now" : m < 90 ? "as of " + Math.round(m) + " min ago" : "as of " + (m / 60).toFixed(m < 600 ? 1 : 0) + " h ago"; }
@@ -301,6 +304,7 @@ PlasmoidItem {
                     var r = JSON.parse(data.stdout);
                     root.items = r.items || [];
                     root.layers = r.layers === undefined ? null : r.layers;
+                    root.saving = r.saving || 0; root.savingWhy = r.why || "";
                     root.ages = r.ages || ({});
                     root.alertStrip = r.alert_strip || ({ hours: 6, rows: [] });
                     root.problems = r.problems || [];
@@ -921,6 +925,13 @@ PlasmoidItem {
                 spacing: Kirigami.Units.smallSpacing
                 onVisibleChanged: if (visible && root.checks.length === 0) root.checkStatus()   // the chips' health dots
 
+                // what the wallpaper is holding back right now, and why - this used to be a line in the map's corner
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: root.saving > 0
+                    type: Kirigami.MessageType.Information
+                    text: root.savingText + (root.savingWhy.indexOf("load guard") === 0 ? "  \u2014  Full speed below overrides it for a while; Settings > Performance and power sets the thresholds." : "")
+                }
                 Heading { text: "Quick settings \u00b7 the widget's own" }
                 RowLayout {
                     Layout.fillWidth: true

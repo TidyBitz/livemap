@@ -54,6 +54,8 @@ WallpaperItem {
             item.quakeSources = Qt.binding(function () { return cfg.QuakeSources });
             item.home = Qt.binding(function () { return cfg.HomeLat !== "" && cfg.HomeLon !== "" ? cfg.HomeLat + "," + cfg.HomeLon : "" });
             item.passes = Qt.binding(function () { return cfg.SatPasses === undefined ? 0 : cfg.SatPasses });
+            item.saving = Qt.binding(function () { return root.saving });
+            item.savingWhy = Qt.binding(function () { return root.savingWhy });
         }
     }
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
@@ -729,9 +731,8 @@ WallpaperItem {
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",
             quakeLoader.item && quakeLoader.item.hint !== "" ? quakeLoader.item.hint : "",
             netLoader.item && netLoader.item.hint !== "" ? "Network: " + netLoader.item.hint : "",
-            root.saving > 0 && root.savingWhy !== "on battery" ? (root.saving === 2 ? "Live layers off: " : "Animations paused: ") + root.savingWhy : "",
-            root.fullSpeed && root.saving === 0 && (root.guardLevel > 0 || (root.onBattery && cfg.OnBattery > 0))
-                ? "Full speed from the widget" + (root.guardLevel > 0 ? " (load guard overridden)" : " (on battery)") : "",
+            // what the wallpaper holds back (load guard, battery, the widget's pause) is no longer said here: the widget's
+            // Map controls tab and Settings > Status > Power and load carry it (layers.json: saving, why)
             cloudWatch.item && cloudWatch.item.note !== "" ? cloudWatch.item.note : ""
         ].filter(function (t) { return t !== "" })
         readonly property int corner: cfg.HintCorner          // 0 bottom right, 1 bottom left, 2 top right, 3 top left, 4 never
