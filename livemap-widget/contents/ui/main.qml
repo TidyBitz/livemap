@@ -936,12 +936,15 @@ PlasmoidItem {
             }
 
             // ---- Map controls: quick settings on top of the wallpaper's own (mode.json, read within 20 s) ----
-            ColumnLayout {
-                id: mapControls
+            PC3.ScrollView {
                 visible: tabs.currentIndex === 3
                 Layout.fillWidth: true; Layout.fillHeight: true
-                spacing: Kirigami.Units.smallSpacing
+                contentWidth: availableWidth
                 onVisibleChanged: if (visible && root.checks.length === 0) root.checkStatus()   // the chips' health dots
+            ColumnLayout {
+                id: mapControls
+                width: parent.width
+                spacing: Kirigami.Units.smallSpacing
 
                 // what the wallpaper is holding back right now, and why - this used to be a line in the map's corner
                 Kirigami.InlineMessage {
@@ -1116,18 +1119,16 @@ PlasmoidItem {
                     PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
-                PC3.ScrollView {
-                    visible: mapControls.sourcesOpen
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 14
-                    contentWidth: availableWidth
-                    ListView {
-                        model: root.checks
+                // the list at its full height: the tab scrolls, not the list
+                ColumnLayout {
+                        visible: mapControls.sourcesOpen
+                        Layout.fillWidth: true
                         spacing: 2
-                        clip: true
+                        Repeater {
+                        model: root.checks
                         delegate: RowLayout {
                             required property var modelData
-                            width: ListView.view.width
+                            Layout.fillWidth: true
                             spacing: Kirigami.Units.smallSpacing
                             readonly property bool pending: modelData.state === ""          // no answer yet
                             Rectangle {
@@ -1147,16 +1148,17 @@ PlasmoidItem {
                                 PC3.Label { Layout.fillWidth: true; visible: !pending; text: modelData.detail; textFormat: Text.PlainText; wrapMode: Text.Wrap; opacity: root.statusBusy ? 0.4 : 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                             }
                         }
+                        }
                     }
-                }
                 PC3.Label { visible: mapControls.sourcesOpen; Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
                             text: "Green: working. Yellow: something to download or a source that is slow or stale (the map keeps its last good data). Red: a source or file that is not working." }
-                Item { Layout.fillHeight: true }
                 PC3.Button {
                     Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.smallSpacing
                     text: "Open the wallpaper settings\u2026"; icon.name: "configure"
                     onClicked: exec.connectSource(root.helperShell + "widget --configure # " + Date.now())
                 }
+            }
             }
 
         }

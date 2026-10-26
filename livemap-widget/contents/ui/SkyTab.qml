@@ -244,22 +244,27 @@ ColumnLayout {
                                 visible: stripHover.containsMouse
                                 z: 20
                                 readonly property var day: dayRow.modelData
+                                readonly property var cell: (day.cells || [])[stripHover.hour] || null
                                 readonly property string line: (day.lines || [])[stripHover.hour] || ""
                                 readonly property bool below: dayRow.index < 2
-                                width: Math.min(strip.width, bubbleText.implicitWidth + Kirigami.Units.largeSpacing * 2)
-                                height: bubbleText.implicitHeight + Kirigami.Units.largeSpacing * 2
+                                readonly property real pad: Kirigami.Units.largeSpacing
+                                width: Math.min(strip.width, bubbleIcon.width + Kirigami.Units.largeSpacing + Math.max(bubbleHead.implicitWidth, bubbleBody.implicitWidth) + pad * 2)
+                                height: Math.max(bubbleIcon.height, bubbleHead.implicitHeight + bubbleBody.implicitHeight + 2) + pad * 2
                                 x: Math.max(0, Math.min(strip.width - width, stripHover.hour / 24 * strip.width + strip.width / 48 - width / 2))
                                 y: below ? strip.height + Kirigami.Units.smallSpacing : -height - Kirigami.Units.smallSpacing
                                 radius: 4
                                 color: Kirigami.Theme.backgroundColor
                                 border.color: Kirigami.Theme.highlightColor; border.width: 1
-                                ColumnLayout {
-                                    id: bubbleText
-                                    x: Kirigami.Units.largeSpacing; y: Kirigami.Units.largeSpacing
-                                    spacing: 1
-                                    PC3.Label { text: (hourBubble.day.name || "") + (hourBubble.line ? " \u00b7 " + hourBubble.line.split(" \u00b7 ")[0] : ""); font.bold: true }
-                                    PC3.Label { text: hourBubble.line ? hourBubble.line.split(" \u00b7 ").slice(1).join("\n") : "no forecast for this hour"; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                                Kirigami.Icon {
+                                    id: bubbleIcon
+                                    x: hourBubble.pad; y: hourBubble.pad
+                                    width: Kirigami.Units.iconSizes.medium; height: width
+                                    source: sky.iconFor(hourBubble.cell ? hourBubble.cell.icon : "cloud", hourBubble.cell ? hourBubble.cell.day : true)
                                 }
+                                PC3.Label { id: bubbleHead; x: bubbleIcon.x + bubbleIcon.width + Kirigami.Units.largeSpacing; y: hourBubble.pad; font.bold: true
+                                            text: (hourBubble.day.name || "") + (hourBubble.line ? " \u00b7 " + hourBubble.line.split(" \u00b7 ")[0] : "") }
+                                PC3.Label { id: bubbleBody; x: bubbleHead.x; y: bubbleHead.y + bubbleHead.implicitHeight + 2; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                            text: hourBubble.line ? hourBubble.line.split(" \u00b7 ").slice(1).join("\n") : "no forecast for this hour" }
                             }
                         }
                         PC3.Label { Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5; horizontalAlignment: Text.AlignRight

@@ -255,7 +255,8 @@ def build(lat, lon, u, cache, now):
             isday = bool((hr.get("is_day") or [1] * len(h_times))[i])
             ws = (hr.get("wind_speed_10m") or [0] * len(h_times))[i] or 0
             wd = (hr.get("wind_direction_10m") or [0] * len(h_times))[i] or 0
-            cells.append({"t": round((tc - tmin) / span, 3) if tc is not None else None, "p": round(pp / 100, 2), "mm": pr, "snow": sn > 0, "day": isday, "c": round(cc / 100, 2)})
+            cells.append({"t": round((tc - tmin) / span, 3) if tc is not None else None, "p": round(pp / 100, 2), "mm": pr, "snow": sn > 0, "day": isday, "c": round(cc / 100, 2),
+                          "icon": ICONS.get(hc, "cloud")})
             lines.append("%s · %s · %s%s · %d %% chance%s · cloud %d %% · wind %s %s" % (
                 hour_label(h, u), temp_text(tc, u), CODES.get(hc, "–"), (" (" + ("snow " if sn > 0 else "") + precip_text(pr, u) + ")") if pr > 0 else "",
                 round(pp), " of %s" % ("snow" if sn > 0 else "rain") if pp > 0 else "", round(cc), wind_text(ws, u), compass(wd)))
