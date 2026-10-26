@@ -417,12 +417,15 @@ def read_layers():
 
 
 def read_units():
-    """[distance, wind] as the wallpaper's Units and Storm wind choices (0 km / km/h, 1 mi / mph, 2 nmi / knots),
-    for the widget's feed; [0, 0] until the wallpaper has said."""
+    """[distance, wind, clock12, temp] as the wallpaper's Units choices (distance 0 km, 1 mi, 2 nmi; wind 0 km/h,
+    1 mph, 2 knots; clock 0 24-hour, 1 12-hour; temperature 0 follows the distance unit, 1 °C, 2 °F), for the widget's
+    feed and the Sky tab; [0, 0] until the wallpaper has said (older wallpapers send two)."""
     try:
         d = json.loads(LAYERS.read_text(encoding="utf-8"))
         u = d.get("units") if isinstance(d, dict) else None
-        return [int(u[0]), int(u[1])] if isinstance(u, list) and len(u) == 2 else [0, 0]
+        if isinstance(u, list) and len(u) >= 2:
+            return [int(x) for x in u[:4]]        # [distance, wind] and, since 0.49, [.., clock12, temp]
+        return [0, 0]
     except (OSError, ValueError, TypeError):
         return [0, 0]
 
@@ -479,13 +482,13 @@ def read_layers_str(key, default=""):
 
 
 def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None,
-                 home=None, passes=None, saving=None, why=None):
+                 home=None, passes=None, saving=None, why=None, home_name=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
     if why is not None:
         why = why.strip()[:120]
     if units is not None:
         try:
-            units = [max(0, min(2, int(x))) for x in units.split(",")][:2]
+            units = [max(0, min(2, int(x))) for x in units.split(",")][:4]   # distance, wind, clock (0 24 h, 1 12 h), temperature (0 follow distance, 1 °C, 2 °F)
         except ValueError:
             units = None
     if fire_focus is not None:
@@ -497,7 +500,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
             and (fire_sources is None or read_fire_sources() == int(fire_sources)) and (flood_sources is None or read_layers_int("flood_sources", 15) == int(flood_sources)) \
             and (quake_sources is None or read_layers_int("quake_sources", 3) == int(quake_sources)) \
             and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)) \
-            and (saving is None or read_layers_int("saving", 0) == int(saving)) and (why is None or read_layers_str("why") == why):
+            and (saving is None or read_layers_int("saving", 0) == int(saving)) and (why is None or read_layers_str("why") == why) \
+            and (home_name is None or read_layers_str("home_name") == home_name):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -510,6 +514,7 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    "flood_sources": int(flood_sources) if flood_sources is not None else read_layers_int("flood_sources", 15),
                                    "quake_sources": int(quake_sources) if quake_sources is not None else read_layers_int("quake_sources", 3),
                                    "home": home if home is not None else read_layers_str("home"),          # "lat,lon" of the home place
+                                   "home_name": home_name if home_name is not None else read_layers_str("home_name"),
                                    "passes": int(passes) if passes is not None else read_layers_int("passes", 0),   # 0 off, 1 visible passes, 2 every pass
                                    # what the wallpaper is holding back and why (0 nothing, 1 animations paused, 2 live layers off):
                                    # the widget and the Status check say so, the map itself no longer does

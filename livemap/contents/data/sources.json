@@ -659,6 +659,38 @@
       "attribution": "Peter Bird; Hugo Ahlenius, Nordpil",
       "url": "https://github.com/fraxen/tectonicplates",
       "status": "Plate boundaries (PB2002)"
+    },
+    {
+      "id": "open-meteo",
+      "name": "Open-Meteo forecast",
+      "hazard": "weather",
+      "regions": [
+        "world"
+      ],
+      "gives": "current conditions, hourly and daily forecast, sunrise and sunset, air quality at the home place (the widget's Sky tab)",
+      "lead": "hours",
+      "cadence": "every 20 min",
+      "official": false,
+      "licence": "CC BY 4.0 (free for non-commercial use, no key)",
+      "attribution": "Weather data by Open-Meteo.com",
+      "url": "https://open-meteo.com/",
+      "status": "Weather at home (Open-Meteo)"
+    },
+    {
+      "id": "swpc-kp",
+      "name": "NOAA SWPC planetary K index",
+      "hazard": "weather",
+      "regions": [
+        "world"
+      ],
+      "gives": "geomagnetic activity now, for the aurora line of the Sky tab",
+      "lead": "hours",
+      "cadence": "every 20 min",
+      "official": true,
+      "licence": "US Government work, public domain",
+      "attribution": "NOAA Space Weather Prediction Center",
+      "url": "https://www.swpc.noaa.gov/products/planetary-k-index",
+      "status": "Space weather (NOAA SWPC)"
     }
   ]
 }

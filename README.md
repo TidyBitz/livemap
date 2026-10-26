@@ -54,7 +54,7 @@ CPU or GPU is busy, and a daily probe on GitHub asks every source whether it sti
 | | |
 |---|---|
 | ![The Status page: every source and local file with its live state](docs/screenshots/settings-status.webp) | ![The Coverage page: hazards by world region, with the source and its lead time, and the data credits](docs/screenshots/settings-coverage.webp) |
-| *Status: every source and local file, green/orange/red, with what it answered - the same list the widget's Status tab shows* | *Coverage: which source covers each hazard in each region and how fast, your own area first, then every provider's licence* |
+| *Status: every source and local file, green/orange/red, with what it answered - the same list the widget's Map controls tab shows under Sources* | *Coverage: which source covers each hazard in each region and how fast, your own area first, then every provider's licence* |
 
 Older pictures (0.46: the collapsible settings, the storm tracks page, US floods, launches) are in
 [docs/screenshots/v0.46](docs/screenshots/v0.46).
@@ -83,7 +83,7 @@ Older pictures (0.46: the collapsible settings, the storm tracks page, US floods
 | **Life cycle** | Every event pulses while newly reported, sits steady while listed, then drifts to an aged colour and is removed; a change of status counts as new again | Helper memory (`events.json`) |
 | **Resilience** | Every feed keeps its last good data; a desktop notice only after a source has been stale for hours; HTTPS only, size-capped, parsed as data, rendered as plain text | - |
 | **Performance and power** | High performance / Balanced / Power saving profiles; 10-60 animation updates a second, stopped when idle; the still map cached as one texture; load guard pauses animation or unloads live layers when CPU or GPU is busy; on-battery policy | sysfs / nvidia-smi / CPU, polled every 20 s |
-| **Companion widget** | Newest events with source links, sorted by time, severity, kind or "what is next", NEW / SOON / LIVE tags; ISS and launch webcasts embedded, in mpv or in the browser; map controls (pause, plain map, hide layers, clouds on/off and opacity, full speed on demand for a set time); status of every data source; lists only the kinds the wallpaper shows; a notification sound (pop, chime, zing or your own file) for severe events and imminent launches | Shares the wallpaper's helper and caches |
+| **Companion widget** | Newest events with source links, sorted by time, severity, kind or "what is next", NEW / SOON / LIVE tags; ISS and launch webcasts embedded, in mpv or in the browser; a Sky tab for the home place (now, seven day strips with hour-by-hour temperature, night, rain and snow, a now line and a hover bubble, sun and moon, tonight's cloud, the next visible ISS pass, aurora and air quality, each source with its age); map controls (pause, plain map, hide layers, clouds on/off and opacity, full speed on demand for a set time) with the status of every data source underneath; lists only the kinds the wallpaper shows; a notification sound (pop, chime, zing or your own file) for severe events and imminent launches | Shares the wallpaper's helper and caches |
 | **Command line** | `livemap.sh` doctor / install / activate / deactivate / remove / purge / status, with per-distro install hints for Fedora, Arch, openSUSE and Debian/Ubuntu/neon | - |
 
 ## Install
@@ -176,7 +176,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | Launches | The Space Devs, Launch Library 2 | hourly |
 | Network (off by default) | this machine's sockets, DB-IP Lite geolocation, all local | every 10 s |
 
-What covers where, and how fast, is in [docs/COVERAGE.md](docs/COVERAGE.md) (also on the Status tab, with a
+What covers where, and how fast, is in [docs/COVERAGE.md](docs/COVERAGE.md) (also on the Status page, with a
 "where you are" summary for the home city); each feed's format and handling in [docs/SOURCES.md](docs/SOURCES.md).
 
 Every source is fetched over HTTPS only, capped in size, parsed as data and never executed; strings that end
@@ -216,7 +216,8 @@ wallpaper's helper and caches; nothing is fetched twice.
       contents/data/sources.json   every data source: hazard, regions, lead, cadence, licence (the coverage matrix and docs/COVERAGE.md)
       contents/styles/*.json     the built-in styles: each base map's recommended colours as the keys that differ from main.xml
     livemap-widget/              the companion widget package (Plasma/Applet)
-      contents/ui/main.qml         the Events, Live, Map controls and Status tabs
+      contents/ui/main.qml         the Events, Live, Sky and Map controls tabs (Sources, the former Status tab, under Map controls)
+      contents/ui/SkyTab.qml       the Sky tab: weather, sun and moon, tonight's sky at the home place
       contents/ui/configGeneral.qml   its settings page
       contents/icons/, contents/sounds/   the flame and satellite icons; the three notification sounds
     livemap.sh                   install / doctor / activate / remove / purge / status

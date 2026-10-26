@@ -6,6 +6,22 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Widget: a Sky tab, between Live and Map controls, about your sky at the home place from Essentials. Now
+  (temperature, conditions, feels-like, today's high and low, wind, humidity, cloud, pressure and its trend); the
+  next seven days, one 24-hour strip each - colour for the temperature hour by hour, the night ends darkened,
+  hatched bands where rain (blue) or snow (white) is forecast with the chance as their strength, ticks at 6 / 12 /
+  18, a white line for now on today, and a bubble with the hour's line when hovered; sun and moon (sunrise, sunset,
+  day length, the hours dark enough for satellite spotting, moon phase and illumination, UV); tonight's sky (cloud
+  cover through the dark hours, the next visible ISS or Tiangong pass, aurora from the planetary K index with
+  whether it is plausible at your latitude, air quality). Under the place name, how old each source's answer is -
+  plain under an hour, amber to three, red beyond, with the reason when a fetch failed - so stale data cannot pass
+  for fresh. Sources: Open-Meteo (forecast, air quality) and NOAA SWPC (Kp), each fetched at most every 20 minutes
+  by the helper (`sky`) and kept, so an outage shows the last answer with its age; sun, moon and passes are
+  computed locally. New Status rows "Weather at home (Open-Meteo)" and "Space weather (NOAA SWPC)" read that cache.
+- Units: Temperature (follow the distance unit - miles means °F - or Celsius or Fahrenheit) and the one Clock
+  setting (12- or 24-hour), which the Sky tab, the time zone labels and the band all follow; the 12-hour checkbox
+  left the Time zones row for it. Rain is in inches with miles, millimetres otherwise; pressure in inches of
+  mercury with miles, hectopascals otherwise. The wallpaper passes four units to the helper now (layers.json).
 - Essentials: a frame picker. The world (the Classic picture) with the frame drawn on it: drag inside the box to
   move it, its edges and corners to resize, the wheel to zoom about the pointer, drag outside to draw a fresh
   box; everything outside dims. Dashed outlines show what each screen really displays once Fit to screen has had
@@ -33,6 +49,10 @@ release notes written at the time; their dates are the day the version was hande
   Helper: `passes --lat --lon [--all] [--table]`.
 
 ### Changed
+- Widget: the Status tab is now a Sources section at the foot of Map controls, next to the chips whose health
+  dots come from the same check: one header line with the summary (problems, notes, when checked, refresh),
+  opening to the full list on a click and by itself when a source is failing. The tabs are Events, Live, Sky
+  and Map controls.
 - Air raid alerts redrawn. Edge lights (new default): an oblast under alert has its border glow in the alert
   colour and the imagery inside it - the city lights, the terrain - stays as it is; a new alert breathes
   brightest, a settled one holds a steady edge, part of an oblast is dashed, a long-running one a thin dashed

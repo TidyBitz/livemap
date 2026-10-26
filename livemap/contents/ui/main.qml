@@ -45,7 +45,7 @@ WallpaperItem {
             item.pauseAt = Qt.binding(function () { return cfg.GuardPause });
             item.plainAt = Qt.binding(function () { return cfg.GuardPlain });
             item.layers = Qt.binding(function () { return root.shownLayers });
-            item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits });
+            item.units = Qt.binding(function () { return cfg.DistanceUnits + "," + cfg.StormUnits + "," + (cfg.ZoneClock12 ? 1 : 0) + "," + (cfg.TempUnits === undefined ? 0 : cfg.TempUnits) });
             item.fireFocus = Qt.binding(function () { return cfg.FireFocus });
             item.floodLevel = Qt.binding(function () { return cfg.FloodMinLevel });
             item.nwsEach = Qt.binding(function () { return cfg.FloodNwsEach });
@@ -53,6 +53,7 @@ WallpaperItem {
             item.floodSources = Qt.binding(function () { return (cfg.FloodNws ? 1 : 0) | cfg.FloodWarnSources });
             item.quakeSources = Qt.binding(function () { return cfg.QuakeSources });
             item.home = Qt.binding(function () { return cfg.HomeLat !== "" && cfg.HomeLon !== "" ? cfg.HomeLat + "," + cfg.HomeLon : "" });
+            item.homeName = Qt.binding(function () { return cfg.HomeCity || "" });
             item.passes = Qt.binding(function () { return cfg.SatPasses === undefined ? 0 : cfg.SatPasses });
             item.saving = Qt.binding(function () { return root.saving });
             item.savingWhy = Qt.binding(function () { return root.savingWhy });

@@ -533,3 +533,52 @@ def test_live_url_page_reading():
     page = '{"videoId":"aaaaaaaaaaa","title":"old"} ... {"videoId":"bbbbbbbbbbb","isLiveNow":true}'
     assert video_from_page("https://www.youtube.com/@sen/live", page) == "bbbbbbbbbbb"
     assert video_from_page("https://www.youtube.com/@sen", "<html>nothing</html>") == ""
+
+
+def test_sky_document_from_open_meteo(monkeypatch):
+    """The Sky tab's document from a recorded-shape Open-Meteo answer: units, strips, bubble lines, ages."""
+    import time as _t
+    from livemap_helper import sky
+    now = 1793034000                              # 2026-10-26 ~ 18:20 UTC = 12:20 Denver
+    day0 = 1792994400                             # 2026-10-26 00:00 MDT (UTC-6)
+    hours = [day0 + h * 3600 for h in range(24 * 7)]
+    import math
+    temps = [8 + 10 * math.sin((h % 24 - 6) / 24 * 2 * math.pi) for h in range(24 * 7)]
+    fc = {"timezone": "America/Denver", "utc_offset_seconds": -21600,
+          "current": {"time": now, "temperature_2m": 12.2, "apparent_temperature": 10.5, "relative_humidity_2m": 31, "pressure_msl": 1019.8,
+                      "wind_speed_10m": 13, "wind_direction_10m": 315, "weather_code": 0, "cloud_cover": 5, "is_day": 1},
+          "hourly": {"time": hours, "temperature_2m": temps, "precipitation_probability": [70 if 48 + 13 <= i <= 48 + 21 else 0 for i in range(168)],
+                     "precipitation": [1.2 if 48 + 13 <= i <= 48 + 21 else 0 for i in range(168)], "snowfall": [0] * 168,
+                     "weather_code": [61 if 48 + 13 <= i <= 48 + 21 else 1 for i in range(168)], "cloud_cover": [10] * 168,
+                     "wind_speed_10m": [12] * 168, "wind_direction_10m": [300] * 168, "is_day": [1 if 7 <= i % 24 < 18 else 0 for i in range(168)],
+                     "relative_humidity_2m": [30] * 168, "pressure_msl": [1018 + i * 0.1 for i in range(168)]},
+          "daily": {"time": [day0 + d * 86400 for d in range(7)], "weather_code": [0, 2, 61, 71, 3, 0, 0],
+                    "temperature_2m_max": [16, 14, 9, 3, 5, 11, 14], "temperature_2m_min": [3, 2, 1, -4, -5, -2, 0],
+                    "precipitation_probability_max": [0, 10, 70, 80, 20, 0, 0], "precipitation_sum": [0, 0, 9.6, 4, 0.5, 0, 0], "snowfall_sum": [0, 0, 0, 5, 0, 0, 0],
+                    "sunrise": [day0 + d * 86400 + 7 * 3600 + 21 * 60 for d in range(7)], "sunset": [day0 + d * 86400 + 18 * 3600 + 3 * 60 for d in range(7)],
+                    "uv_index_max": [4] * 7}}
+    cache = {"forecast": {"at": now, "good_at": now - 240, "data": fc},
+             "air": {"at": now, "good_at": now - 6600, "data": {"current": {"us_aqi": 34, "european_aqi": 20}}},
+             "kp": {"at": now, "good_at": now - 720, "data": {"kp": 2.33, "time": "x"}}}
+    from livemap_helper import feed
+    monkeypatch.setattr(feed, "home_passes", lambda now, mode: ([], None))
+    doc = sky.build(39.74, -104.99, [1, 1, 1, 0], cache, now)      # miles, mph, 12-hour, temperature follows -> °F
+    assert doc["now"]["temp"] == "54°F" and doc["now"]["wind"] == "8 mph NW" and doc["now"]["pressure"] == "30.11 in"
+    assert doc["ages"]["forecast"]["age"] == "as of 4 min ago" and doc["ages"]["air"]["minutes"] == 110
+    assert len(doc["days"]) == 7 and len(doc["days"][0]["cells"]) == 24 and doc["days"][0]["name"] == "Today"
+    wed = doc["days"][2]
+    assert wed["chance"] == "70 %" and wed["cells"][15]["p"] == 0.7 and wed["cells"][15]["mm"] == 1.2 and wed["cells"][3]["p"] == 0
+    assert "1 PM" in wed["lines"][13] and "Light rain" in wed["lines"][13] and "0.05 in" in wed["lines"][13]
+    assert doc["sun"]["sunrise"] == "7:21 AM" and doc["sun"]["sunset"] == "6:03 PM" and doc["sun"]["day_length"] == "10 h 42 min"
+    assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "AQI 34, good"
+    assert abs(doc["now_h"] - 11) < 0.01
+    doc_c = sky.build(39.74, -104.99, [0, 0, 0, 0], cache, now)      # km, 24-hour, °C
+    assert doc_c["now"]["temp"] == "12°C" and doc_c["sun"]["sunrise"] == "07:21" and doc_c["now"]["pressure"] == "1020 hPa"
+
+
+def test_kp_rows_both_shapes(monkeypatch):
+    from livemap_helper import sky
+    monkeypatch.setattr(sky, "fetch_json", lambda *a, **k: [["time_tag", "Kp", "a_running", "station_count"], ["2026-10-26 00:00:00.000", "1.67", "6", "8"], ["2026-10-26 03:00:00.000", "2.33", "9", "8"]])
+    assert sky.fetch_kp() == {"time": "2026-10-26 03:00:00.000", "kp": 2.33}
+    monkeypatch.setattr(sky, "fetch_json", lambda *a, **k: [{"time_tag": "2026-10-26T03:00:00", "kp_index": 3, "estimated_kp": 2.67}])
+    assert sky.fetch_kp()["kp"] == 3.0

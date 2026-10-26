@@ -223,6 +223,7 @@
     <entry name="CityLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="CityLabelHalo" type="Int"><default>100</default></entry>
     <entry name="DistanceUnits" type="Int"><default>0</default></entry>
+    <entry name="TempUnits" type="Int"><default>0</default></entry>      <!-- 0 follows the distance unit (miles -> °F), 1 °C, 2 °F: the widget's Sky tab -->
     <entry name="MarkerScale" type="Int"><default>100</default></entry>
     <entry name="StaleHours" type="Int"><default>6</default></entry>
     <entry name="SatTrackLength" type="Int"><default>1</default></entry>
