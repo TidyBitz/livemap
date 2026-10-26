@@ -190,7 +190,7 @@ def quake_pictures(ids):
 
 PICTURES = DATA / "pictures"                  # the bubbles' pictures, fetched by the helper and handed to the widget as files
 PICTURES_INDEX = DATA / "pictures.json"       # url -> {"file", "at"} or {"error", "at"}
-PICTURE_FETCHES_PER_RUN = 3
+PICTURE_FETCHES_PER_RUN = 6
 PICTURE_LIMIT = 8 * 1024 * 1024
 
 
@@ -208,7 +208,9 @@ def local_pictures(items):
     except (OSError, ValueError):
         index = {}
     fetched = 0
-    for it in items:
+    # the sources' own pictures first (ShakeMaps, storm charts), the satellite snapshots after: the former say more
+    order = sorted(items, key=lambda it: 1 if "wvs.earthdata.nasa.gov" in (it.get("image") or "") else 0)
+    for it in order:
         url = it.get("image") or ""
         if not url.startswith("http"):
             continue
@@ -400,7 +402,9 @@ def cmd_feed(args):
             items.append({"kind": "quake", "when": p.get("time", 0) / 1000, "title": "M%.1f \u00b7 %s" % (p.get("mag") or 0, p.get("place") or ""),
                           "detail": p.get("source") or "USGS", "url": p.get("url") or "", "lat": c[1], "lon": c[0], "level": 3 if (p.get("mag") or 0) >= 6 else 2 if (p.get("mag") or 0) >= 5 else 1,
                           "key": "quake:%s" % (f.get("id") or p.get("code") or "%s,%s" % (c[0], c[1])), **facts_for("quake", f, None, units),
-                          "image": qpics.get(str(f.get("id") or ""), "") or satellite_snapshot(c[1], c[0], now)})
+                          "image": qpics.get(str(f.get("id") or ""), "") or satellite_snapshot(c[1], c[0], now),
+                          "picture_note": "USGS ShakeMap: modelled shaking intensity" if qpics.get(str(f.get("id") or ""))
+                                          else "Satellite view of the area; no ShakeMap - USGS models the shaking of quakes above about M5.5 and of those felt on land"})
     except Exception as e:
         problems.append("quakes: %s" % e)
     # remembered events: storms, volcanoes, fires (first seen / changed)
