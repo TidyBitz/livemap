@@ -6,6 +6,10 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Fit to screen: Auto, now the default. Stretch while it hardly shows (up to 12 % taller or wider than true) and
+  Crop beyond that, so the 72°N-56°S view fills a 2.4:1 monitor as before while a 16:10 laptop panel trims the
+  sides instead of squeezing the continents to 60 % of their width. The settings preview says what a screen
+  gets ("shapes drawn 112 % as tall as true and the sides trimmed"). Stretch, Fit, Crop and Fill stay as choices.
 - A seventh base map, "Classic Blue Marble (NASA 2002, static)": the original composite the wallpaper was built
   around - the same in every season, with the ice and the deep blue ocean - shipped with the package at 5 400 px
   (a bigger copy saved as base/classic.jpg in the data folder is used instead), cut to the frame like the

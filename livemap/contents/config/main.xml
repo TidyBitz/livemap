@@ -10,7 +10,7 @@
     <entry name="DataDir" type="String"><default></default></entry>
     <entry name="Seasonal" type="Bool"><default>true</default></entry>
     <entry name="SeasonalBlend" type="Bool"><default>true</default></entry>
-    <entry name="FillMode" type="Int"><default>0</default></entry>
+    <entry name="FillMode" type="Int"><default>4</default></entry>    <!-- 0 stretch, 1 fit, 2 crop, 3 fill (trim edges), 4 auto: stretch up to 12 %, then crop -->
     <entry name="StyleName" type="String"><default>builtin:seasonal</default></entry>   <!-- the style the settings were last set from: builtin:slug or user:slug (styles/*.json) -->
     <entry name="StyleIncludes" type="Int"><default>3</default></entry>                 <!-- what a style apply / save covers: 1 map base, 2 colours and lines, 4 layers -->
     <entry name="MapStyle" type="Int"><default>0</default></entry>          <!-- 0 seasonal Blue Marble, 1 today's satellite view (GIBS VIIRS), 2 relief and bathymetry (GIBS), 3 dark cartographic, 4 Dark Matter, 5 Matrix, 6 classic Blue Marble 2002 (shipped) -->

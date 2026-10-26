@@ -917,6 +917,7 @@ RowLayout {
         if (!(W > 0 && H > 0) || e <= w || n <= so) return "";
         var sxF = W / (e - w), syF = H / (n - so), m = fillMode.currentIndex, sx, sy;
         if (m === 0) { sx = sxF; sy = syF; } else if (m === 1) { sx = sy = Math.min(sxF, syF); } else if (m === 2) { sx = sy = Math.max(sxF, syF); }
+        else if (m === 4) { var t = Math.max(1 / 1.12, Math.min(1.12, syF / sxF)); if (syF >= sxF) { sy = syF; sx = syF / t; } else { sx = sxF; sy = sxF * t; } }
         else { sx = sy = Math.max(Math.min(sxF, syF), W / 360, H / 180); }
         var cl = (w + e) / 2, ct = (n + so) / 2;
         if (m === 3) { cl = Math.max(-180 + W / (2 * sx), Math.min(180 - W / (2 * sx), cl)); ct = Math.max(-90 + H / (2 * sy), Math.min(90 - H / (2 * sy), ct)); }
@@ -925,7 +926,7 @@ RowLayout {
         function lat(y) { return Math.round(Math.abs(y)) + (y < 0 ? "°S" : "°N"); }
         var bars = vn > 90 || vs < -90 || vw < -180 || ve > 180;
         return "This screen is " + (W / H).toFixed(2) + ":1 (" + W + " × " + H + "): it shows " + lon(Math.max(-180, vw)) + " to " + lon(Math.min(180, ve)) + ", " + lat(Math.min(90, vn)) + " to " + lat(Math.max(-90, vs))
-             + (m === 0 ? ", shapes drawn " + Math.round(sy / sx * 100) + " % as tall as true" : bars ? ", with bars where the world ends" : "")
+             + (m === 0 || (m === 4 && Math.abs(sy / sx - 1) > 0.005) ? ", shapes drawn " + Math.round(sy / sx * 100) + " % as tall as true" + (m === 4 && (sx > sxF * 1.005 || sy > syF * 1.005) ? " and the " + (syF >= sxF ? "sides" : "top and bottom") + " trimmed" : "") : bars ? ", with bars where the world ends" : "")
              + ". On a screen this shape every frame the full 360° wide comes out alike in Fill: the whole latitude range, the middle of the Pacific trimmed; only Crop or Stretch can honour a narrower latitude band.".replace(/\. On a screen.*$/, m === 3 && (e - w) >= 300 && W / H < 2 ? ". On a screen this shape every frame the full 360° wide comes out alike in Fill (the whole latitude range, the middle of the Pacific trimmed); only Crop or Stretch can honour a narrower latitude band." : ".");
     })()
 
@@ -1311,14 +1312,15 @@ RowLayout {
             visible: sec1.open
             id: fillMode
             Kirigami.FormData.label: "Fit to screen:"
-            model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions", "Fill, true proportions, trimming the edges"]
+            model: ["Stretch to fill", "Fit, true proportions", "Crop, true proportions", "Fill, true proportions, trimming the edges", "Auto: stretch a little, then crop"]
         }
         Note {
             visible: sec1.open
             text: ["Stretch: all of the chosen area fills the screen; shapes get taller or wider as needed.",
                    "Fit: all of the chosen area at true proportions; spare space shows more map, or bars.",
                    "Crop: true proportions filling the screen, trimmed where it does not fit.",
-                   "Fill: Fit without bars. All of the chosen area at true proportions, with more map around it where the screen has room instead of bars; the view zooms in only as far as it must to stay inside the world, so the whole world on a 16:10 screen loses the middle of the Pacific (on a wide screen, the poles), like a printed map."][fillMode.currentIndex]
+                   "Fill: Fit without bars. All of the chosen area at true proportions, with more map around it where the screen has room instead of bars; the view zooms in only as far as it must to stay inside the world, so the whole world on a 16:10 screen loses the middle of the Pacific (on a wide screen, the poles), like a printed map.",
+                   "Auto: Stretch while it hardly shows (up to 12 % taller or wider than true), Crop beyond that - so a wide monitor fills as before and a laptop panel trims the sides instead of squeezing the continents. The one setting that suits every screen."][fillMode.currentIndex]
         }
         // what this screen will actually show for the frame and mode: the same sums as main.qml, so a 16:10 laptop learns
         // here that every full-width frame comes out as the whole latitude range in Fill mode

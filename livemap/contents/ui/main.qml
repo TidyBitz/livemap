@@ -135,6 +135,7 @@ WallpaperItem {
     //   Fit:     true proportions, the whole frame visible (more map, or bars, in the spare space)
     //   Crop:    true proportions, the frame fills the screen and is trimmed where it does not fit
     //   Fill:    Fit without bars - the frame and its surroundings, zoomed in only as far as the world's edges demand
+    //   Auto:    Stretch up to 12 % off true, Crop beyond that (the default: right on a wide monitor and on a laptop panel)
     // Any frame at least 10 degrees wide and 5 tall; the still layer's texture is clipped to the screen below,
     // so the zoom is no longer limited to 2x (a region such as Europe is about 8x).
     readonly property real frameN: Math.max(-85, Math.min(90, cfg.FrameNorth))
@@ -195,8 +196,15 @@ WallpaperItem {
     // region fills the screen with its surroundings, and the whole world on a 16:10 screen loses the mid-Pacific
     // (on a wide screen, the poles), like a printed map.
     readonly property real sFill: Math.max(Math.min(sxFill, syFill), root.width / 360, root.height / 180)
-    readonly property real sx: cfg.FillMode === 0 ? sxFill : cfg.FillMode === 1 ? Math.min(sxFill, syFill) : cfg.FillMode === 3 ? sFill : Math.max(sxFill, syFill)
-    readonly property real sy: cfg.FillMode === 0 ? syFill : sx
+    // Auto (mode 4, the default): Stretch while the distortion is small, Crop beyond that. The frame is stretched up to
+    // 12 % taller or wider than true - a 2.8:1 view on a 2.4:1 monitor passes unnoticed - and on a screen whose shape is
+    // further from the frame's (a 16:10 laptop panel) the shapes stay within those 12 % and the sides are trimmed
+    // instead. One setting that looks right on every screen, so copying settings between screens is safe.
+    readonly property real autoStretch: 1.12
+    readonly property real autoTall: Math.max(1 / autoStretch, Math.min(autoStretch, syFill / sxFill))   // how much taller than true the shapes come out
+    readonly property real sx: cfg.FillMode === 0 ? sxFill : cfg.FillMode === 1 ? Math.min(sxFill, syFill) : cfg.FillMode === 3 ? sFill
+                             : cfg.FillMode === 4 ? (syFill >= sxFill ? syFill / autoTall : sxFill) : Math.max(sxFill, syFill)
+    readonly property real sy: cfg.FillMode === 0 ? syFill : cfg.FillMode === 4 ? (syFill >= sxFill ? syFill : sxFill * autoTall) : sx
     // the centre of the view: the frame's, kept inside the world so the trimmed mode never shows past the edges
     readonly property real centreLon: cfg.FillMode === 3 ? Math.max(-180 + root.width / (2 * sx), Math.min(180 - root.width / (2 * sx), (frameW + frameE) / 2)) : (frameW + frameE) / 2
     readonly property real centreLat: cfg.FillMode === 3 ? Math.max(-90 + root.height / (2 * sy), Math.min(90 - root.height / (2 * sy), (frameN + frameS) / 2)) : (frameN + frameS) / 2
