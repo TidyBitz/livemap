@@ -24,14 +24,17 @@ def video_from_page(final_url, html):
     m = VIDEO.search(final_url or "")
     if m:
         return m.group(1)
-    m = re.search(r'<link rel="canonical" href="https://www\.youtube\.com/watch\?v=([\w-]{11})"', html)
-    if m:
-        return m.group(1)
+    for pat in (r'<link rel="canonical" href="https://www\.youtube\.com/watch\?v=([\w-]{11})"',
+                r'<meta property="og:url" content="https://www\.youtube\.com/watch\?v=([\w-]{11})"',
+                r'"canonicalUrl":"https://www\.youtube\.com/watch\?v=([\w-]{11})"'):
+        m = re.search(pat, html)
+        if m:
+            return m.group(1)
     # the player data: the videoId whose details say it is live now
     ids = list(re.finditer(r'"videoId":"([\w-]{11})"', html))
     for i, m in enumerate(ids):                    # each id's own stretch of the page, up to the next id
-        end = ids[i + 1].start() if i + 1 < len(ids) else m.end() + 1500
-        window = html[m.end():min(end, m.end() + 1500)]
+        end = ids[i + 1].start() if i + 1 < len(ids) else m.end() + 6000
+        window = html[m.end():min(end, m.end() + 6000)]              # videoDetails carries a long description before isLive
         if '"isLiveNow":true' in window or '"isLive":true' in window or '"style":"LIVE"' in window:   # the last: a LIVE badge in a video list
             return m.group(1)
     return ""

@@ -835,9 +835,12 @@ PlasmoidItem {
                 visible: tabs.currentIndex === 1
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: Kirigami.Units.smallSpacing
-                // the broadcast NASA ended in October 2026: a saved copy of that old default is read as today's default
-                readonly property string liveUrl: (Plasmoid.configuration.LiveUrl || "").indexOf("awQzjn72bI0") >= 0
-                    ? "https://www.youtube.com/@sen/live" : (Plasmoid.configuration.LiveUrl || "")
+                // a saved copy of an earlier default (NASA's old broadcast awQzjn72bI0, or its October 2026 one with the playlist, which
+                // was the default for two days) is read as today's default, Sen's 4K view; the NASA stream stays in the list below
+                readonly property string savedUrl: Plasmoid.configuration.LiveUrl || ""
+                readonly property bool savedIsOldDefault: savedUrl.indexOf("awQzjn72bI0") >= 0 || (savedUrl.indexOf("ROboUHfPUrU") >= 0 && savedUrl.indexOf("list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz") >= 0)
+                readonly property string liveUrl: savedIsOldDefault ? "https://www.youtube.com/@sen/live" : savedUrl
+                readonly property string nasaHd: "https://www.youtube.com/watch?v=ROboUHfPUrU&list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz"
                 function idOf(u) {
                     var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
                     return m ? m[1] : "";
@@ -886,9 +889,17 @@ PlasmoidItem {
                     var i = line.indexOf("|");
                     return i > 0 ? { title: line.substring(0, i).trim(), url: line.substring(i + 1).trim() } : { title: line.trim(), url: line.trim() };
                 }).filter(function (c) { return c.url.indexOf("http") === 0; })
-                readonly property var choices: [{ title: liveUrl.indexOf("@sen") >= 0 ? "Sen 4K Earth views (Columbus module)" : "ISS live view", url: liveUrl }].concat(root.webcasts.map(function (L) {
-                    return { title: (L.webcast_live ? "LIVE · " : "") + L.title + " · " + root.ago(L.when), url: L.videos[0].url };
-                })).concat(extra)
+                readonly property var choices: (function () {
+                    var first = { title: liveUrl.indexOf("@sen") >= 0 ? "Sen 4K Earth views (Columbus module)" : "ISS live view", url: liveUrl };
+                    var list = [first].concat(root.webcasts.map(function (L) {
+                        return { title: (L.webcast_live ? "LIVE · " : "") + L.title + " · " + root.ago(L.when), url: L.videos[0].url };
+                    }));
+                    // the saved extras, without a second copy of the first stream; a saved list from before the change gains NASA's HD stream
+                    var seen = {}; seen[first.url] = true;
+                    var more = extra.filter(function (c) { if (seen[c.url] || (first.url.indexOf("@sen") >= 0 && c.url.indexOf("@sen") >= 0)) return false; seen[c.url] = true; return true; });
+                    if (savedIsOldDefault && !more.some(function (c) { return c.url.indexOf("ROboUHfPUrU") >= 0; })) more.unshift({ title: "NASA HD Earth views (Harmony camera)", url: nasaHd });
+                    return list.concat(more);
+                })()
                 readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""
                 PC3.ComboBox {
                     Layout.fillWidth: true
