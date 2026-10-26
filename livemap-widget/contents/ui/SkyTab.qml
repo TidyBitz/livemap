@@ -171,9 +171,19 @@ ColumnLayout {
                 PC3.Label { text: "rain"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; horizontalAlignment: Text.AlignRight; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6 }
 
             }
-            // the rows (a Repeater cannot emit five grid cells per day, so the rows are a column of their own)
-            ColumnLayout {
+            // the rows (a Repeater cannot emit five grid cells per day, so the rows are a column of their own), in an
+            // Item so that the one hour bubble can be drawn after - and so over - every row
+            Item {
+                id: rowsBox
                 Layout.fillWidth: true
+                implicitHeight: rows.implicitHeight
+                // the hover: which strip and which hour; the bubble below reads these
+                property var hoverStrip: null
+                property var hoverDay: null
+                property int hoverHour: 0
+            ColumnLayout {
+                id: rows
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                 spacing: 2
                 Repeater {
                     model: sky.doc.days || []
@@ -181,7 +191,6 @@ ColumnLayout {
                         id: dayRow
                         required property var modelData
                         required property int index
-                        z: stripHover.containsMouse ? 10 : 0
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
                         PC3.Label { text: dayRow.modelData.short; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.2; elide: Text.ElideRight
@@ -239,38 +248,10 @@ ColumnLayout {
                                     hoverEnabled: true
                                     acceptedButtons: Qt.NoButton
                                     readonly property int hour: Math.max(0, Math.min(23, Math.floor(mouseX / width * 24)))
+                                    onContainsMouseChanged: { if (containsMouse) { rowsBox.hoverStrip = strip; rowsBox.hoverDay = dayRow.modelData; rowsBox.hoverHour = hour; } else if (rowsBox.hoverStrip === strip) rowsBox.hoverStrip = null; }
+                                    onHourChanged: if (containsMouse) rowsBox.hoverHour = hour
                                 }
                                 Rectangle { visible: stripHover.containsMouse; x: stripHover.hour / 24 * strip.width; y: 0; width: strip.width / 24; height: strip.height; color: "transparent"; border.color: "white"; border.width: 1 }
-                            }
-                            Rectangle {
-                                id: hourBubble
-                                visible: stripHover.containsMouse
-                                z: 20
-                                readonly property var day: dayRow.modelData
-                                readonly property var cell: (day.cells || [])[stripHover.hour] || null
-                                readonly property string line: (day.lines || [])[stripHover.hour] || ""
-                                // beside the hovered hour: to its right, or to its left near the end of the strip - never under the
-                                // pointer, never over the hour scale or the text below; vertically centred on the strip and kept
-                                // inside the block of rows
-                                readonly property real hourX: stripHover.hour / 24 * strip.width
-                                readonly property real gap: Kirigami.Units.largeSpacing
-                                x: hourX + strip.width / 24 + gap + width <= strip.width ? hourX + strip.width / 24 + gap : hourX - gap - width
-                                y: Math.max(-dayRow.y, Math.min(dayRow.parent.height - dayRow.y - height, (strip.height - height) / 2))
-                                radius: 4
-                                Kirigami.Theme.inherit: false
-                                Kirigami.Theme.colorSet: Kirigami.Theme.Tooltip
-                                color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 1)   // opaque: the popup's own is see-through
-                                border.color: Kirigami.Theme.highlightColor; border.width: 1
-                                Kirigami.Icon {
-                                    id: bubbleIcon
-                                    x: hourBubble.pad; y: hourBubble.pad
-                                    width: Kirigami.Units.iconSizes.medium; height: width
-                                    source: sky.iconFor(hourBubble.cell ? hourBubble.cell.icon : "cloud", hourBubble.cell ? hourBubble.cell.day : true)
-                                }
-                                PC3.Label { id: bubbleHead; x: bubbleIcon.x + bubbleIcon.width + Kirigami.Units.largeSpacing; y: hourBubble.pad; font.bold: true
-                                            text: (hourBubble.day.name || "") + (hourBubble.line ? " \u00b7 " + hourBubble.line.split(" \u00b7 ")[0] : "") }
-                                PC3.Label { id: bubbleBody; x: bubbleHead.x; y: bubbleHead.y + bubbleHead.implicitHeight + 2; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                            text: hourBubble.line ? hourBubble.line.split(" \u00b7 ").slice(1).join("\n") : "no forecast for this hour" }
                             }
                         }
                         PC3.Label { Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5; horizontalAlignment: Text.AlignRight
@@ -280,6 +261,43 @@ ColumnLayout {
                                     MouseArea { id: rainHover; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton } }
                     }
                 }
+            }
+            // the hour bubble: beside the hovered hour - to its right, or to its left near the end of the strip - so it is
+            // never under the pointer; centred on the strip and kept inside the block of rows, so it never covers the
+            // hour scale or the text below; drawn last, so it is over every strip; opaque, so it can be read
+            Rectangle {
+                id: hourBubble
+                visible: rowsBox.hoverStrip !== null
+                z: 100
+                readonly property var day: rowsBox.hoverDay || ({})
+                readonly property var cell: (day.cells || [])[rowsBox.hoverHour] || null
+                readonly property string line: (day.lines || [])[rowsBox.hoverHour] || ""
+                readonly property real pad: Kirigami.Units.largeSpacing
+                readonly property point at: rowsBox.hoverStrip ? rowsBox.hoverStrip.mapToItem(rowsBox, 0, 0) : Qt.point(0, 0)
+                readonly property real stripW: rowsBox.hoverStrip ? rowsBox.hoverStrip.width : 0
+                readonly property real stripH: rowsBox.hoverStrip ? rowsBox.hoverStrip.height : 0
+                readonly property real hourX: at.x + rowsBox.hoverHour / 24 * stripW
+                readonly property real gap: Kirigami.Units.largeSpacing
+                width: Math.min(rowsBox.width, bubbleIcon.width + Kirigami.Units.largeSpacing + Math.max(bubbleHead.implicitWidth, bubbleBody.implicitWidth) + pad * 2)
+                height: Math.max(bubbleIcon.height, bubbleHead.implicitHeight + bubbleBody.implicitHeight + 2) + pad * 2
+                x: hourX + stripW / 24 + gap + width <= at.x + stripW ? hourX + stripW / 24 + gap : Math.max(0, hourX - gap - width)
+                y: Math.max(0, Math.min(rowsBox.height - height, at.y + (stripH - height) / 2))
+                radius: 4
+                Kirigami.Theme.inherit: false
+                Kirigami.Theme.colorSet: Kirigami.Theme.Window
+                color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 1)   // fully opaque, whatever the theme says
+                border.color: Kirigami.Theme.highlightColor; border.width: 1
+                Kirigami.Icon {
+                    id: bubbleIcon
+                    x: hourBubble.pad; y: hourBubble.pad
+                    width: Kirigami.Units.iconSizes.medium; height: width
+                    source: sky.iconFor(hourBubble.cell ? hourBubble.cell.icon : "cloud", hourBubble.cell ? hourBubble.cell.day : true)
+                }
+                PC3.Label { id: bubbleHead; x: bubbleIcon.x + bubbleIcon.width + Kirigami.Units.largeSpacing; y: hourBubble.pad; font.bold: true
+                            text: (hourBubble.day.name || "") + (hourBubble.line ? " \u00b7 " + hourBubble.line.split(" \u00b7 ")[0] : "") }
+                PC3.Label { id: bubbleBody; x: bubbleHead.x; y: bubbleHead.y + bubbleHead.implicitHeight + 2; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                            text: hourBubble.line ? hourBubble.line.split(" \u00b7 ").slice(1).join("\n") : "no forecast for this hour" }
+            }
             }
             PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
                         text: "Each bar is the day, midnight to midnight: colour is the temperature hour by hour, the dark ends are night, blue hatching is rain (white, snow), the white line is now. Hover for the hour." }

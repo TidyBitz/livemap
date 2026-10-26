@@ -388,6 +388,7 @@ PlasmoidItem {
         id: bubble
         type: PlasmaCore.Dialog.Tooltip
         location: PlasmaCore.Types.LeftEdge        // beside the widget (Plasma flips it to the other side at a screen edge)
+        backgroundHints: PlasmaCore.Dialog.SolidBackground   // opaque: a see-through bubble over the map is hard to read
         hideOnWindowDeactivate: false
         visible: false
         mainItem: ColumnLayout {
