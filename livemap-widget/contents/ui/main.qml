@@ -829,9 +829,9 @@ PlasmoidItem {
                 visible: tabs.currentIndex === 1
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: Kirigami.Units.smallSpacing
-                // the broadcast NASA ended in October 2026: a saved copy of that old default is read as the current one
+                // the broadcast NASA ended in October 2026: a saved copy of that old default is read as today's default
                 readonly property string liveUrl: (Plasmoid.configuration.LiveUrl || "").indexOf("awQzjn72bI0") >= 0
-                    ? "https://www.youtube.com/watch?v=ROboUHfPUrU&list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz" : (Plasmoid.configuration.LiveUrl || "")
+                    ? "https://www.youtube.com/@sen/live" : (Plasmoid.configuration.LiveUrl || "")
                 function idOf(u) {
                     var m = u.match(/[?&]v=([\w-]{6,})/) || u.match(/youtu\.be\/([\w-]{6,})/) || u.match(/\/live\/([\w-]{6,})/);
                     return m ? m[1] : "";
@@ -847,6 +847,8 @@ PlasmoidItem {
                     liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
                 }
                 property string resolveNote: ""
+                property var retried: ({})
+                Timer { id: retryTimer; property string url: ""; interval: 4000; onTriggered: if (liveTab.chosenUrl === url) liveTab.resolve(url, true) }
                 P5Support.DataSource {
                     id: liveExec
                     engine: "executable"
@@ -858,6 +860,9 @@ PlasmoidItem {
                             var a = JSON.parse(data.stdout);
                             r[a.url] = a.video || "";                       // "" = asked, nothing on now
                             liveTab.resolveNote = a.error ? "YouTube could not be asked: " + a.error : "";
+                            // an empty first answer is asked again once, fresh, a few seconds later: YouTube's first reply to
+                            // a new session sometimes names nothing (this used to need a Reload after every install)
+                            if (!a.video && !a.cached && !liveTab.retried[a.url]) { liveTab.retried[a.url] = true; retryTimer.url = a.url; retryTimer.restart(); }
                         } catch (e) {
                             liveTab.resolveNote = "The helper did not answer: " + String(data.stderr || data.stdout).trim().split("\n").pop();
                         }
@@ -875,7 +880,7 @@ PlasmoidItem {
                     var i = line.indexOf("|");
                     return i > 0 ? { title: line.substring(0, i).trim(), url: line.substring(i + 1).trim() } : { title: line.trim(), url: line.trim() };
                 }).filter(function (c) { return c.url.indexOf("http") === 0; })
-                readonly property var choices: [{ title: "ISS live view", url: liveUrl }].concat(root.webcasts.map(function (L) {
+                readonly property var choices: [{ title: liveUrl.indexOf("@sen") >= 0 ? "Sen 4K Earth views (Columbus module)" : "ISS live view", url: liveUrl }].concat(root.webcasts.map(function (L) {
                     return { title: (L.webcast_live ? "LIVE · " : "") + L.title + " · " + root.ago(L.when), url: L.videos[0].url };
                 })).concat(extra)
                 readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""

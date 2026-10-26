@@ -49,6 +49,13 @@ release notes written at the time; their dates are the day the version was hande
   Helper: `passes --lat --lon [--all] [--table]`.
 
 ### Changed
+- Widget, Live tab: Sen's 4K Earth view is the default stream (the best picture); NASA's HD stream, its
+  inside-and-out stream, NASA TV and CGTN follow in the menu. An empty first answer from a channel page is asked
+  again once a few seconds later, and the helper also reads the channel's streams tab, so the tab no longer needs
+  a Reload after every install; "nothing live" is kept only a minute. Map controls > Sources gains "Live streams
+  (YouTube channel pages)" showing what each page resolved to and how.
+- docs/MAINTAINING.md: the map of where every parser lives, what notices a broken source (the daily probe, the
+  scheduled fixer, the Status rows) and the routine for fixing one, so the project survives a pause.
 - Widget: the Status tab is now a Sources section at the foot of Map controls, next to the chips whose health
   dots come from the same check: one header line with the summary (problems, notes, when checked, refresh),
   opening to the full list on a click and by itself when a source is failing. The tabs are Events, Live, Sky

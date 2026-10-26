@@ -28,11 +28,13 @@
     <entry name="FadeIdle" type="Bool"><default>true</default></entry>
     <entry name="IdleSeconds" type="Int"><default>3</default></entry>
     <entry name="Preview" type="Int"><default>2</default></entry>      <!-- hover bubble: 0 off, 1 details, 2 details and pictures -->
-    <!-- NASA restarts its ISS broadcast every few months under a new video id; the list= playlist is NASA's own "Space Station
-         Views", so the player moves on to the current broadcast when the id goes stale -->
-    <entry name="LiveUrl" type="String"><default>https://www.youtube.com/watch?v=ROboUHfPUrU&amp;list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz</default></entry>
-    <entry name="LiveExtra" type="String"><default>ISS inside and out (NASA, crew at work when on duty) | https://www.youtube.com/watch?v=M3HKLzjvKPc
-Sen 4K Earth views (Columbus module) | https://www.youtube.com/@sen/live
+    <!-- The default is Sen's 4K Earth view (the best picture; a channel /live page, resolved by the helper to whatever
+         Sen is broadcasting now). NASA restarts its own ISS broadcast every few months under a new video id; its line
+         carries the "Space Station Views" playlist (list=) so the player moves on to the current one. One stream per
+         line, "Title | URL"; the first line is the default choice. -->
+    <entry name="LiveUrl" type="String"><default>https://www.youtube.com/@sen/live</default></entry>
+    <entry name="LiveExtra" type="String"><default>NASA HD Earth views (Harmony camera) | https://www.youtube.com/watch?v=ROboUHfPUrU&amp;list=PL2aBZuCeDwlQMf6xMgQAUAY_nbHAgW5jz
+ISS inside and out (NASA, crew at work when on duty) | https://www.youtube.com/watch?v=M3HKLzjvKPc
 NASA TV | https://www.youtube.com/@NASA/live
 CGTN (Tiangong events) | https://www.youtube.com/@CGTN/live</default></entry>
     <entry name="LiveEmbed" type="Bool"><default>true</default></entry>

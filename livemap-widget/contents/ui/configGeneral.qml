@@ -144,7 +144,7 @@ Kirigami.FormLayout {
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Live" }
     QQC2.TextField { id: liveUrl; Kirigami.FormData.label: "Live stream:"; Layout.fillWidth: true; placeholderText: "YouTube URL of the stream" }
     QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
-                 text: "A watch?v= link, a channel's /live page (youtube.com/@NASA/live: whatever is on now), or both with &list= so the player moves on when NASA restarts its broadcast under a new id, as it does every few months." }
+                 text: "A watch?v= link, a channel's /live page (youtube.com/@sen/live: whatever that channel is broadcasting now, worked out by the helper; Map controls > Sources > Live streams shows what it found), or a link with &list= so the player moves on when a broadcaster restarts under a new id, as NASA does every few months. Below, one more stream per line, Title | URL, in the order the menu lists them." }
     QQC2.TextArea {
         id: liveExtra
         Kirigami.FormData.label: "More streams:"

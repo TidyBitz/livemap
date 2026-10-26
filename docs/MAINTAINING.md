@@ -1,0 +1,83 @@
+# Maintaining Live World Map
+
+The point of this page: the project should survive a pause. Someone (including a future us) who has not touched
+it for a year should be able to see what broke, find the line that reads the broken thing, fix it, prove the fix,
+and ship it - without re-learning the whole program. This is the map of where everything lives and the routine
+that keeps it alive.
+
+## What breaks, and how you find out
+
+Nothing in the wallpaper is computed from the internet except what the sources send, so the things that break are
+sources: a feed moves, changes its field names, starts answering with an HTML outage page, or rate-limits. Three
+layers notice:
+
+1. **The daily probe** - `.github/workflows/sources.yml` runs `livemap-helper status` and `feed` against the live
+   internet every morning (06:17 UTC). A source that errors, or answers but yields no records, opens or updates one
+   GitHub issue, "Source probe: a live source is not answering as expected", with the server's own words. The
+   issue closes itself when the source is back.
+2. **The scheduled fixer** - a scheduled task on the maintainer's claude.ai account runs after the probe and
+   turns the issue into a pull request on a `fix/source-probe-<source>` branch (or a comment, when the source
+   is merely down). It never touches `main`; a human merges.
+3. **On the desktop** - the widget's Map controls › Sources list, the wallpaper's Settings › Status page, and the
+   corner notice for the few sources with nowhere else to go, all from the same `status` command. Stale data is
+   kept and shown with its age rather than dropped.
+
+## Where things live
+
+```
+livemap/contents/helper/livemap_helper/      the Python helper: every source has a module
+  common.py     HTTP (_http, fetch_json: names the content type and the server's own error when not JSON),
+                units, the data folder (DATA), layers.json (what the wallpaper tells the helper)
+  quakes.py  storms.py  fires.py  floods.py  warnings.py  tsunami.py  volcanoes.py  vaac.py  alerts.py
+                one source family each: URLs at the top, a fetch_* function, a parse_* function
+  space.py passes.py   satellites, crews, launches; ISS/Tiangong passes over home
+  sky.py        the widget's Sky tab (Open-Meteo, NOAA SWPC)
+  live.py       YouTube channel /live pages -> the broadcast on now (the widget's Live tab)
+  feed.py       the widget's event list: one record shape for every kind, the facts rows, pictures
+  status.py     the Status checks: one chk_* per source, the names the settings and sources.json refer to
+  fetch.py      imagery: the monthly maps, GIBS, the frames cut for the screen
+  cli.py        every command; `livemap-helper --help` lists them
+livemap/contents/data/sources.json            every source once: hazard, regions, cadence, licence, attribution,
+                                              the Status check it maps to (the Coverage page and docs/COVERAGE.md are made from it)
+livemap/contents/ui/                          the wallpaper (QML); one *Layer.qml per layer, config.qml the settings
+livemap-widget/contents/ui/                   the widget: main.qml (Events, Live, Map controls), SkyTab.qml
+tests/test_parsers.py  tests/fixtures/        a recorded answer per source and a test that parses it
+tests/test_consistency.py                     config keys, settings aliases, status names, sources.json agree
+scripts/check.py                              "all good": versions, metadata, geo.js, the consistency checks
+```
+
+## The routine when a source breaks
+
+1. Read the probe issue (or the Status row). It quotes what the server answered - an OGC exception, an HTML
+   title, "no records" - which usually says what changed.
+2. Fetch the source yourself with the helper's own function so you see what it sees:
+   `python3 -c "from livemap_helper.common import fetch_json; print(fetch_json('<url>'))"` from
+   `livemap/contents/helper/`, or `_http` for non-JSON.
+3. Fix the parser in its module. Keep the record shape the feed and the widget rely on (the `kind`, `when`,
+   `lat`/`lon`, `title`, `facts` keys); everything downstream reads those, not the source's names.
+4. Save the real answer as a fixture under `tests/fixtures/` and make the test in `tests/test_parsers.py` read it:
+   the test is what stops the next change from breaking it silently.
+5. `python3 scripts/check.py` must say "all good"; the tests must pass (`python3 -m pytest tests/`).
+6. A line under Unreleased in CHANGELOG.md, commit, push, install:
+   `cd ~/Documents/Projects/livemap && ./livemap.sh install`.
+
+## Adding a source
+
+A new source is: a module (or a function in the family's module) with its URL at the top and a parser; a
+`chk_*` in status.py and a line in `status_jobs`; a record in `sources.json` naming that check; a fixture and a
+test; a line in docs/SOURCES.md. The consistency test will tell you what you forgot.
+
+## Things that look like bugs and are not
+
+- **"Nothing live on that channel"** on the Live tab: YouTube's first answer to a new session sometimes names no
+  broadcast; the widget asks again once after a few seconds and the helper tries the channel's streams tab. Map
+  controls › Sources › "Live streams" shows what each channel page resolved to.
+- **Imagery looks old after a change**: frames are cut once per view and style and cached under the data folder's
+  `frames/`; Status › "Map style imagery" lists them; deleting a frame folder forces a rebuild.
+- **Settings differ between screens**: Plasma keeps a wallpaper configuration per screen. Styles ("Saved as") are
+  shared through the data folder; the rest is per screen by design.
+
+## Keys, accounts, licences
+
+There are none. Every source is free and key-less by choice; the licences and attributions are in
+`sources.json` and shown on the Coverage page. A source that starts requiring a key is replaced, not keyed.

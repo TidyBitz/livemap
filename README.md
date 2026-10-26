@@ -176,7 +176,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | Launches | The Space Devs, Launch Library 2 | hourly |
 | Network (off by default) | this machine's sockets, DB-IP Lite geolocation, all local | every 10 s |
 
-What covers where, and how fast, is in [docs/COVERAGE.md](docs/COVERAGE.md) (also on the Status page, with a
+How the project is kept alive - the daily probe, the fix routine, where every parser lives - is in [docs/MAINTAINING.md](docs/MAINTAINING.md). What covers where, and how fast, is in [docs/COVERAGE.md](docs/COVERAGE.md) (also on the Status page, with a
 "where you are" summary for the home city); each feed's format and handling in [docs/SOURCES.md](docs/SOURCES.md).
 
 Every source is fetched over HTTPS only, capped in size, parsed as data and never executed; strings that end

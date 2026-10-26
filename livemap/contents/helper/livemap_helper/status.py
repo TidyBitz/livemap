@@ -79,6 +79,24 @@ def chk_swpc():
     return "ok", "planetary K index %s, fetched %s" % ((e.get("data") or {}).get("kp", "?"), age)
 
 
+def chk_live():
+    """The widget's Live tab: what each channel /live page resolved to (live-urls.json), so the parsing can be seen."""
+    try:
+        c = json.loads((DATA / "live-urls.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "ok", "no channel page asked yet - the Live tab asks when a channel /live stream is chosen"
+    parts, bad = [], 0
+    for url, r in sorted(c.items()):
+        short = url.replace("https://www.youtube.com/", "")
+        if r.get("error"):
+            bad += 1; parts.append("%s: %s" % (short, r["error"][:60]))
+        elif r.get("video"):
+            parts.append("%s -> %s (%s, %s ago)" % (short, r["video"], r.get("how", "?"), _age(time.time() - r.get("at", 0))))
+        else:
+            parts.append("%s: nothing live (%s ago)" % (short, _age(time.time() - r.get("at", 0))))
+    return ("warn" if bad else "ok"), "; ".join(parts)
+
+
 def chk_night():
     f, png = DATA / "night.jpg", DATA / "lights.png"
     if png.exists() and not (DATA / "night-hires.jpg").exists():
@@ -179,7 +197,7 @@ def status_jobs(offline=False, feed="4.5_day"):
             ("Power and load", chk_power)]
     if not offline:
         jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Volcano alert levels (GeoNet)", chk_geonet), ("Volcano alert levels (JMA)", chk_jma), ("Ash advisories (Washington VAAC)", chk_vaac), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
-                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats), ("Weather at home (Open-Meteo)", chk_open_meteo), ("Space weather (NOAA SWPC)", chk_swpc),
+                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats), ("Weather at home (Open-Meteo)", chk_open_meteo), ("Space weather (NOAA SWPC)", chk_swpc), ("Live streams (YouTube channel pages)", chk_live),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Earthquakes, secondary (EMSC)", chk_emsc), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
     return jobs

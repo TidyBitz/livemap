@@ -32,21 +32,33 @@ def video_from_page(final_url, html):
     for i, m in enumerate(ids):                    # each id's own stretch of the page, up to the next id
         end = ids[i + 1].start() if i + 1 < len(ids) else m.end() + 1500
         window = html[m.end():min(end, m.end() + 1500)]
-        if '"isLiveNow":true' in window or '"isLive":true' in window:
+        if '"isLiveNow":true' in window or '"isLive":true' in window or '"style":"LIVE"' in window:   # the last: a LIVE badge in a video list
             return m.group(1)
     return ""
 
 
-def resolve(url, timeout=8):
-    """(video id or "", how): a browser-like GET of the /live page."""
-    if not url.startswith("https://www.youtube.com/") and not url.startswith("https://youtube.com/"):
-        raise ValueError("not a YouTube URL")
+def _get(url, timeout):
     req = urllib.request.Request(url, headers=BROWSER)
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        final = r.geturl()
-        body = r.read(3 * 1024 * 1024).decode("utf-8", "replace")
+        return r.geturl(), r.read(3 * 1024 * 1024).decode("utf-8", "replace")
+
+
+def resolve(url, timeout=8):
+    """(video id or "", how): a browser-like GET of the /live page; when that names nothing, the channel's streams
+    tab, where a running broadcast carries a LIVE badge (YouTube does not always redirect /live on the first ask)."""
+    if not url.startswith("https://www.youtube.com/") and not url.startswith("https://youtube.com/"):
+        raise ValueError("not a YouTube URL")
+    final, body = _get(url, timeout)
     vid = video_from_page(final, body)
-    return vid, ("redirect" if VIDEO.search(final or "") else "page" if vid else "nothing live")
+    if vid:
+        return vid, ("redirect" if VIDEO.search(final or "") else "page")
+    m = re.match(r"(https://(?:www\.)?youtube\.com/(?:@[\w.-]+|channel/[\w-]+|c/[\w-]+|user/[\w-]+))/live", url)
+    if m:
+        final2, body2 = _get(m.group(1) + "/streams", timeout)
+        vid = video_from_page("", body2)
+        if vid:
+            return vid, "streams tab"
+    return "", "nothing live"
 
 
 def cmd_live_url(args):
@@ -57,7 +69,8 @@ def cmd_live_url(args):
         cache = {}
     now = time.time()
     hit = cache.get(url)
-    if hit and now - hit.get("at", 0) < KEEP and not getattr(args, "fresh", False):
+    keep = KEEP if (hit or {}).get("video") else 60              # "nothing live" is asked again after a minute
+    if hit and now - hit.get("at", 0) < keep and not getattr(args, "fresh", False):
         emit(dict(hit, url=url, cached=True))
         return
     try:
