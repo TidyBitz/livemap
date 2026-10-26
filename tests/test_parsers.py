@@ -574,3 +574,11 @@ def test_sky_document_from_open_meteo(monkeypatch):
     assert abs(doc["now_h"] - 11) < 0.01
     doc_c = sky.build(39.74, -104.99, [0, 0, 0, 0], cache, now)      # km, 24-hour, °C
     assert doc_c["now"]["temp"] == "12°C" and doc_c["sun"]["sunrise"] == "07:21" and doc_c["now"]["pressure"] == "1020 hPa"
+
+
+def test_kp_rows_both_shapes(monkeypatch):
+    from livemap_helper import sky
+    monkeypatch.setattr(sky, "fetch_json", lambda *a, **k: [["time_tag", "Kp", "a_running", "station_count"], ["2026-10-26 00:00:00.000", "1.67", "6", "8"], ["2026-10-26 03:00:00.000", "2.33", "9", "8"]])
+    assert sky.fetch_kp() == {"time": "2026-10-26 03:00:00.000", "kp": 2.33}
+    monkeypatch.setattr(sky, "fetch_json", lambda *a, **k: [{"time_tag": "2026-10-26T03:00:00", "kp_index": 3, "estimated_kp": 2.67}])
+    assert sky.fetch_kp()["kp"] == 3.0

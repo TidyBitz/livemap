@@ -150,13 +150,19 @@ ColumnLayout {
                 Item { Layout.preferredWidth: Kirigami.Units.gridUnit * 4.2; implicitHeight: 1 }
                 Item { Layout.preferredWidth: Kirigami.Units.iconSizes.small; implicitHeight: 1 }
                 Item {
-                    Layout.fillWidth: true; implicitHeight: scale0.implicitHeight
-                    readonly property var u: sky.doc.units || [0, 0, 0, 0]
-                    PC3.Label { id: scale0; x: 0; text: u[2] ? "12 am" : "0"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9 }
-                    PC3.Label { x: parent.width * 0.25 - width / 2; text: u[2] ? "6 am" : "6"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9 }
-                    PC3.Label { x: parent.width * 0.5 - width / 2; text: u[2] ? "noon" : "12"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9 }
-                    PC3.Label { x: parent.width * 0.75 - width / 2; text: u[2] ? "6 pm" : "18"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9 }
-                    PC3.Label { x: parent.width - width; text: "24"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9 }
+                    id: scaleRow
+                    Layout.fillWidth: true; implicitHeight: Kirigami.Units.gridUnit * 0.9
+                    readonly property bool clock12: !!((sky.doc.units || [0, 0, 0, 0])[2])
+                    Repeater {
+                        model: [[0, "12 am", "0"], [6, "6 am", "6"], [12, "noon", "12"], [18, "6 pm", "18"], [24, "", "24"]]
+                        PC3.Label {
+                            required property var modelData
+                            x: modelData[0] === 0 ? 0 : modelData[0] === 24 ? scaleRow.width - width : scaleRow.width * modelData[0] / 24 - width / 2
+                            y: 0
+                            text: scaleRow.clock12 && modelData[1] !== "" ? modelData[1] : modelData[2]
+                            opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9
+                        }
+                    }
                 }
                 PC3.Label { text: "high / low"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; horizontalAlignment: Text.AlignRight; Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5 }
                 PC3.Label { text: "rain"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize * 0.9; horizontalAlignment: Text.AlignRight; Layout.preferredWidth: Kirigami.Units.gridUnit * 2.6 }
@@ -172,6 +178,7 @@ ColumnLayout {
                         id: dayRow
                         required property var modelData
                         required property int index
+                        z: stripHover.containsMouse ? 10 : 0
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
                         PC3.Label { text: dayRow.modelData.short; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.2; elide: Text.ElideRight
@@ -221,17 +228,38 @@ ColumnLayout {
                                     x: Math.max(0, Math.min(strip.width - 2, h / 24 * strip.width)); y: -1; width: 2; height: strip.height + 2
                                     color: "white"
                                 }
-                                // the hover: which hour, and its line in the bubble
+                                // the hover: which hour; the bubble is drawn in the popup itself, above the strip (below it for the
+                                // first rows), so it never sits under the pointer - a tooltip window there flickered on and off
                                 MouseArea {
                                     id: stripHover
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.NoButton
                                     readonly property int hour: Math.max(0, Math.min(23, Math.floor(mouseX / width * 24)))
-                                    onContainsMouseChanged: if (containsMouse) { hourBubble.row = dayRow; hourBubble.hour = hour; hourBubble.visualParent = strip; hourBubble.visible = true; } else if (hourBubble.row === dayRow) hourBubble.visible = false
-                                    onHourChanged: if (containsMouse) hourBubble.hour = hour
                                 }
                                 Rectangle { visible: stripHover.containsMouse; x: stripHover.hour / 24 * strip.width; y: 0; width: strip.width / 24; height: strip.height; color: "transparent"; border.color: "white"; border.width: 1 }
+                            }
+                            Rectangle {
+                                id: hourBubble
+                                visible: stripHover.containsMouse
+                                z: 20
+                                readonly property var day: dayRow.modelData
+                                readonly property string line: (day.lines || [])[stripHover.hour] || ""
+                                readonly property bool below: dayRow.index < 2
+                                width: Math.min(strip.width, bubbleText.implicitWidth + Kirigami.Units.largeSpacing * 2)
+                                height: bubbleText.implicitHeight + Kirigami.Units.largeSpacing * 2
+                                x: Math.max(0, Math.min(strip.width - width, stripHover.hour / 24 * strip.width + strip.width / 48 - width / 2))
+                                y: below ? strip.height + Kirigami.Units.smallSpacing : -height - Kirigami.Units.smallSpacing
+                                radius: 4
+                                color: Kirigami.Theme.backgroundColor
+                                border.color: Kirigami.Theme.highlightColor; border.width: 1
+                                ColumnLayout {
+                                    id: bubbleText
+                                    x: Kirigami.Units.largeSpacing; y: Kirigami.Units.largeSpacing
+                                    spacing: 1
+                                    PC3.Label { text: (hourBubble.day.name || "") + (hourBubble.line ? " \u00b7 " + hourBubble.line.split(" \u00b7 ")[0] : ""); font.bold: true }
+                                    PC3.Label { text: hourBubble.line ? hourBubble.line.split(" \u00b7 ").slice(1).join("\n") : "no forecast for this hour"; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                                }
                             }
                         }
                         PC3.Label { Layout.preferredWidth: Kirigami.Units.gridUnit * 5.5; horizontalAlignment: Text.AlignRight
@@ -291,23 +319,4 @@ ColumnLayout {
         }
     }
 
-    // the hour bubble beside the strip being hovered
-    PlasmaCore.Dialog {
-        id: hourBubble
-        type: PlasmaCore.Dialog.Tooltip
-        location: PlasmaCore.Types.LeftEdge
-        hideOnWindowDeactivate: false
-        visible: false
-        property var row: null
-        property int hour: 0
-        mainItem: ColumnLayout {
-            width: Kirigami.Units.gridUnit * 20
-            height: implicitHeight
-            spacing: 2
-            readonly property var day: hourBubble.row ? hourBubble.row.modelData : ({})
-            readonly property string line: (day.lines || [])[hourBubble.hour] || ""
-            PC3.Label { text: (parent.day.name || "") + (parent.line ? " · " + parent.line.split(" · ")[0] : ""); font.bold: true }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: parent.line ? parent.line.split(" · ").slice(1).join("\n") : "no forecast for this hour" }
-        }
-    }
 }

@@ -152,14 +152,21 @@ def cached(cache, key, fetch, now):
 def fetch_kp():
     rows = fetch_json(KP, timeout=8, what="NOAA SWPC K index")
     # [["time_tag","Kp","a_running","station_count"], ["2026-10-26 15:00:00.000","2.33","9","8"], ...]
+    # ... or, from the other SWPC products, [{"time_tag": "...", "kp_index": 2, ...}, ...]
     last = None
-    for r in rows[1:]:
+    for r in rows:
         try:
-            last = (r[0], float(r[1]))
+            if isinstance(r, dict):
+                kp = r.get("kp_index", r.get("Kp", r.get("estimated_kp")))
+                if kp is None:
+                    continue
+                last = (r.get("time_tag", ""), float(kp))
+            else:
+                last = (r[0], float(r[1]))
         except (ValueError, TypeError, IndexError):
             continue
     if not last:
-        raise ValueError("no K index rows")
+        raise ValueError("no K index rows in %d entries" % len(rows))
     return {"time": last[0], "kp": last[1]}
 
 
