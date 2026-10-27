@@ -72,13 +72,20 @@ ColumnLayout {
     property string infoTopic: ""
     property var infoAnchor: null
     component InfoButton: PC3.ToolButton {
+        id: ib
         property string topic: ""
-        visible: topic !== ""
+        visible: true
+        enabled: topic !== ""
+        opacity: topic === "" ? 0 : (sky.infoTopic === topic ? 1 : 0.5)
         icon.name: "help-contextual"
         implicitWidth: Kirigami.Units.iconSizes.small + 6; implicitHeight: implicitWidth
-        opacity: sky.infoTopic === topic ? 1 : 0.55
-        onClicked: { if (sky.infoTopic === topic) { sky.infoTopic = ""; sky.infoAnchor = null; } else { sky.infoTopic = topic; sky.infoAnchor = this; } }
-        PC3.ToolTip.text: "What the scale means"; PC3.ToolTip.visible: hovered && sky.infoTopic !== topic
+        // the bubble opens on hover after a moment (and stays while the pointer is on the ?), or on a click to keep it
+        hoverEnabled: true
+        property bool pinned: false
+        Timer { id: openSoon; interval: 350; onTriggered: if (ib.hovered) { sky.infoTopic = ib.topic; sky.infoAnchor = ib; } }
+        onHoveredChanged: { if (hovered) openSoon.restart(); else if (!pinned && sky.infoTopic === topic) { sky.infoTopic = ""; sky.infoAnchor = null; } }
+        onClicked: { if (pinned) { pinned = false; sky.infoTopic = ""; sky.infoAnchor = null; } else { pinned = true; sky.infoTopic = topic; sky.infoAnchor = ib; } }
+        Connections { target: sky; function onInfoTopicChanged() { if (sky.infoTopic !== ib.topic) ib.pinned = false; } }
     }
     // each topic: a title, a line of context, and rows [range, meaning, colour] where there is a scale
     readonly property var infoText: ({
@@ -389,9 +396,9 @@ ColumnLayout {
                             visible: !!parent.sun[modelData[1]]
                             Layout.fillWidth: true
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
-                            InfoButton { topic: modelData[2] || "" }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.sun[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight }
+                            InfoButton { topic: modelData[2] || "" }
                         }
                     }
                 }
@@ -405,9 +412,9 @@ ColumnLayout {
                             visible: !!parent.tonight[modelData[1]]
                             Layout.fillWidth: true
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
-                            InfoButton { topic: modelData[2] || "" }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.tonight[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap; Layout.maximumWidth: Kirigami.Units.gridUnit * 16 }
+                            InfoButton { topic: modelData[2] || "" }
                         }
                     }
                 }
