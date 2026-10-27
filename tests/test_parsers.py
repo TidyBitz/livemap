@@ -574,6 +574,11 @@ def test_sky_document_from_open_meteo(monkeypatch):
     assert doc["sun"]["sunrise"] == "7:21 AM" and doc["sun"]["sunset"] == "6:03 PM" and doc["sun"]["day_length"] == "10 h 42 min"
     assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "AQI 34, good"
     assert abs(doc["now_h"] - 11) < 0.01
+    # Open-Meteo's daily stamps are the local date as if it were UTC (here: shifted by the offset): nothing may move
+    fc["daily"]["time"] = [t - 21600 for t in fc["daily"]["time"]]
+    doc_s = sky.build(39.74, -104.99, [1, 1, 1, 0], cache, now)
+    assert abs(doc_s["now_h"] - 11) < 0.01 and doc_s["days"][2]["cells"][15]["p"] == 0.7 and abs(doc_s["days"][0]["sunrise_h"] - 7.35) < 0.01
+    fc["daily"]["time"] = [t + 21600 for t in fc["daily"]["time"]]
     doc_c = sky.build(39.74, -104.99, [0, 0, 0, 0], cache, now)      # km, 24-hour, °C
     assert doc_c["now"]["temp"] == "12°C" and doc_c["sun"]["sunrise"] == "07:21" and doc_c["now"]["pressure"] == "1020 hPa"
 

@@ -102,6 +102,17 @@ def hour_label(h, u):
     return "%02d" % h
 
 
+def hour_of(t, tz):
+    """Hours into the local day at unix time t: 13.5 for 13:30 by the place's clock."""
+    d = datetime.datetime.fromtimestamp(t, tz)
+    return d.hour + d.minute / 60 + d.second / 3600
+
+
+def local_midnight(date, tz):
+    """The unix time of midnight starting `date` by the place's clock."""
+    return datetime.datetime(date.year, date.month, date.day, tzinfo=tz).timestamp()
+
+
 # ---- sun and moon ------------------------------------------------------------------------------------------------
 def moon_phase(t):
     """(phase 0..1 from new through full and back, illuminated fraction, name) - a standard approximation (±0.5 d)."""
@@ -234,17 +245,33 @@ def build(lat, lon, u, cache, now):
     days = []
     d_times = dy.get("time", [])
     h_times = hr.get("time", [])
+    # Every hour and day is placed by the place's own wall clock, never by subtracting one of the API's stamps from
+    # another: Open-Meteo's daily stamps in unixtime format are the local date as if it were UTC, while the hourly
+    # ones are true instants, and the difference put the "now" line hours off. The day list comes from the hourly
+    # series grouped by local date; the daily arrays are matched to it by position (daily[0] is today, locally).
+    def local(t):
+        return datetime.datetime.fromtimestamp(t, tz)
+    by_hour = {}                                  # (local date, local hour) -> hourly index
+    dates = []
+    for i, t in enumerate(h_times):
+        d = local(t)
+        key = (d.date(), d.hour)
+        if key not in by_hour:
+            by_hour[key] = i
+        if not dates or dates[-1] != d.date():
+            dates.append(d.date())
+    local_now = local(now)
+    d_times = [local_midnight(dt, tz) for dt in dates[:len(d_times)]] if dates else d_times
     tmin = min((x for x in temps if x is not None), default=0)
     tmax = max((x for x in temps if x is not None), default=1)
     span = max(1.0, tmax - tmin)
     for di, dstart in enumerate(d_times):
         dcode = int((dy.get("weather_code") or [0] * 7)[di] or 0)
         cells, lines, day_codes = [], [], []
+        day_date = local(dstart).date()
         for h in range(24):
-            t = dstart + h * 3600
-            try:
-                i = h_times.index(t)
-            except ValueError:
+            i = by_hour.get((day_date, h))
+            if i is None:
                 cells.append(None); lines.append(""); continue
             tc = hr["temperature_2m"][i]
             pr = (hr.get("precipitation") or [0] * len(h_times))[i] or 0
@@ -280,11 +307,11 @@ def build(lat, lon, u, cache, now):
             "high": temp_text((dy.get("temperature_2m_max") or [None] * 7)[di], u), "low": temp_text((dy.get("temperature_2m_min") or [None] * 7)[di], u),
             "chance": "%d %%" % round((dy.get("precipitation_probability_max") or [0] * 7)[di] or 0),
             "rain": precip_text((dy.get("precipitation_sum") or [0] * 7)[di] or 0, u),
-            "sunrise_h": ((sr - dstart) / 3600) if sr else None, "sunset_h": ((ss - dstart) / 3600) if ss else None,
+            "sunrise_h": hour_of(sr, tz) if sr else None, "sunset_h": hour_of(ss, tz) if ss else None,
             "cells": cells, "lines": lines,
         })
     out["days"] = days
-    out["now_h"] = ((now - d_times[0]) / 3600) if d_times else None     # the "now" line, hours into today
+    out["now_h"] = hour_of(now, tz) if d_times else None                 # the "now" line: the place's clock, hours into today
 
     # sun and moon
     sun = {}
