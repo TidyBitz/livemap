@@ -572,7 +572,7 @@ def test_sky_document_from_open_meteo(monkeypatch):
     assert wed["chance"] == "70 %" and wed["cells"][15]["p"] == 0.7 and wed["cells"][15]["mm"] == 1.2 and wed["cells"][3]["p"] == 0
     assert "1 PM" in wed["lines"][13] and "Light rain" in wed["lines"][13] and "0.05 in" in wed["lines"][13]
     assert doc["sun"]["sunrise"] == "7:21 AM" and doc["sun"]["sunset"] == "6:03 PM" and doc["sun"]["day_length"] == "10 h 42 min"
-    assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "AQI 34, good"
+    assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "US AQI 34, good"
     assert abs(doc["now_h"] - 11) < 0.01
     # Open-Meteo's daily stamps are the local date as if it were UTC (here: shifted by the offset): nothing may move
     fc["daily"]["time"] = [t - 21600 for t in fc["daily"]["time"]]

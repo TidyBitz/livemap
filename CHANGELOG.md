@@ -18,6 +18,10 @@ release notes written at the time; their dates are the day the version was hande
   for fresh. Sources: Open-Meteo (forecast, air quality) and NOAA SWPC (Kp), each fetched at most every 20 minutes
   by the helper (`sky`) and kept, so an outage shows the last answer with its age; sun, moon and passes are
   computed locally. New Status rows "Weather at home (Open-Meteo)" and "Space weather (NOAA SWPC)" read that cache.
+- Sky tab: a "?" beside Air quality, Aurora, UV index, Dark for satellites, Moon, Cloud cover tonight, Next
+  visible pass and Pressure opens an opaque bubble saying what the scale means - the AQI bands in colour (the US
+  EPA scale with miles, the European EEA scale otherwise, and the line now says which), Kp against the latitude
+  the aurora reaches, the WHO UV bands, what civil dusk is, what a falling pressure means.
 - Units: Temperature (follow the distance unit - miles means °F - or Celsius or Fahrenheit) and the one Clock
   setting (12- or 24-hour), which the Sky tab, the time zone labels and the band all follow; the 12-hour checkbox
   left the Time zones row for it. Rain is in inches with miles, millimetres otherwise; pressure in inches of

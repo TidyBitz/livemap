@@ -190,11 +190,16 @@ def kp_words(kp, lat):
     return "Kp %.0f, %s · aurora %s at %.1f°%s" % (kp, level, chance, a, "N" if lat >= 0 else "S")
 
 
-def aqi_words(aqi):
+def aqi_words(aqi, scale="us"):
+    """The US AQI (0-500, EPA bands) with miles, the European AQI (0-100+, EEA bands) otherwise: different scales,
+    so the band comes from the scale in use and the text says which."""
     if aqi is None:
         return "–"
+    if scale == "eu":
+        band = "good" if aqi <= 20 else "fair" if aqi <= 40 else "moderate" if aqi <= 60 else "poor" if aqi <= 80 else "very poor" if aqi <= 100 else "extremely poor"
+        return "European AQI %d, %s" % (round(aqi), band)
     band = "good" if aqi <= 50 else "moderate" if aqi <= 100 else "unhealthy for sensitive groups" if aqi <= 150 else "unhealthy" if aqi <= 200 else "very unhealthy" if aqi <= 300 else "hazardous"
-    return "AQI %d, %s" % (round(aqi), band)
+    return "US AQI %d, %s" % (round(aqi), band)
 
 
 def age_words(seconds):
@@ -357,7 +362,9 @@ def build(lat, lon, u, cache, now):
         tonight["kp"] = kp_words(kp["data"]["kp"], lat)
     if air.get("data"):
         a = air["data"].get("current", {})
-        tonight["air"] = aqi_words(a.get("us_aqi") if u[0] == 1 else a.get("european_aqi") if a.get("european_aqi") is not None else a.get("us_aqi"))
+        use_eu = u[0] != 1 and a.get("european_aqi") is not None
+        tonight["air"] = aqi_words(a.get("european_aqi") if use_eu else a.get("us_aqi"), "eu" if use_eu else "us")
+        tonight["air_scale"] = "eu" if use_eu else "us"
     out["tonight"] = tonight
     return out
 

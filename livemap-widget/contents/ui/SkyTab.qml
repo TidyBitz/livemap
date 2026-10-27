@@ -68,6 +68,67 @@ ColumnLayout {
         return t < 0.5 ? Qt.tint(cold, Qt.rgba(mid.r, mid.g, mid.b, t * 2)) : Qt.tint(mid, Qt.rgba(warm.r, warm.g, warm.b, (t - 0.5) * 2));
     }
 
+    // ---- the "?" beside a line, and the bubble it opens: what the scale means ----
+    property string infoTopic: ""
+    property var infoAnchor: null
+    component InfoButton: PC3.ToolButton {
+        property string topic: ""
+        visible: topic !== ""
+        icon.name: "help-contextual"
+        implicitWidth: Kirigami.Units.iconSizes.small + 6; implicitHeight: implicitWidth
+        opacity: sky.infoTopic === topic ? 1 : 0.55
+        onClicked: { if (sky.infoTopic === topic) { sky.infoTopic = ""; sky.infoAnchor = null; } else { sky.infoTopic = topic; sky.infoAnchor = this; } }
+        PC3.ToolTip.text: "What the scale means"; PC3.ToolTip.visible: hovered && sky.infoTopic !== topic
+    }
+    // each topic: a title, a line of context, and rows [range, meaning, colour] where there is a scale
+    readonly property var infoText: ({
+        air: { title: "Air quality index", note: sky.doc.tonight && sky.doc.tonight.air_scale === "eu"
+                   ? "The European AQI (EEA): 0 to 100 and beyond, from the worst of the main pollutants over the hour. Shown with kilometres; miles switch to the US scale."
+                   : "The US AQI (EPA): 0 to 500, from the worst of the main pollutants. Shown with miles; kilometres switch to the European scale.",
+               rows: sky.doc.tonight && sky.doc.tonight.air_scale === "eu"
+                   ? [["0 – 20", "good", "#50f0e6"], ["20 – 40", "fair", "#50ccaa"], ["40 – 60", "moderate", "#f0e641"], ["60 – 80", "poor", "#ff5050"], ["80 – 100", "very poor", "#960032"], ["over 100", "extremely poor", "#7d2181"]]
+                   : [["0 – 50", "good", "#00e400"], ["51 – 100", "moderate", "#ffff00"], ["101 – 150", "unhealthy for sensitive groups", "#ff7e00"], ["151 – 200", "unhealthy", "#ff0000"], ["201 – 300", "very unhealthy", "#8f3f97"], ["301 – 500", "hazardous", "#7e0023"]] },
+        kp: { title: "Kp and the aurora", note: "The planetary K index, 0 to 9, says how disturbed Earth's magnetic field is right now (NOAA, every three hours). The higher it is, the further from the poles the aurora reaches; the latitudes are rough and need a dark, clear northern (or southern) horizon.",
+              rows: [["Kp 0 – 2", "quiet · aurora near the Arctic circle, about 66° and up", "#4caf50"], ["Kp 3 – 4", "unsettled · down to about 55° (Scotland, Alberta)", "#8bc34a"], ["Kp 5", "minor storm (G1) · about 50° (Seattle, Paris)", "#ffeb3b"], ["Kp 6", "moderate storm (G2) · about 45° (Oregon, Milan)", "#ff9800"], ["Kp 7 – 8", "strong to severe (G3 – G4) · about 40° (Denver, Madrid)", "#f44336"], ["Kp 9", "extreme (G5) · the deep south and beyond", "#9c27b0"]] },
+        uv: { title: "UV index", note: "The World Health Organization's scale for the day's peak sunburn strength.",
+              rows: [["0 – 2", "low · no protection needed", "#4caf50"], ["3 – 5", "moderate · hat and sunscreen at midday", "#ffeb3b"], ["6 – 7", "high · cover up, seek shade at midday", "#ff9800"], ["8 – 10", "very high · extra care, burns quickly", "#f44336"], ["11 +", "extreme · stay out of the sun", "#9c27b0"]] },
+        dark: { title: "Dark for satellites", note: "The hours when the sun is more than 6° below the horizon (civil dusk to civil dawn): dark enough to see a sunlit satellite. A visible pass is one in these hours while the station is still in sunlight; the moon and clouds decide the rest.", rows: [] },
+        pressure: { title: "Pressure and its trend", note: "Sea-level pressure now, and whether it has moved more than about a hectopascal in the last three hours. Falling usually means weather is on the way, rising that it is clearing; the rate matters more than the number.",
+                    rows: [["rising", "clearing, drier, often windier", "#4caf50"], ["steady", "no change coming soon", "#9e9e9e"], ["falling", "cloud, rain or wind on the way", "#ff9800"]] },
+        moon: { title: "The moon", note: "The phase and how much of the disc is lit, from a standard approximation (within half a day). A bright moon washes out faint satellites and the aurora; the dark half of the month is best for both.", rows: [] },
+        cloud: { title: "Cloud cover tonight", note: "The forecast's average cloud cover through the dark hours. Under about 25 % is clear enough for satellite spotting; over 85 % there is nothing to see.", rows: [] },
+        pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
+    })
+    PlasmaCore.Dialog {
+        id: infoBubble
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.LeftEdge
+        backgroundHints: PlasmaCore.Dialog.SolidBackground
+        hideOnWindowDeactivate: false
+        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active
+        visualParent: sky.infoAnchor
+        onVisibleChanged: if (!visible) { sky.infoTopic = ""; sky.infoAnchor = null; }
+        mainItem: ColumnLayout {
+            width: Kirigami.Units.gridUnit * 22
+            height: implicitHeight
+            spacing: Kirigami.Units.smallSpacing
+            readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
+            PC3.Label { text: parent.info.title; font.bold: true }
+            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: parent.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+            Repeater {
+                model: parent.info.rows
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
+                    PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
+                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                }
+            }
+        }
+    }
+
     // ---- placeholder states ----
     PlasmaExtras.PlaceholderMessage {
         visible: !sky.ready
@@ -138,7 +199,11 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignRight
                     PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Wind " + (parent.parent.now.wind || "") }
                     PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Humidity " + (parent.parent.now.humidity || "") + " · cloud " + (parent.parent.now.cloud || "") }
-                    PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Pressure " + (parent.parent.now.pressure || "") + (parent.parent.now.trend ? ", " + parent.parent.now.trend : "") }
+                    RowLayout {
+                        Layout.alignment: Qt.AlignRight; spacing: 2
+                        PC3.Label { opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Pressure " + (parent.parent.parent.now.pressure || "") + (parent.parent.parent.now.trend ? ", " + parent.parent.parent.now.trend : "") }
+                        InfoButton { topic: "pressure" }
+                    }
                 }
             }
 
@@ -318,12 +383,13 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignTop; Layout.fillWidth: true; spacing: 1
                     readonly property var sun: parent.sun
                     Repeater {
-                        model: [["Sunrise", "sunrise"], ["Sunset", "sunset"], ["Day length", "day_length"], ["Dark for satellites", "dark"], ["Moon", "moon"], ["UV index", "uv"]]
+                        model: [["Sunrise", "sunrise"], ["Sunset", "sunset"], ["Day length", "day_length"], ["Dark for satellites", "dark", "dark"], ["Moon", "moon", "moon"], ["UV index", "uv", "uv"]]
                         RowLayout {
                             required property var modelData
                             visible: !!parent.sun[modelData[1]]
                             Layout.fillWidth: true
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            InfoButton { topic: modelData[2] || "" }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.sun[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight }
                         }
@@ -333,12 +399,13 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignTop; Layout.fillWidth: true; spacing: 1
                     readonly property var tonight: parent.tonight
                     Repeater {
-                        model: [["Cloud cover tonight", "cloud"], ["Next visible pass", "pass"], ["Aurora", "kp"], ["Air quality", "air"]]
+                        model: [["Cloud cover tonight", "cloud", "cloud"], ["Next visible pass", "pass", "pass"], ["Aurora", "kp", "kp"], ["Air quality", "air", "air"]]
                         RowLayout {
                             required property var modelData
                             visible: !!parent.tonight[modelData[1]]
                             Layout.fillWidth: true
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                            InfoButton { topic: modelData[2] || "" }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.tonight[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap; Layout.maximumWidth: Kirigami.Units.gridUnit * 16 }
                         }
