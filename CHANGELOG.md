@@ -83,6 +83,12 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- The daily source probe found failures on its first two runs but never opened its issue: `gh issue create`
+  refuses a label the repository does not have ("could not add label: 'sources' not found"), and the findings
+  went with it. The label is now created on first use (and the issue opened without one if that is not
+  allowed). The probe also flagged "feed: storm empty" every day: the feed lists storms, volcanoes and GDACS's
+  fires and floods from the events memory the wallpaper's own runs build up (first seen, changed), which a
+  fresh runner never has, so that kind is no longer judged from the feed - the Storms (GDACS) row is.
 - Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
   fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
   now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps

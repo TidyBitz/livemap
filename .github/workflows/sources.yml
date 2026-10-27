@@ -45,14 +45,18 @@ jobs:
               if c["name"].startswith(local):
                   continue
               (bad if c["state"] == "error" else warn if c["state"] == "warn" else []).append(line)
-          # the quiet failure: a kind that normally has records but has none today (a changed record shape)
+          # the quiet failure: a kind that normally has records but has none today (a changed record shape).
+          # Only the kinds `feed` fetches itself can be judged here: quakes (USGS), floods (NWS alerts), launches
+          # and satellites. Storms, volcanoes and GDACS's fires and floods reach the feed through the events memory
+          # that the wallpaper's own `storms` / `volcanoes` / ... runs build up over days (first seen, changed), and
+          # a fresh runner has none - the "Storms (GDACS)" row above is where those sources are judged.
           try:
               fd = json.load(open("feed.json"))
               counts = {}
               for it in fd.get("items", []):
                   counts[it["kind"]] = counts.get(it["kind"], 0) + 1
               print("\nfeed records by kind:", counts)
-              for kind in ("quake", "storm", "flood", "launch", "sat"):          # never empty in practice
+              for kind in ("quake", "flood", "launch", "sat"):                   # never empty in practice
                   if not counts.get(kind):
                       bad.append("%-48s %-5s %s" % ("feed: " + kind, "empty", "no records at all - a source answered but nothing parsed"))
               for p in fd.get("problems", []):
@@ -82,7 +86,13 @@ jobs:
           N=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
           if [ "${FAILING:-0}" != "0" ]; then
             if [ -n "$N" ]; then gh issue comment "$N" --body-file report.md
-            else gh issue create --title "$TITLE" --label "sources" --body-file report.md; fi
+            else
+              # the label is created on first use (gh issue create refuses a label the repo does not have, and
+              # the findings were lost with it); if that is not allowed either, the issue is opened without one
+              LABEL="--label sources"
+              gh label create sources --color 0e8a16 --description "The daily probe of the live data sources" --force >/dev/null 2>&1 || LABEL=""
+              gh issue create --title "$TITLE" $LABEL --body-file report.md
+            fi
             exit 1
           elif [ -n "$N" ]; then
             gh issue comment "$N" --body "Every source answered on today's probe; closing."
