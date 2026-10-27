@@ -181,6 +181,12 @@ ColumnLayout {
                         PC3.Label { opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Pressure " + (parent.parent.parent.now.pressure || "") + (parent.parent.parent.now.trend ? ", " + parent.parent.parent.now.trend : "") }
                         InfoButton { topic: "pressure" }
                     }
+                    RowLayout {                                    // the air is a condition of now, like the wind, not of the night sky
+                        Layout.alignment: Qt.AlignRight; spacing: 2
+                        visible: !!(sky.doc.tonight || ({})).air
+                        PC3.Label { opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Air " + ((sky.doc.tonight || ({})).air || "") }
+                        InfoButton { topic: "air" }
+                    }
                 }
             }
 
@@ -381,7 +387,7 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignTop; Layout.fillWidth: true; spacing: 1
                     readonly property var tonight: parent.tonight
                     Repeater {
-                        model: [["Cloud cover tonight", "cloud", "cloud"], ["Next visible pass", "pass", "pass"], ["Aurora", "kp", "kp"], ["Air quality", "air", "air"]]
+                        model: [["Cloud cover tonight", "cloud", "cloud"], ["Next visible pass", "pass", "pass"], ["Aurora", "kp", "kp"]]
                         RowLayout {
                             required property var modelData
                             visible: !!parent.tonight[modelData[1]]
