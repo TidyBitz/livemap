@@ -83,6 +83,10 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- Volcanoes: volcano.si.edu answered "HTTP Error 403: Forbidden" to the weekly report's RSS and CAP feeds on the
+  source probes of 25 and 26 October (the eruption database on webservices.volcano.si.edu kept answering). The
+  feeds are now asked once more with a browser-like user agent when the plain one is refused, as the report
+  page has been since 0.24; a second refusal, or any other error, is reported as before.
 - Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
   fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
   now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps

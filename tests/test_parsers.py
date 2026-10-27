@@ -158,6 +158,37 @@ def test_volcano_report_table():
     assert "yellowstone" in table
 
 
+def test_volcano_feed_asked_again_as_a_browser_on_403(no_network, monkeypatch):
+    """volcano.si.edu answered "HTTP Error 403: Forbidden" to the plain user agent on the probes of 25 and 26 Oct
+    2026 (the eruption database on webservices.volcano.si.edu kept answering): the feed is asked once more with
+    a browser-like one, as the report page has been since 0.24. Any other error, and a second 403, pass through."""
+    import urllib.error
+    asked = []
+
+    def http(url, method="GET", timeout=6, limit=None, headers=None, codes={"plain": 403}):
+        agent = (headers or {}).get("User-Agent", "plain")
+        asked.append(agent)
+        code = codes.get("plain" if agent == "plain" else "browser")
+        if code:
+            raise urllib.error.HTTPError(url, code, "Forbidden" if code == 403 else "Error", {}, None)
+        return 200, {}, fixture("gvp_weekly.rss").encode("utf-8"), 0.01
+
+    monkeypatch.setattr(volcanoes, "_http", http)
+    monkeypatch.setattr(volcanoes, "gvp_eruptions", lambda: {})                   # enrichment, not under test
+    monkeypatch.setattr(volcanoes, "weekly_table", lambda names=(): {})
+    rows, _tags, url = volcanoes.fetch_volcanoes()
+    assert [r["name"] for r in rows] == ["Kilauea", "Etna"] and url == volcanoes.GVP_FEEDS[0]
+    assert asked == ["plain", volcanoes.BROWSER_UA["User-Agent"]]                  # one retry, on the same URL
+    for codes, expect in (({"plain": 403, "browser": 403}, 403), ({"plain": 500}, 500)):
+        monkeypatch.setattr(volcanoes, "_http", lambda url, codes=codes, **k: http(url, codes=codes, **k))
+        try:
+            volcanoes.fetch_volcanoes()
+            assert False, "the error should come back as it is"
+        except urllib.error.HTTPError as e:
+            assert e.code == expect
+    assert asked[2:] == ["plain", volcanoes.BROWSER_UA["User-Agent"], "plain"]      # a 500 is not retried as a browser
+
+
 # ---- the feed's news bookkeeping -------------------------------------------------------------------------------
 def test_history_seen_updated_and_reseed(data_dir):
     from livemap_helper import feed

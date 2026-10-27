@@ -411,10 +411,26 @@ def chk_weekly_page():
     return ("ok" if table else "warn"), "%d volcanoes in the report table, %d with an eruption start date" % (len(table), dated)
 
 
+BROWSER_UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) livemap-wallpaper/" + VERSION,
+              "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"}
+
+
+def gvp_get(url):
+    """A GET from volcano.si.edu, asked again as a browser when the front end refuses the plain script user agent
+    (403 - the report page did that in 0.24, the feeds on the probes of 25 and 26 Oct 2026). Any other answer,
+    and a refusal of both, come back as they are."""
+    try:
+        return _http(url)
+    except urllib.error.HTTPError as e:
+        if e.code not in (403, 406, 429):
+            raise
+        return _http(url, headers=BROWSER_UA)
+
+
 def fetch_volcanoes():
     last = None
     for url in GVP_FEEDS:                          # the RSS first; the CAP feed if the RSS has no coordinates
-        _c, _h, body, _t = _http(url)
+        _c, _h, body, _t = gvp_get(url)
         rows, tags = parse_volcano_feed(body.decode("utf-8", "replace"))
         last = (rows, tags, url)
         if any(r["lat"] is not None for r in rows):
