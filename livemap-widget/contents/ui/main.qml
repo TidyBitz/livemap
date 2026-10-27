@@ -852,7 +852,9 @@ PlasmoidItem {
                 property string resolving: ""
                 readonly property bool channelLive: /youtube\.com\/(@[\w.-]+|channel\/[\w-]+|c\/[\w-]+|user\/[\w-]+)\/live\/?(\?.*)?$/.test(chosenUrl)
                 function resolve(u, fresh) {
-                    if (!channelLive || (resolved[u] !== undefined && !fresh) || resolving === u) return;
+                    if (!channelLive || resolving === u) return;
+                    // an earlier empty answer is not final: the next time this stream is chosen it is asked again, fresh, once
+                    if (resolved[u] !== undefined && !fresh) { if (resolved[u] === "" && !retried[u]) { retried[u] = true; fresh = true; } else return; }
                     resolving = u;
                     liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
                 }

@@ -40,9 +40,9 @@ def video_from_page(final_url, html):
     return ""
 
 
-def _get(url, timeout):
+def _get(url, timeout, opener=None):
     req = urllib.request.Request(url, headers=BROWSER)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with (opener.open if opener else urllib.request.urlopen)(req, timeout=timeout) as r:
         return r.geturl(), r.read(3 * 1024 * 1024).decode("utf-8", "replace")
 
 
@@ -51,13 +51,22 @@ def resolve(url, timeout=8):
     tab, where a running broadcast carries a LIVE badge (YouTube does not always redirect /live on the first ask)."""
     if not url.startswith("https://www.youtube.com/") and not url.startswith("https://youtube.com/"):
         raise ValueError("not a YouTube URL")
-    final, body = _get(url, timeout)
+    # one cookie jar for the whole ask: YouTube's first answer to a session without its cookies is often the bare
+    # channel page, and the same request a moment later, with the cookies it just set, is the redirect to the
+    # broadcast - which is why a Reload used to work when the first look did not
+    import http.cookiejar
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    final, body = _get(url, timeout, opener)
     vid = video_from_page(final, body)
     if vid:
         return vid, ("redirect" if VIDEO.search(final or "") else "page")
+    final, body = _get(url, timeout, opener)                   # once more, with the cookies
+    vid = video_from_page(final, body)
+    if vid:
+        return vid, ("redirect, second ask" if VIDEO.search(final or "") else "page, second ask")
     m = re.match(r"(https://(?:www\.)?youtube\.com/(?:@[\w.-]+|channel/[\w-]+|c/[\w-]+|user/[\w-]+))/live", url)
     if m:
-        final2, body2 = _get(m.group(1) + "/streams", timeout)
+        final2, body2 = _get(m.group(1) + "/streams", timeout, opener)
         vid = video_from_page("", body2)
         if vid:
             return vid, "streams tab"
