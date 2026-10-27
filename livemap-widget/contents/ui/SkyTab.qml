@@ -106,36 +106,6 @@ ColumnLayout {
         cloud: { title: "Cloud cover tonight", note: "The forecast's average cloud cover through the dark hours. Under about 25 % is clear enough for satellite spotting; over 85 % there is nothing to see.", rows: [] },
         pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
     })
-    PlasmaCore.Dialog {
-        id: infoBubble
-        type: PlasmaCore.Dialog.Tooltip
-        location: PlasmaCore.Types.LeftEdge
-        backgroundHints: PlasmaCore.Dialog.SolidBackground
-        hideOnWindowDeactivate: false
-        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active
-        visualParent: sky.infoAnchor
-        onVisibleChanged: if (!visible) { sky.infoTopic = ""; sky.infoAnchor = null; }
-        mainItem: ColumnLayout {
-            width: Kirigami.Units.gridUnit * 22
-            height: implicitHeight
-            spacing: Kirigami.Units.smallSpacing
-            readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
-            PC3.Label { text: parent.info.title; font.bold: true }
-            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: parent.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
-            Repeater {
-                model: parent.info.rows
-                RowLayout {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-                    Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
-                    PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
-                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
-                }
-            }
-        }
-    }
-
     // ---- placeholder states ----
     PlasmaExtras.PlaceholderMessage {
         visible: !sky.ready
@@ -376,9 +346,14 @@ ColumnLayout {
             PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
                         text: "Each bar is the day, midnight to midnight: colour is the temperature hour by hour, the dark ends are night, blue hatching is rain (white, snow), the white line is now. Hover for the hour." }
 
-            // sun and moon · tonight's sky
-            GridLayout {
+            // sun and moon · tonight's sky, in an Item so the "?" bubble can be drawn over the block, beside its line
+            Item {
+                id: infoBox
                 Layout.fillWidth: true
+                implicitHeight: infoGrid.implicitHeight
+            GridLayout {
+                id: infoGrid
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing * 2
                 rowSpacing: 1
@@ -418,6 +393,45 @@ ColumnLayout {
                         }
                     }
                 }
+            }
+            // the "?" bubble: to the left of the ? that opened it (the ? is at the end of its line), vertically centred on it
+            // and kept inside the tab's width; drawn in the popup, not as a tooltip window, which flickered under the pointer
+            Rectangle {
+                id: infoBubble
+                visible: sky.infoTopic !== "" && sky.infoAnchor !== null
+                z: 100
+                readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
+                readonly property point at: sky.infoAnchor ? sky.infoAnchor.mapToItem(infoBox, 0, 0) : Qt.point(0, 0)
+                readonly property real pad: Kirigami.Units.largeSpacing
+                width: Math.min(infoBox.width - Kirigami.Units.gridUnit, Kirigami.Units.gridUnit * 24)
+                height: infoColumn.implicitHeight + pad * 2
+                x: Math.max(0, at.x - width - Kirigami.Units.smallSpacing)
+                y: Math.max(-infoBox.y, at.y + (sky.infoAnchor ? sky.infoAnchor.height / 2 : 0) - height / 2)
+                radius: 4
+                Kirigami.Theme.inherit: false
+                Kirigami.Theme.colorSet: Kirigami.Theme.Window
+                color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 1)
+                border.color: Kirigami.Theme.highlightColor; border.width: 1
+                ColumnLayout {
+                    id: infoColumn
+                    x: infoBubble.pad; y: infoBubble.pad
+                    width: infoBubble.width - infoBubble.pad * 2
+                    spacing: Kirigami.Units.smallSpacing
+                    PC3.Label { text: infoBubble.info.title; font.bold: true }
+                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: infoBubble.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                    Repeater {
+                        model: infoBubble.info.rows
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
+                            PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
+                            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                        }
+                    }
+                }
+            }
             }
             PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.topMargin: Kirigami.Units.smallSpacing
                         text: "Open-Meteo (forecast, air quality) · NOAA SWPC (Kp) · sun, moon and passes computed here · fetched every 20 minutes" }
