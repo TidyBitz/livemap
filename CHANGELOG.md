@@ -283,6 +283,12 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- The daily source probe found failures on its first two runs but never opened its issue: `gh issue create`
+  refuses a label the repository does not have ("could not add label: 'sources' not found"), and the findings
+  went with it. The label is now created on first use (and the issue opened without one if that is not
+  allowed). The probe also flagged "feed: storm empty" every day: the feed lists storms, volcanoes and GDACS's
+  fires and floods from the events memory the wallpaper's own runs build up (first seen, changed), which a
+  fresh runner never has, so that kind is no longer judged from the feed - the Storms (GDACS) row is.
 - Pulses cost every event on the map, not just the pulsing ones. Each event's ripple ring read the shared clock
   on every tick whether it was pulsing or not - its bindings re-ran thirty to sixty times a second for hundreds
   of quakes, warnings and fires that showed nothing, which on a map with Europe's flood warnings up was most of
