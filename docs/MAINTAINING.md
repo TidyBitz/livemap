@@ -37,11 +37,14 @@ livemap/contents/helper/livemap_helper/      the Python helper: every source has
   feed.py       the widget's event list: one record shape for every kind, the facts rows, pictures
   status.py     the Status checks: one chk_* per source, the names the settings and sources.json refer to
   fetch.py      imagery: the monthly maps, GIBS, the frames cut for the screen
+  clouds.py borders.py infra.py net.py   the cloud image and its stitched fallback; Natural Earth and PB2002; platforms and refineries; sockets and GeoIP
+  coverage.py styles.py power.py widget.py   the coverage matrix from sources.json; saved styles; load guard, battery, layers.json; the widget's install state
   cli.py        every command; `livemap-helper --help` lists them
 livemap/contents/data/sources.json            every source once: hazard, regions, cadence, licence, attribution,
                                               the Status check it maps to (the Coverage page and docs/COVERAGE.md are made from it)
 livemap/contents/ui/                          the wallpaper (QML); one *Layer.qml per layer, config.qml the settings
-livemap-widget/contents/ui/                   the widget: main.qml (Events, Live, Map controls), SkyTab.qml
+livemap-widget/contents/ui/                   the widget: main.qml (Events, Live, Map controls with Sources and This widget), SkyTab.qml,
+                                              LiveWeb.qml (the embedded stream); contents/icons/ the kind icons drawn in the theme colour
 tests/test_parsers.py  tests/fixtures/        a recorded answer per source and a test that parses it
 tests/test_consistency.py                     config keys, settings aliases, status names, sources.json agree
 scripts/check.py                              "all good": versions, metadata, geo.js, the consistency checks
@@ -92,13 +95,30 @@ test; a line in docs/SOURCES.md. The consistency test will tell you what you for
 - **Imagery looks old after a change**: frames are cut once per view and style and cached under the data folder's
   `frames/`; Status › "Map style imagery" lists them; deleting a frame folder forces a rebuild.
 - **The widget and the wallpaper never talk directly**: they share files in the data folder. mode.json (the widget's
-  Map controls, read by the wallpaper within 20 s), layers.json (the wallpaper's switches and units, for the feed),
-  focus.json (the hovered row, read a few times a second while the popup is open). A new channel between them is
-  another small file, not D-Bus or a shared singleton.
+  Map controls, read by the wallpaper within 20 s); layers.json (the wallpaper's switches, units, the maritime window,
+  home, passes, and what it is holding back and why - for the feed and the widget); focus.json (the hovered row,
+  written by the widget at most every 120 ms, read by the wallpaper's FocusLayer through a `cat` every 400 ms while
+  the popup is open and every 2 s otherwise - Qt 6 refuses file:// XMLHttpRequests in plasmashell); pictures/ and
+  pictures.json (fetched by the helper, loaded by the widget as files); sky.json and live-urls.json (the helper's
+  caches for the Sky and Live tabs). A new channel between them is another small file, not D-Bus or a shared
+  singleton.
+- **Auto fit trims the sides on a laptop**: by design - it stretches up to 12 % and crops beyond, so a 16:10 panel
+  loses a little of the Pacific instead of squeezing the continents. Essentials > Fit to screen has the other modes.
+- **A quake bubble shows a satellite picture, not a ShakeMap**: USGS publishes ShakeMaps only for quakes that were
+  felt or above about M5.5; the bubble says it is the satellite's view of the area. A fresh quake is re-asked for
+  36 hours.
+- **A "possible twin" row in Status (storms)**: two sources describe one storm with records that did not merge
+  (names too different, positions too far for their age gap); it is reported rather than hidden so the duplicate
+  on the map gets looked at, not missed.
+- **Amber or red ages on the Sky tab**: the source's last answer is older than an hour or three; the reason is in
+  the ages row when a fetch failed. The data shown is the last good answer, not nothing.
+- **Oblasts missing from the air raid layer**: long-running alerts can be hidden by choice until something new
+  happens inside the oblast (Air raid alerts > Long-running alerts); the widget's strip still shows them.
 - **Settings differ between screens**: Plasma keeps a wallpaper configuration per screen. Styles ("Saved as") are
   shared through the data folder; the rest is per screen by design.
 
 ## Keys, accounts, licences
 
-There are none. Every source is free and key-less by choice; the licences and attributions are in
-`sources.json` and shown on the Coverage page. A source that starts requiring a key is replaced, not keyed.
+None required. Every source is free and key-less by choice; the licences and attributions are in `sources.json`
+and shown on the Coverage page. The one optional token is alerts.in.ua's (a free personal one unlocks alert types
+and start times; without it the public mirror is read). A source that starts requiring a key is replaced, not keyed.

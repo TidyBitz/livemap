@@ -32,6 +32,14 @@ Conventions that hold for every source:
 - **Processing:** the month pair for today is blended in the wallpaper (`Seasonal`, `SeasonalBlend`); a region is cut
   from the 21 600 px set when present (`frames/<key>/base.jpg`, key = frame bounds and width).
 
+### Classic Blue Marble (NASA 2002)
+- **What:** NASA's 2002 whole-Earth composite, the picture most people mean by "Blue Marble", as a seventh base map
+  and a built-in style.
+- **Format:** JPEG 5 400 × 2 700 px, shipped in the package byte for byte (`contents/images/classic.jpg`); nothing is
+  downloaded. A newer `base/classic.jpg` in the data folder takes precedence, and the frames are rebuilt when the
+  source is newer than they are.
+- **Processing:** frames cut at quality 96 without chroma subsampling, so the picture is not degraded a second time.
+
 ### NASA GIBS (satellite view, relief and bathymetry)
 - **What:** WMS tiles of VIIRS SNPP corrected reflectance (today's satellite picture) and `BlueMarble_ShadedRelief_Bathymetry`.
 - **Format:** `image/jpeg` via WMS 1.1.1, EPSG:4326, requested in 2 048 px chunks (`GIBS_CHUNK`) and stitched.
@@ -380,6 +388,15 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 - **Processing:** propagated locally with the secular part of SGP4 (J2 nodal and apsidal precession, mean-motion
   correction; no drag or short-period terms) - within a few km of the full model for elements under a day old,
   under a pixel on this map; the position is updated every second by the wallpaper.
+- **Passes over home (`passes.py`, `livemap-helper passes`):** from the same elements, when the ISS or Tiangong crosses
+  the sky over the home place - rise, highest point and set with compass directions - for the next day; a pass is
+  listed as visible when the sky at home is dark (civil dusk to dawn) and the station is still sunlit, every pass
+  on request (`SatPasses` 0 off, 1 visible, 2 every). The widget lists the next one an hour ahead (SOON) and the
+  next three in the station's bubble, with the cloud over home from the live cloud image as a hint.
+- **Crews (`space.fetch_crews`):** who is aboard, from Launch Library 2's astronaut endpoint (the same host as the
+  launches), kept four hours (LL2's free tier allows 15 requests an hour); a person is put on Tiangong when the
+  agency is Chinese, on the ISS otherwise; Starman and anyone "in space" for over 450 days is not aboard a
+  station; a flag per person from the demonym, else the agency's country.
 
 ### Oil and gas infrastructure (optional)
 - **What:** BSEE's platform structures shapefile (US Gulf of Mexico, public domain) and OpenStreetMap
@@ -393,10 +410,47 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 - **Regular expressions:** `\brtt:([\d.]+)/` for the round-trip time, `\(\("([^"]+)"` for the process name,
   `\s*\(.*?\)` to drop a district from a city name.
 
+## The widget's own sources
+
+### Sky tab - Open-Meteo (forecast, air quality), NOAA SWPC (`sky.py`)
+- **What:** the weather at the home place: now, hourly for seven days, daily sun and moon times; the current air
+  quality (US and European AQI, PM2.5); the planetary K index for the aurora line.
+- **Format:** Open-Meteo JSON (`api.open-meteo.com/v1/forecast`, `air-quality-api.open-meteo.com/v1/air-quality`,
+  `timeformat=unixtime`, no key, CC BY 4.0); SWPC's `noaa-planetary-k-index.json`, which has been a list of lists
+  and a list of dicts - both are read.
+- **Processing (`build`):** **Open-Meteo's daily stamps are the local date as if it were UTC while the hourly ones are
+  true instants**, so everything is placed by the place's own wall clock (`local_midnight`, `hour_of`), which is
+  what made the now line right. Each hour becomes a cell with an icon, the temperature, the precipitation chance
+  and amount; a reading with an amount and a 0 % chance says "chance not given" and still hatches; a day's icon is
+  its commonest daytime code unless the day is wet. Every source is asked again after `KEEP = 20 min` and its age
+  shown on the tab (amber past an hour, red past three, with the error when a fetch failed). Units follow the
+  wallpaper's Units page through layers.json (distance, wind, 12/24 h clock, temperature). Cached in `sky.json`.
+
+### Live tab - YouTube channel /live pages (`live.py`, `livemap-helper live-url`)
+- **What:** which broadcast a channel is showing now, so the widget can embed it without a hard-coded video id
+  (NASA rotates the ISS stream's id; Sen's 4K view is the default, NASA HD and others in the list, more in the
+  widget's settings).
+- **Format:** the channel's `/live` page HTML, asked with browser-like headers and a cookie jar, read for
+  `og:url`, the canonical link and `isLiveNow`; YouTube's first, cookie-less answer is often the bare channel page,
+  so it is asked twice in one session and the channel's streams tab is the fallback.
+- **Processing:** cached ten minutes in `live-urls.json`; an empty answer ("nothing live") is kept only a minute.
+  Status > "Live streams (YouTube channel pages)" shows what each channel resolved to.
+
+### Bubble pictures - USGS ShakeMaps, the centres' charts, NASA Worldview (`feed.py`)
+- **What:** the picture in the widget's preview bubble: USGS's ShakeMap for a quake (asked from the event's detail
+  page; a fresh quake without one is asked again every 20 minutes for 36 hours, then every 6 hours), NHC's cone and
+  JTWC's warning graphic for a storm, the rocket's picture from Launch Library 2, and, where a source has nothing,
+  NASA Worldview's snapshot of the place (VIIRS true colour, `wvs.earthdata.nasa.gov/api/v1/snapshot`) with a note
+  that it is the satellite's view of the area, not the event.
+- **Processing (`local_pictures`):** the helper fetches a few per feed run (`PICTURE_FETCHES_PER_RUN = 6`, ShakeMaps
+  first), 12 s timeout, 8 MB cap, downscaled to 1 200 px with Pillow when present, into `pictures/` with an index
+  (`pictures.json`, kept two weeks); the widget loads files, never the sites. A picture the helper has not fetched yet
+  is loaded by the widget directly, and the bubble says so after ten seconds.
+
 ---
 
 ## Status checks
 
-`livemap-helper status` runs one check per source (`chk_*`) and the Status tab shows them with a dot: green all
-answering, orange some of a section's sources failing, red none. The Events widget's "source not answering"
+`livemap-helper status` runs one check per source (`chk_*`); Settings > Status and the widget's Map controls > Sources
+show them with a dot: green all answering, orange some of a section's sources failing, red none. The Events widget's "source not answering"
 line comes from the same problems list the feeds carry.
