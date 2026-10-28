@@ -31,6 +31,7 @@ livemap/contents/helper/livemap_helper/      the Python helper: every source has
   quakes.py  storms.py  fires.py  floods.py  warnings.py  tsunami.py  volcanoes.py  vaac.py  alerts.py
                 one source family each: URLs at the top, a fetch_* function, a parse_* function
   space.py passes.py   satellites, crews, launches; ISS/Tiangong passes over home
+  maritime.py   UKMTO maritime incidents (the Royal Navy's API behind ukmto.org)
   sky.py        the widget's Sky tab (Open-Meteo, NOAA SWPC)
   live.py       YouTube channel /live pages -> the broadcast on now (the widget's Live tab)
   feed.py       the widget's event list: one record shape for every kind, the facts rows, pictures

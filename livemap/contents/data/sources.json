@@ -107,6 +107,10 @@
       "name": "Civil alerts"
     },
     {
+      "id": "maritime",
+      "name": "Maritime security"
+    },
+    {
       "id": "launch",
       "name": "Rocket launches"
     },
@@ -675,6 +679,25 @@
       "attribution": "Weather data by Open-Meteo.com",
       "url": "https://open-meteo.com/",
       "status": "Weather at home (Open-Meteo)"
+    },
+    {
+      "id": "ukmto",
+      "name": "UKMTO maritime incidents (Royal Navy API)",
+      "hazard": "maritime",
+      "regions": [
+        "mea",
+        "sca",
+        "pol"
+      ],
+      "gives": "attacks, boardings, hijacks, kidnaps, suspicious activity, electronic interference and advisories reported to UKMTO, with position, sea area, vessel type and the report",
+      "lead": "hours",
+      "cadence": "every 15 min",
+      "official": true,
+      "licence": "Crown copyright (published openly by the Royal Navy for mariners; no key)",
+      "attribution": "UKMTO / Royal Navy",
+      "url": "https://www.ukmto.org/",
+      "status": "Maritime incidents (UKMTO)",
+      "note": "The Indian Ocean area: the Red Sea, the Gulf of Aden, the Somali Basin, the Arabian Sea, the Gulf of Oman, the Strait of Hormuz and the Arabian Gulf. The Gulf of Guinea (MDAT-GoG) and South-East Asia (ReCAAP) are not covered yet"
     },
     {
       "id": "swpc-kp",

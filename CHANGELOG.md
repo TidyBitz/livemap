@@ -6,6 +6,25 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Maritime incidents: a new layer and widget kind from UKMTO (United Kingdom Maritime Trade Operations), the
+  Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the
+  Arabian Gulf and the Strait of Hormuz. ukmto.org holds no data itself: its page reads the Royal Navy's API
+  (`sccd.royalnavy.mod.uk/api/ukmto/all`), which answers plain JSON to anyone, no key or cookie, so the helper
+  reads the same (`maritime.py`, every 15 minutes, last answer kept). Every incident - attack, attempted or
+  illegal boarding, hijack, kidnap, suspicious activity, electronic interference, advisory - is a diamond with
+  an anchor at the reported position, coloured by what happened (red: hijack, kidnap, or an attack UKMTO itself
+  pins red; orange: attack or boarding; yellow: the rest), full size and pulsing while fresh (24 h), shrinking
+  and fading over the window shown (Settings > Maritime incidents: 1 to 30 days, 14 by default; colours;
+  labels "Attack · tanker · Strait of Hormuz · 3 h" for attacks and worse, all, or none). The widget lists the
+  same incidents (Events, its own Show box, Map controls chip and Sources row) with the vessel type, UKMTO's
+  number and pin colour, the position, when it happened and was published, and the full report as UKMTO wrote
+  it. The window is shared through layers.json (`maritime_days`), so the list and the map agree. Status:
+  "Maritime incidents (UKMTO)"; sources.json: hazard "Maritime security", Crown copyright. Fixtures from the
+  real API (41 incidents of October 2026, and the filters list) and four tests. The Gulf of Guinea (MDAT-GoG)
+  and South-East Asia (ReCAAP) are not covered yet.
+- Helper: a facts row named in `common.LONG_FACTS` ("Report") may carry up to 1200 characters and its line
+  breaks, where every other value is cut at 160; line breaks in any value now survive `emit` (they were
+  stripped as non-printable, which flattened the bullet lists of flood areas).
 - Hover a row in the widget and its event is ringed on the map: a steady ring with a pulse running out of it in
   a colour of your choice, and when the event is off screen a ring at the nearest edge with an arrow and the
   event's name, since a wallpaper cannot pan. The widget writes focus.json in the data folder (a shell printf, no

@@ -55,6 +55,7 @@ from .status import cmd_status
 from .storms import cmd_storms
 from .styles import cmd_styles
 from .tsunami import cmd_tsunami
+from .maritime import cmd_maritime
 from .volcanoes import cmd_volcanoes
 from .widget import cmd_widget
 from .live import cmd_live_url
@@ -83,7 +84,7 @@ def main():
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
     pw.add_argument("--home"); pw.add_argument("--home-name"); pw.add_argument("--passes", type=int)
-    pw.add_argument("--saving", type=int); pw.add_argument("--why")           # what the wallpaper holds back and why, for the widget
+    pw.add_argument("--saving", type=int); pw.add_argument("--why"); pw.add_argument("--maritime-days", dest="maritime_days", type=int)           # what the wallpaper holds back and why, for the widget
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -117,6 +118,8 @@ def main():
     cv.set_defaults(fn=cmd_coverage)
     ts = sub.add_parser("tsunami"); ts.add_argument("--table", action="store_true"); ts.add_argument("--stale", type=float, default=2)
     ts.add_argument("--max-age", dest="max_age", type=float, default=5); ts.set_defaults(fn=cmd_tsunami)
+    mr = sub.add_parser("maritime"); mr.add_argument("--table", action="store_true"); mr.add_argument("--stale", type=float, default=6)
+    mr.add_argument("--max-age", dest="max_age", type=float, default=15); mr.add_argument("--days", type=float, default=0); mr.set_defaults(fn=cmd_maritime)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)

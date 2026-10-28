@@ -315,6 +315,25 @@ RowLayout {
     property alias cfg_TsunamiLabelSpacing: tsunamiStyle.letterSpacing
     property alias cfg_TsunamiLabelOpacity: tsunamiStyle.textOpacity
     property alias cfg_TsunamiLabelHalo: tsunamiStyle.halo
+    // maritime incidents (UKMTO)
+    property alias cfg_ShowMaritime: maritime.checked
+    property int cfg_MaritimeLayerOpacity
+    property alias cfg_MaritimeDays: maritimeDays.value
+    property alias cfg_MaritimeFreshHours: maritimeFresh.value
+    property alias cfg_MaritimeColor: maritimeColor.color
+    property alias cfg_MaritimeAttackColor: maritimeAttackColor.color
+    property alias cfg_MaritimeInfoColor: maritimeInfoColor.color
+    property alias cfg_MaritimeLabels: maritimeLabels.currentIndex
+    property alias cfg_MaritimeLabelSize: maritimeLabelSize.value
+    property alias cfg_MaritimeLabelPlate: maritimePlate.checked
+    property alias cfg_MaritimeTextFollows: maritimeFollows.checked
+    property alias cfg_MaritimeTextColor: maritimeTextColor.color
+    property alias cfg_MaritimePulse: maritimePulse.checked
+    property alias cfg_MaritimeLabelBold: maritimeStyle.bold
+    property alias cfg_MaritimeLabelCaps: maritimeStyle.caps
+    property alias cfg_MaritimeLabelSpacing: maritimeStyle.letterSpacing
+    property alias cfg_MaritimeLabelOpacity: maritimeStyle.textOpacity
+    property alias cfg_MaritimeLabelHalo: maritimeStyle.halo
     // floods
     property alias cfg_ShowFloods: floods.checked
     property alias cfg_FloodColor: floodColor.color
@@ -497,7 +516,7 @@ RowLayout {
     readonly property var groupOrder: ["", "Map", "Natural events", "Civil, space and network", "Shared"]
     // the sidebar's order: by group, and inside a group as listed here (sections are completed in no fixed order)
     readonly property var sideOrder: ["Essentials", "Map", "Day and night", "Clouds", "Countries", "Rivers, lakes and seas", "Time zones", "Tectonic plates",
-        "Oil and gas infrastructure", "Earthquakes", "Volcanoes", "Storms", "Wildfires", "Floods", "Tsunami bulletins", "Air raid alerts (Ukraine)",
+        "Oil and gas infrastructure", "Earthquakes", "Volcanoes", "Storms", "Wildfires", "Floods", "Tsunami bulletins", "Air raid alerts (Ukraine)", "Maritime incidents",
         "Satellites", "Launches", "Network activity", "Units", "Markers and labels", "Ageing and pulses", "Performance and power", "Status", "Coverage"]
     function sideRank(s) { var g = groupOrder.indexOf(s.group), i = sideOrder.indexOf(s.title); return (g < 0 ? 99 : g) * 100 + (i < 0 ? 99 : i); }
     readonly property var sideList: sections.slice().sort(function (a, b) { return form.sideRank(a) - form.sideRank(b); })
@@ -848,7 +867,7 @@ RowLayout {
     }
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", maritime: "Maritime incidents", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -2260,6 +2279,59 @@ RowLayout {
         }
         LabelStyle { visible: sec9a.open; id: alertStyle; label: "Alert label style:"; enabled: airAlerts.checked && alertLabels.currentIndex > 0; plated: alertPlate.checked }
         Note { visible: sec9a.open; text: "Label: oblast, the alert type, how long it has been on ('Kharkiv · air raid · 23 min'); a partial alert says 'part: Kupiansk'. The Events widget lists the oblasts under alert; an alert that is not an air raid (shelling, fighting) counts as severe for the sound." }
+
+
+        // ====================================================== Maritime incidents
+        SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
+        Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)"] }
+        QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO)" }
+        Amount {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime layer opacity:"
+            enabled: maritime.checked
+            from: 10; to: 100
+            value: form.cfg_MaritimeLayerOpacity
+            onValueChanged: form.cfg_MaritimeLayerOpacity = value
+        }
+        Note { visible: sec9m.open; text: "UKMTO (United Kingdom Maritime Trade Operations) is the Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the Arabian Gulf and the Strait of Hormuz. Every incident it publishes - attacks, boardings, hijacks, kidnaps, suspicious approaches, electronic interference, advisories - is a diamond with an anchor at the reported position: red for a hijack, a kidnap or an attack UKMTO flags red, orange for an attack or a boarding, yellow for the rest. Fresh incidents are full size and an attack pulses; older ones shrink and fade over the window. Looked at every 15 minutes. The Events widget lists the same incidents with the full report." }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Window:"
+            enabled: maritime.checked
+            QQC2.Label { text: "Incidents of the last"; opacity: 0.8 }
+            QQC2.SpinBox { id: maritimeDays; from: 1; to: 30; textFromValue: function (v) { return v + (v === 1 ? " day" : " days") }; valueFromText: function (t) { return parseInt(t) || 14 } }
+            QQC2.Label { text: "fresh for"; opacity: 0.8 }
+            QQC2.SpinBox { id: maritimeFresh; from: 1; to: 168; stepSize: 6; textFromValue: function (v) { return v + " h" }; valueFromText: function (t) { return parseInt(t) || 24 } }
+        }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime colours:"
+            enabled: maritime.checked
+            QQC2.Label { text: "Hijack, kidnap"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeColor; showAlphaChannel: false; dialogTitle: "Hijack, kidnap, red-pin attack colour" }
+            QQC2.Label { text: "Attack, boarding"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeAttackColor; showAlphaChannel: false; dialogTitle: "Attack and boarding colour" }
+            QQC2.Label { text: "Suspicious, advisory"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeInfoColor; showAlphaChannel: false; dialogTitle: "Suspicious activity, interference, advisory colour" }
+        }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime labels:"
+            enabled: maritime.checked
+            QQC2.ComboBox { id: maritimeLabels; model: ["None", "Attacks and worse", "All"] }
+            Px { id: maritimeLabelSize; from: 4; to: 24 }
+        }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime label text:"
+            enabled: maritime.checked && maritimeLabels.currentIndex > 0
+            QQC2.CheckBox { id: maritimePlate; text: "Plate" }
+            QQC2.CheckBox { id: maritimeFollows; text: "Text follows the level colour" }
+            KQuickControls.ColorButton { id: maritimeTextColor; enabled: !maritimeFollows.checked; showAlphaChannel: false; dialogTitle: "Maritime label colour" }
+        }
+        LabelStyle { visible: sec9m.open; id: maritimeStyle; label: "Maritime label style:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; plated: maritimePlate.checked }
+        QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from an attack while it is fresh" }
+        Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. Nothing covers the Gulf of Guinea or South-East Asia yet - those centres (MDAT-GoG, ReCAAP) are separate sources." }
 
 
         // ============================================================= Satellites

@@ -55,6 +55,7 @@ WallpaperItem {
             item.home = Qt.binding(function () { return cfg.HomeLat !== "" && cfg.HomeLon !== "" ? cfg.HomeLat + "," + cfg.HomeLon : "" });
             item.homeName = Qt.binding(function () { return cfg.HomeCity || "" });
             item.passes = Qt.binding(function () { return cfg.SatPasses === undefined ? 0 : cfg.SatPasses });
+            item.maritimeDays = Qt.binding(function () { return cfg.ShowMaritime ? cfg.MaritimeDays : 14 });
             item.saving = Qt.binding(function () { return root.saving });
             item.savingWhy = Qt.binding(function () { return root.savingWhy });
         }
@@ -62,7 +63,7 @@ WallpaperItem {
     readonly property bool onBattery: powerLoader.item ? powerLoader.item.onBattery : false
     // the event layers switched on, for the companion widget (it can list only what the map shows)
     readonly property string shownLayers: [cfg.ShowQuakes ? "quakes" : "", cfg.ShowVolcanoes ? "volcanoes" : "", cfg.ShowStorms ? "storms" : "",
-                                           cfg.ShowFires ? "fires" : "", cfg.ShowFloods ? "floods" : "", cfg.ShowTsunami ? "tsunami" : "", cfg.ShowAirAlerts ? "alerts" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
+                                           cfg.ShowFires ? "fires" : "", cfg.ShowFloods ? "floods" : "", cfg.ShowTsunami ? "tsunami" : "", cfg.ShowAirAlerts ? "alerts" : "", cfg.ShowMaritime ? "maritime" : "", cfg.ShowLaunches ? "launches" : "", cfg.ShowSats ? "sats" : "",
                                            cfg.ShowNetwork ? "network" : ""].filter(function (l) { return l !== ""; }).join(",")
     readonly property int guardLevel: powerLoader.item ? powerLoader.item.guardLevel : 0
     readonly property var mode: powerLoader.item ? powerLoader.item.mode : ({})
@@ -80,7 +81,7 @@ WallpaperItem {
     // One pulse clock for every layer. Each layer used to run its own timer at the profile's rate, unsynchronised,
     // and every tick of every timer redraws the whole screen: five layers pulsing meant five times the frames.
     property real clock: 0
-    readonly property var pulseLayers: [quakeLoader, stormLoader, volcanoLoader, fireLoader, floodLoader, tsunamiLoader, alertLoader, launchLoader, netLoader]
+    readonly property var pulseLayers: [quakeLoader, stormLoader, volcanoLoader, fireLoader, floodLoader, tsunamiLoader, alertLoader, maritimeLoader, launchLoader, netLoader]
     readonly property bool anyPulse: pulseLayers.some(function (l) { return l.item && l.item.pulseWanted; })
     Timer {
         interval: Math.round(1000 / Math.max(1, root.fps))
@@ -657,6 +658,20 @@ WallpaperItem {
             onStatusChanged: if (status === Loader.Error) console.warn("livemap: tsunami layer failed to load")
         }
         Loader {
+            id: maritimeLoader
+            opacity: cfg.MaritimeLayerOpacity / 100
+            anchors.fill: parent
+            active: cfg.ShowMaritime && root.saving < 2 && !root.hidden("maritime")
+            source: "MaritimeLayer.qml"
+            onLoaded: {
+                item.cfg = root.cfg;
+                item.fps = Qt.binding(function () { return root.fps }); if ("clock" in item) item.clock = Qt.binding(function () { return root.clock });
+                item.slow = Qt.binding(function () { return root.saving === 1 });
+                item.helper = String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "");
+            }
+            onStatusChanged: if (status === Loader.Error) console.warn("livemap: maritime layer failed to load")
+        }
+        Loader {
             id: fireLoader
             opacity: cfg.FireLayerOpacity / 100                // the marks and lines; labels have their own opacity
             anchors.fill: parent
@@ -723,6 +738,7 @@ WallpaperItem {
             floodSpecs: floodLoader.item ? floodLoader.item.labelSpecs : []
             tsunamiSpecs: tsunamiLoader.item ? tsunamiLoader.item.labelSpecs : []
             alertSpecs: alertLoader.item ? alertLoader.item.labelSpecs : []
+            maritimeSpecs: maritimeLoader.item ? maritimeLoader.item.labelSpecs : []
             satSpecs: satLoader.item ? satLoader.item.labelSpecs : []
             shifts: satLoader.item ? satLoader.item.labelShifts : ({})
             launchSpecs: launchLoader.item ? launchLoader.item.labelSpecs : []
@@ -751,6 +767,7 @@ WallpaperItem {
             floodLoader.item && floodLoader.item.hint !== "" ? floodLoader.item.hint : "",
             tsunamiLoader.item && tsunamiLoader.item.hint !== "" ? tsunamiLoader.item.hint : "",
             alertLoader.item && alertLoader.item.hint !== "" ? alertLoader.item.hint : "",
+            maritimeLoader.item && maritimeLoader.item.hint !== "" ? maritimeLoader.item.hint : "",
             satLoader.item && satLoader.item.hint !== "" ? satLoader.item.hint : "",
             launchLoader.item && launchLoader.item.hint !== "" ? launchLoader.item.hint : "",
             volcanoLoader.item && volcanoLoader.item.hint !== "" ? volcanoLoader.item.hint : "",

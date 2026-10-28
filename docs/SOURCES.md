@@ -338,6 +338,33 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   known starts, first-seen times and ended alerts (`_cleared`, listed as "all clear" for `AIR_CLEAR_MINUTES = 30`).
   Statuses: `A` active, `P` partial, `N` none, `C` cleared.
 
+### Maritime incidents - UKMTO, through the Royal Navy's API (`maritime.py`)
+- **What:** every incident UKMTO (United Kingdom Maritime Trade Operations) publishes for the Indian Ocean
+  area - the Red Sea, the Gulf of Aden, the Somali Basin, the Arabian Sea, the Gulf of Oman, the Strait of
+  Hormuz, the Arabian Gulf: attacks, attempted and illegal boardings, hijacks, kidnaps, suspicious activity,
+  electronic interference, advisories, with the position, the sea area, the vessel type, whether the vessel is
+  under pirate control and crew held, and the full report. Crown copyright; no key.
+- **Why:** NGA's ASAM archive (the US counterpart) stopped being updated in 2024 and its API is gone; UKMTO is
+  the centre the ships themselves report to, within hours. The ukmto.org page is a Next.js app whose own data
+  route holds only layout - the incidents come from the Royal Navy's API, found by recording the page's
+  requests: `https://sccd.royalnavy.mod.uk/api/ukmto/all` (the current list, about a month), `/api/ukmto/ticker`
+  (the banner headlines), `/api/ukmto/incident/filters` (the sea areas and incident types). Cloudflare in front;
+  it answered a plain `curl` with the helper's own User-Agent and no Origin or Referer (October 2026).
+- **Format:** a JSON list; per record `incidentNumber`, `sitecoreId`, `utcDateOfIncident`, `utcDateCreated`,
+  `incidentTypeName`, `incidentTypeLevel` (not a severity: Advisory is 3, Attack 1 - kept, not used), `pinColour`
+  (Yellow / Red, UKMTO's own flag), `locationLatitude` / `locationLongitude` (decimal; the DDDMMSS strings are
+  ignored), `place`, `region`, `vesselName` (usually withheld: ".", "-", "MERCHANT"), `vesselType`,
+  `vesselUnderPirateControl`, `dateVesselTaken`, `crewHeld`, `otherDetails` (the report, CRLF line breaks).
+- **Processing (`parse_incidents`, `maritime_level`, `fetch_maritime`):** the level is the wallpaper's own
+  (`MARITIME_LEVELS`: hijack and kidnap 3; attack and boardings 2, 3 with a red pin; suspicious activity,
+  interference and advisories 1; a vessel under pirate control is always 3), matched on the type name so an
+  unseen type still lands at 1. Withheld vessel names become "". The report is reflowed into paragraphs (line
+  breaks inside a sentence joined) and kept whole in the widget's "Report" row (`common.LONG_FACTS`). Records
+  older than `MARITIME_DAYS = 30` are dropped; the layer and the widget show the Settings window
+  (`MaritimeDays`, through layers.json `maritime_days`). Cached 15 minutes (`last-maritime.json`); the layer
+  asks every 15 minutes (30 when saving).
+- **Fixtures:** `tests/fixtures/ukmto_all.json` (41 incidents, 28 Sep - 28 Oct 2026) and `ukmto_filters.json`.
+
 ### Launches - The Space Devs, Launch Library 2
 - **What:** `ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20`, free, 15 requests an hour; cached an hour.
 - **Format:** JSON; `net`, `name`, `rocket.configuration.full_name`, `mission.name`, `launch_service_provider`,

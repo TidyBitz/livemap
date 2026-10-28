@@ -22,6 +22,7 @@ from .power import cpu_busy, gpu_busy
 from .space import SATS, fetch_crews, fetch_launches, fetch_tles
 from .passes import cloud_over, passes_for, PASSES
 from .tsunami import tsunami_cached
+from .maritime import maritime_cached
 
 
 # ----------------------------------------------------------------- facts -----
@@ -363,6 +364,17 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Earthquake", "M%.1f %s" % (it["mag"], it.get("location") or "") if it.get("mag") else ""],
                 ["Areas", ", ".join(it.get("areas") or [])],
                 _at("Sent", it.get("sent"))]
+    elif kind == "maritime":
+        rows = [["Incident", "%s%s" % (it.get("type") or "", " \u00b7 UKMTO %s" % it["number"] if it.get("number") else "")],
+                ["Area", it.get("place") or ""],
+                ["Vessel", " ".join(x for x in (it.get("vessel_type"), ("\u201c%s\u201d" % it["vessel"]) if it.get("vessel") else "") if x)],
+                ["Pirate control", "yes, vessel taken" if it.get("pirate_control") else ""],
+                ["Crew held", str(it["crew_held"]) if it.get("crew_held") else ""],
+                ["Position", _pos(it.get("lat"), it.get("lon"))],
+                _at("When", it.get("when")),
+                _at("Published", it.get("published")) if it.get("published") and abs(float(it["published"]) - float(it["when"])) > 1800 else ["Published", ""],
+                ["Report", it.get("text") or ""],
+                ["Source", "UKMTO \u00b7 Royal Navy \u00b7 Crown copyright"]]
     elif kind == "alert":
         rows = [["Alert", ", ".join(it.get("types") or ["air raid"]).capitalize()],
                 ["Region", extra.get("region") or ""],
@@ -536,6 +548,22 @@ def cmd_feed(args):
                           "nonew": e["level"] <= 0 and not e.get("ended"), "key": "tsunami:%s:%s" % (e["centre"], e["incident"]), **facts_for("tsunami", e)})
     except Exception as e:
         problems.append("tsunami: %s" % e)
+    # maritime incidents (UKMTO, the wallpaper's cache; fetched when it is more than 15 minutes old)
+    try:
+        mi, _h, _e = maritime_cached(15)
+        if _e and not mi:
+            problems.append("maritime: %s" % _e)
+        days = read_layers_int("maritime_days", 14)
+        for it in (mi or {}).get("incidents", []):
+            if now - it["when"] > max(1, days) * 86400:
+                continue
+            what = it["type"] + (" \u00b7 vessel taken" if it.get("pirate_control") else "")
+            items.append({"kind": "maritime", "when": it["when"], "title": "%s \u00b7 %s" % (what, it.get("place") or "at sea"),
+                          "detail": "%s%s \u00b7 UKMTO %s" % (it.get("vessel_type") or "vessel", " \u00b7 %s pin" % it["pin"].lower() if it.get("pin") else "", it.get("number") or ""),
+                          "url": it["url"], "lat": it["lat"], "lon": it["lon"], "level": it["level"], "nonew": it["level"] <= 1 and it["type"].lower() == "advisory",
+                          "key": "maritime:%s" % it["id"], **facts_for("maritime", it)})
+    except Exception as e:
+        problems.append("maritime: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
@@ -633,7 +661,7 @@ def cmd_feed(args):
     # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
     # sorts behind every quake of the day); they are already filtered to the ones that matter.
     def kept(it):
-        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert", "tsunami") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert", "tsunami", "maritime") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
     # the kept kinds are exempt from the cap, not counted against it: 60 fire incidents must not push out every quake
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
@@ -660,7 +688,7 @@ def history_mark():
 # the cache file(s) behind each kind of event: "as of" for the widget, so an empty list can say whether the
 # source was reached (the kind's newest cache) or never answered (no cache at all)
 KIND_CACHES = {"quake": ["quakes.json"], "storm": ["last-storms.json"], "volcano": ["last-volcanoes.json"], "fire": ["last-fires.json", "hotspots.csv", "last-nifc.json", "last-cwfis.json", "last-effis.json"],
-               "flood": ["last-floods.json", "last-nws-floods.json"], "tsunami": ["last-tsunami.json"], "alert": ["last-air-alerts.json"],
+               "flood": ["last-floods.json", "last-nws-floods.json"], "tsunami": ["last-tsunami.json"], "alert": ["last-air-alerts.json"], "maritime": ["last-maritime.json"],
                "launch": ["launches.json"], "sat": ["tle.json"]}
 
 

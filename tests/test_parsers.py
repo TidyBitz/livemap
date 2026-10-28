@@ -641,3 +641,46 @@ def test_storm_twins_and_lenient_names():
     assert len(pairs) == 1
     far = {"name": "Other", "source": "JTWC", "lat": -20.0, "lon": 60.0, "hours": 1, "ids": ["jtwc:sh05"]}
     assert storms.twins([gd, far]) == []
+
+
+# ---- maritime incidents (UKMTO) -----------------------------------------------------------------------------
+def test_ukmto_incidents_parse():
+    from livemap_helper import maritime
+    items = maritime.parse_incidents(json.loads(fixture("ukmto_all.json")))
+    assert len(items) == 41 and items[0]["when"] >= items[-1]["when"]          # newest first
+    by_number = {it["number"]: it for it in items}
+    a = by_number[147]                                                          # a red-pin attack on a tanker
+    assert a["type"] == "Attack" and a["pin"] == "Red" and a["level"] == 3 and a["place"] == "Strait of Hormuz" and a["vessel_type"] == "tanker"
+    assert by_number[144]["level"] == 2 and by_number[143]["level"] == 1 and by_number[184]["level"] == 1   # yellow attack, suspicious activity, advisory
+    assert by_number[143]["vessel"] == "" and by_number[144]["vessel"] == ""   # "vessel" and "." are withheld names, not names
+    assert abs(by_number[143]["lat"] - 26.4333) < 0.001 and abs(by_number[143]["lon"] - 56.4861) < 0.001
+    assert time.gmtime(by_number[143]["when"])[:5] == (2026, 9, 28, 23, 0) and by_number[143]["published"] > by_number[143]["when"]
+    assert "\r" not in by_number[143]["text"] and by_number[143]["text"].count("\n") == 2   # three paragraphs, joined inside
+    assert all(it["kind"] == "maritime" and it["title"] and it["url"].startswith("https://") for it in items)
+
+
+def test_ukmto_levels():
+    from livemap_helper.maritime import maritime_level
+    assert maritime_level("Hijack") == 3 and maritime_level("Kidnap", "Yellow") == 3
+    assert maritime_level("Attack") == 2 and maritime_level("Attack", "Red") == 2 + 1 and maritime_level("Attempted Boarding") == 2
+    assert maritime_level("Suspicious Activity", "Red") == 1 and maritime_level("Advisory") == 1 and maritime_level("Electronic Interference") == 1
+    assert maritime_level("Suspicious Activity", pirate=True) == 3
+    assert maritime_level("Something New") == 1
+
+
+def test_ukmto_fetch_and_cache(no_network, data_dir):
+    from livemap_helper import maritime
+    no_network("api/ukmto/all", fixture("ukmto_all.json"))
+    d = maritime.fetch_maritime()
+    assert len(d["incidents"]) <= 41 and all(time.time() - it["when"] <= maritime.MARITIME_DAYS * 86400 for it in d["incidents"])
+    data, stale, err = maritime.maritime_cached(15)
+    assert err == "" and (data_dir / "last-maritime.json").exists()
+
+
+def test_ukmto_odd_records_are_skipped():
+    from livemap_helper import maritime
+    items = maritime.parse_incidents([{"incidentNumber": 1, "locationLatitude": None, "locationLongitude": 50}, {"incidentNumber": 2, "locationLatitude": 12, "locationLongitude": 45, "utcDateOfIncident": "garbage"},
+                                      {"incidentNumber": 3, "locationLatitude": 12, "locationLongitude": 45, "utcDateOfIncident": "2026-10-01T00:00:00Z", "incidentTypeName": None, "vesselType": None, "otherDetails": None, "crewHeld": "x"},
+                                      "not a record", {"incidentNumber": 4, "locationLatitude": 95, "locationLongitude": 45, "utcDateOfIncident": "2026-10-01T00:00:00Z"}])
+    assert [it["number"] for it in items] == [3] and items[0]["type"] == "Incident" and items[0]["title"] == "Incident · at sea" and items[0]["crew_held"] == 0
+    assert maritime.parse_incidents({"incidents": []}) == [] and maritime.parse_incidents(None) == []

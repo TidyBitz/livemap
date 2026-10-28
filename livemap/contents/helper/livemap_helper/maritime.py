@@ -1,0 +1,152 @@
+"""Maritime security incidents: UKMTO (United Kingdom Maritime Trade Operations), read from the Royal Navy's API."""
+import json
+import re
+
+from .common import _age, emit, last_good, stale_note, fetch_json
+
+
+# ----------------------------------------------------------- maritime -----
+# UKMTO is the Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of
+# Aden, the Arabian Gulf and the Strait of Hormuz: attacks, attempted and illegal boardings, hijacks, kidnaps,
+# suspicious approaches, electronic interference, and advisories, each published within hours as a warning
+# with a position, the sea area, the vessel type and a narrative. ukmto.org itself is a Next.js page that
+# holds none of this: the page asks the Royal Navy's API, which answers plain JSON to anyone with no key,
+# cookie or browser headers (checked from a desktop, October 2026). Every current incident comes in one list
+# (the site keeps roughly a month); `incident/filters` names the sea areas and types. Crown copyright.
+UKMTO_ALL = "https://sccd.royalnavy.mod.uk/api/ukmto/all"
+UKMTO_FILTERS = "https://sccd.royalnavy.mod.uk/api/ukmto/incident/filters"
+UKMTO_PAGE = "https://www.ukmto.org/indian-ocean/recent-incidents"
+
+
+# the incident type -> how much it matters: 3 a vessel or crew taken or an attack with a red pin, 2 an attack
+# or a boarding, 1 a suspicious approach, interference, an advisory. The API's own `incidentTypeLevel` is not
+# a severity (Advisory is 3 there, Attack 1), so it is kept in the record but not used for this.
+MARITIME_LEVELS = {"hijack": 3, "kidnap": 3, "attack": 2, "attempted boarding": 2, "illegal boarding": 2, "boarding": 2,
+                   "suspicious activity": 1, "electronic interference": 1, "advisory": 1}
+
+
+MARITIME_DAYS = 30                                                         # older incidents leave the list (the site keeps about a month)
+
+
+def _epoch(text):
+    from datetime import datetime, timezone
+    try:
+        return datetime.strptime(str(text)[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    except (ValueError, TypeError):
+        return None
+
+
+def _clean(text):
+    """The narrative as one paragraph per blank line: the API's \\r\\n line breaks inside a sentence are joined."""
+    text = str(text or "").replace("\r\n", "\n").replace("\r", "\n")
+    paras = [" ".join(p.split()) for p in re.split(r"\n\s*\n", text)]
+    return "\n".join(p for p in paras if p)
+
+
+def maritime_level(type_name, pin="", pirate=False):
+    name = (type_name or "").strip().lower()
+    level = MARITIME_LEVELS.get(name)
+    if level is None:
+        level = next((v for k, v in MARITIME_LEVELS.items() if k in name), 1)
+    if pirate:
+        level = 3
+    elif level == 2 and str(pin or "").strip().lower() == "red":
+        level = 3
+    return level
+
+
+def parse_incidents(data):
+    """The API's list -> records, newest first. Every record keeps the source's own strings (type, place, pin)
+    and gets the contract keys the feed and the layer read: kind, id, when, lat, lon, title, level."""
+    if isinstance(data, dict):
+        data = data.get("incidents") or data.get("items") or data.get("data") or []
+    out = []
+    for r in data if isinstance(data, list) else []:
+        if not isinstance(r, dict):
+            continue
+        try:
+            lat, lon = float(r["locationLatitude"]), float(r["locationLongitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        when = _epoch(r.get("utcDateOfIncident")) or _epoch(r.get("utcDateCreated"))
+        if not when:
+            continue
+        number = r.get("incidentNumber")
+        type_name = " ".join(str(r.get("incidentTypeName") or "Incident").split()).title()
+        pin = str(r.get("pinColour") or "").strip().title()
+        pirate = bool(r.get("vesselUnderPirateControl"))
+        vessel_type = " ".join(str(r.get("vesselType") or "").split()).lower()
+        vessel = " ".join(str(r.get("vesselName") or "").split())
+        if len(vessel) < 3 or vessel.lower() in ("vessel", "merchant", "tanker", "tkr", "mv", "n/a", "unknown"):
+            vessel = ""                                                 # ".", "-", "MERCHANT": the name is withheld
+        try:
+            crew = int(r.get("crewHeld") or 0)
+        except (TypeError, ValueError):
+            crew = 0
+        out.append({"kind": "maritime", "id": str(r.get("sitecoreId") or number or "%s:%s" % (lat, lon)), "number": number,
+                    "issuer": str(r.get("incidentIssuer") or "UKMTO"), "type": type_name, "type_level": r.get("incidentTypeLevel"), "pin": pin,
+                    "level": maritime_level(type_name, pin, pirate), "when": when, "published": _epoch(r.get("utcDateCreated")) or when,
+                    "lat": lat, "lon": lon, "place": " ".join(str(r.get("place") or "").split()), "region": str(r.get("region") or ""),
+                    "vessel_type": vessel_type, "vessel": vessel, "pirate_control": pirate, "crew_held": crew,
+                    "taken": _epoch(r.get("dateVesselTaken")), "text": _clean(r.get("otherDetails"))[:1200],
+                    "title": "%s · %s" % (type_name, " ".join(str(r.get("place") or "").split()) or "at sea"), "url": UKMTO_PAGE})
+    out.sort(key=lambda it: -it["when"])
+    return out
+
+
+def fetch_maritime():
+    import time
+    data = fetch_json(UKMTO_ALL, timeout=15, what="UKMTO incidents")
+    incidents = parse_incidents(data)
+    if not incidents and (isinstance(data, list) and data):
+        raise RuntimeError("UKMTO answered %d records in a shape the parser does not know" % len(data))
+    cutoff = time.time() - MARITIME_DAYS * 86400
+    return {"incidents": [it for it in incidents if it["when"] >= cutoff], "read": time.time()}
+
+
+def maritime_cached(max_age_min=15):
+    import time
+    from .common import DATA
+    f = DATA / "last-maritime.json"
+    try:
+        c = json.loads(f.read_text(encoding="utf-8"))
+        if time.time() - c.get("at", 0) < max_age_min * 60:
+            return c["data"], 0.0, ""
+    except (OSError, ValueError, KeyError):
+        pass
+    return last_good("maritime", fetch_maritime)
+
+
+def cmd_maritime(args):
+    import time
+    data, stale_h, err = maritime_cached(args.max_age)
+    note = stale_note("Maritime incidents", stale_h, err, args.stale) if err else ""
+    items = (data or {}).get("incidents", [])
+    if args.days:
+        cutoff = time.time() - args.days * 86400
+        items = [it for it in items if it["when"] >= cutoff]
+    if args.table:
+        print(note or "%d maritime incidents in the last %s days" % (len(items), args.days or MARITIME_DAYS))
+        for it in items:
+            print("  %-4s %-16s L%d %-6s %-22s %-8s %s" % (it.get("number") or "", it["type"][:16], it["level"], it["pin"][:6], it["place"][:22], it["vessel_type"][:8],
+                                                        _age(int(time.time() - it["when"])) + " ago"))
+    else:
+        emit({"incidents": items, "note": note})
+
+
+def chk_maritime():
+    import time
+    d = fetch_maritime()
+    items = d["incidents"]
+    day = [it for it in items if time.time() - it["when"] < 86400]
+    week = [it for it in items if time.time() - it["when"] < 7 * 86400]
+    places = {}
+    for it in week:
+        places[it["place"]] = places.get(it["place"], 0) + 1
+    busiest = sorted(places.items(), key=lambda kv: -kv[1])[:3]
+    return "ok", "%d incidents listed (the last %d days); %d in the past day, %d this week%s%s" % (
+        len(items), MARITIME_DAYS, len(day), len(week),
+        ": " + ", ".join("%s (%d)" % kv for kv in busiest) if busiest else "",
+        "; latest %s, %s, %s ago" % (items[0]["type"].lower(), items[0]["place"], _age(int(time.time() - items[0]["when"]))) if items else "")

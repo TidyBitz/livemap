@@ -13,6 +13,7 @@
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
     <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAlerts" type="Bool"><default>true</default></entry>
+    <entry name="ShowMaritime" type="Bool"><default>true</default></entry>
     <entry name="ShowLaunches" type="Bool"><default>true</default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="FollowMap" type="Bool"><default>true</default></entry>
