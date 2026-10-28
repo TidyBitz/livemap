@@ -104,6 +104,7 @@ ColumnLayout {
                     rows: [["rising", "clearing, drier, often windier", "#4caf50"], ["steady", "no change coming soon", "#9e9e9e"], ["falling", "cloud, rain or wind on the way", "#ff9800"]] },
         moon: { title: "The moon", note: "The phase and how much of the disc is lit, from a standard approximation (within half a day). A bright moon washes out faint satellites and the aurora; the dark half of the month is best for both.", rows: [] },
         cloud: { title: "Cloud cover tonight", note: "The forecast's average cloud cover through the dark hours. Under about 25 % is clear enough for satellite spotting; over 85 % there is nothing to see.", rows: [] },
+        sources: { title: "Where this comes from", note: "Forecast and air quality from Open-Meteo, the planetary K index from NOAA's Space Weather Prediction Center; each fetched at most every 20 minutes by the wallpaper's helper and kept, so an outage shows the last answer with its age (the line under the place name). Sunrise, sunset, the moon and the satellite passes are computed on this machine from the home place. Units and the clock follow the wallpaper's Units page.", rows: [] },
         pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
     })
     // ---- placeholder states ----
@@ -140,6 +141,7 @@ ColumnLayout {
                 PC3.Label { text: parent.parent.d.name || ""; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
                 PC3.Label { text: (parent.parent.now.time || "") + (parent.parent.d.timezone ? " · " + parent.parent.d.timezone.replace(/_/g, " ") : ""); opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                 PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered }
+                InfoButton { topic: "sources" }
             }
             Flow {
                 Layout.fillWidth: true
@@ -447,8 +449,6 @@ ColumnLayout {
                 }
             }
             }
-            PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.topMargin: Kirigami.Units.smallSpacing
-                        text: "Open-Meteo (forecast, air quality) · NOAA SWPC (Kp) · sun, moon and passes computed here · fetched every 20 minutes" }
         }
     }
 
