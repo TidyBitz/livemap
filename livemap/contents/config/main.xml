@@ -49,7 +49,6 @@
     <entry name="VolcanoAlertColors" type="Bool"><default>true</default></entry>
     <entry name="StormPulseMode" type="Int"><default>1</default></entry>
     <entry name="LabelLines" type="Int"><default>0</default></entry>
-    <entry name="ClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more of a kind close together: one label with the count -->
     <entry name="StormIntensityColors" type="Bool"><default>true</default></entry>
     <entry name="StormTrackColors" type="Bool"><default>true</default></entry>
     <entry name="StormOriginMark" type="Bool"><default>true</default></entry>
@@ -255,6 +254,7 @@
     <entry name="MaritimeColor" type="Color"><default>#ff3b3b</default></entry>          <!-- hijack, kidnap, a red-pin attack -->
     <entry name="MaritimeAttackColor" type="Color"><default>#ff8c00</default></entry>    <!-- attack, boarding -->
     <entry name="MaritimeInfoColor" type="Color"><default>#ffd23f</default></entry>      <!-- suspicious activity, interference, advisory -->
+    <entry name="MaritimeClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more close together: one label with the count -->
     <entry name="MaritimeLabels" type="Int"><default>1</default></entry>       <!-- 0 none, 1 attacks and worse, 2 all -->
     <entry name="MaritimeLabelSize" type="Int"><default>10</default></entry>
     <entry name="MaritimeLabelPlate" type="Bool"><default>true</default></entry>
@@ -330,6 +330,7 @@
     <entry name="InfraLabelHalo" type="Int"><default>100</default></entry>
     <entry name="QuakeLabels" type="Int"><default>2</default></entry>
     <entry name="QuakeLabelMin" type="Int"><default>0</default></entry>
+    <entry name="QuakeClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more close together: the strongest's label, "+N nearby" -->
     <entry name="QuakeLabelSize" type="Int"><default>10</default></entry>
     <entry name="QuakeLabelPlate" type="Bool"><default>true</default></entry>
     <!-- Volcanoes -->

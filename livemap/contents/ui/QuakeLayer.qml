@@ -58,7 +58,7 @@ Item {
     }
     // What this layer wants labelled; main.qml's LabelPass draws these above everything (see Geo.placeLabels).
     // Strongest first, so when two are close the stronger one gets the space.
-    readonly property bool clusterLabels: cfg ? cfg.ClusterLabels : true
+    readonly property bool clusterLabels: cfg ? cfg.QuakeClusterLabels : true
     readonly property var labelSpecs: (function () {
         if (labelMode === 0) return [];
         var list = quakes.filter(function (e) { return e.mag >= labelMin; });     // strongest first already

@@ -22,8 +22,8 @@ release notes written at the time; their dates are the day the version was hande
   "Maritime incidents (UKMTO)"; sources.json: hazard "Maritime security", Crown copyright. Fixtures from the
   real API (41 incidents of October 2026, and the filters list) and four tests. The Gulf of Guinea (MDAT-GoG)
   and South-East Asia (ReCAAP) are not covered yet.
-- Cluster labels (Markers and labels > Clusters, on by default): three or more earthquakes or maritime
-  incidents within a few label heights of each other get one label instead of a pile - the strongest quake keeps
+- Cluster labels, one switch per layer (Earthquakes > Swarms, Maritime incidents > Runs; both on by default): three or
+  more earthquakes or maritime incidents within a few label heights of each other get one label instead of a pile - the strongest quake keeps
   its label and says "+2 nearby"; a run of incidents reads "11 attacks · tanker, tug · Strait of Hormuz · 5–11 d"
   (mixed types say "incidents"). The marks are all still drawn; `Geo.clusterGroups` and `Geo.spanRange` do it.
 - Widget: the maritime kind's anchor is an icon drawn in the theme's text colour (icons/maritime.svg, like the

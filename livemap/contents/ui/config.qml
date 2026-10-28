@@ -237,6 +237,7 @@ RowLayout {
     property alias cfg_InfraLabelHalo: infraStyle.halo
     property alias cfg_QuakeLabels: quakeLabels.currentIndex
     property alias cfg_QuakeLabelMin: quakeLabelMin.currentIndex
+    property alias cfg_QuakeClusterLabels: quakeCluster.checked
     property alias cfg_QuakeLabelSize: quakeLabelSize.value
     property alias cfg_QuakeLabelPlate: quakePlate.checked
     property alias cfg_QuakeTextFollows: quakeFollows.checked
@@ -324,6 +325,7 @@ RowLayout {
     property alias cfg_MaritimeAttackColor: maritimeAttackColor.color
     property alias cfg_MaritimeInfoColor: maritimeInfoColor.color
     property alias cfg_MaritimeLabels: maritimeLabels.currentIndex
+    property alias cfg_MaritimeClusterLabels: maritimeCluster.checked
     property alias cfg_MaritimeLabelSize: maritimeLabelSize.value
     property alias cfg_MaritimeLabelPlate: maritimePlate.checked
     property alias cfg_MaritimeTextFollows: maritimeFollows.checked
@@ -441,7 +443,6 @@ RowLayout {
     property int cfg_PlateOpacity
     property int cfg_TextOpacity
     property alias cfg_LabelLines: labelLines.currentIndex
-    property alias cfg_ClusterLabels: clusterLabels.checked
     property alias cfg_DistanceUnits: distanceUnits.currentIndex
     property alias cfg_TempUnits: tempUnits.currentIndex
     property int cfg_MarkerScale
@@ -1751,6 +1752,7 @@ RowLayout {
             QQC2.ComboBox { id: quakeLabelMin; enabled: quakeLabels.currentIndex > 0; model: ["for every quake", "from magnitude 5", "from magnitude 6"] }
             Px { id: quakeLabelSize; enabled: quakeLabels.currentIndex > 0; from: 4; to: 24 }
         }
+        QQC2.CheckBox { visible: sec6.open; id: quakeCluster; Kirigami.FormData.label: "Swarms:"; enabled: quakes.checked && quakeLabels.currentIndex > 0; text: "Three or more close together: the strongest keeps its label and says '+N nearby'" }
         RowLayout {
             visible: sec6.open
             Kirigami.FormData.label: "Earthquake label text:"
@@ -2322,6 +2324,7 @@ RowLayout {
             QQC2.ComboBox { id: maritimeLabels; model: ["None", "Attacks and worse", "All"] }
             Px { id: maritimeLabelSize; from: 4; to: 24 }
         }
+        QQC2.CheckBox { visible: sec9m.open; id: maritimeCluster; Kirigami.FormData.label: "Runs:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; text: "Three or more close together: one label with the count ('11 attacks · tanker, tug · Strait of Hormuz · 5–11 d')" }
         RowLayout {
             visible: sec9m.open
             Kirigami.FormData.label: "Maritime label text:"
@@ -2596,8 +2599,6 @@ RowLayout {
             model: ["One line", "Name above the details", "Automatic: two lines where space is tight"]
         }
         Note { visible: sec14.open; text: "Two lines put the name or place on top and what happened (magnitude, category, latency, date) underneath. Automatic keeps one line where it fits and switches a label to two lines when the wide form would run off the screen or into a neighbour." }
-        QQC2.CheckBox { visible: sec14.open; id: clusterLabels; Kirigami.FormData.label: "Clusters:"; text: "Three or more of a kind close together get one label with the count" }
-        Note { visible: sec14.open; text: "A swarm of aftershocks or a run of attacks in one strait would otherwise print a pile of labels over each other. With this on, the strongest earthquake (or the newest incident) keeps its label and says how many more are nearby: 'M6.0 · Port-Olry, Vanuatu · 17 h ago · +2 nearby', '11 attacks · tanker, tug · Strait of Hormuz · 5–11 d'. The marks themselves are all still drawn." }
         KQuickControls.ColorButton { visible: sec14.open; id: plateColor; Kirigami.FormData.label: "Label plate colour:"; showAlphaChannel: false; dialogTitle: "Plate colour" }
         Amount {
             visible: sec14.open

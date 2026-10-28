@@ -62,7 +62,7 @@ Item {
         parts.push(Geo.spanText(hoursOf(e)));
         return parts.join(" · ");
     }
-    readonly property bool clusterLabels: cfg ? cfg.ClusterLabels : true
+    readonly property bool clusterLabels: cfg ? cfg.MaritimeClusterLabels : true
     function describeGroup(list) {
         // "11 attacks · tanker, tug · Strait of Hormuz · 5–11 d"; mixed types say "incidents"
         var types = {}, vessels = {}, places = {}, lo = Infinity, hi = 0;
