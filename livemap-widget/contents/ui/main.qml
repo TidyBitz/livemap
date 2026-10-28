@@ -901,12 +901,14 @@ PlasmoidItem {
                         var r = {}; for (var k in liveTab.resolved) r[k] = liveTab.resolved[k];
                         try {
                             var a = JSON.parse(data.stdout);
+                            console.warn("livemap widget: live-url answered", data.stdout.trim().substring(0, 200), "exit", data["exit code"]);
                             r[a.url] = a.video || "";                       // "" = asked, nothing on now
-                            liveTab.resolveNote = a.error ? "YouTube could not be asked: " + a.error : "";
+                            liveTab.resolveNote = a.error ? "YouTube could not be asked: " + a.error : (!a.video ? "The helper looked (" + (a.how || "?") + (a.cached ? ", from its cache" : "") + ")." : "");
                             // an empty first answer is asked again once, fresh, a few seconds later: YouTube's first reply to
                             // a new session sometimes names nothing (this used to need a Reload after every install)
                             if (!a.video && !a.cached && !liveTab.retried[a.url]) { liveTab.retried[a.url] = true; retryTimer.url = a.url; retryTimer.restart(); }
                         } catch (e) {
+                            console.warn("livemap widget: live-url gave no JSON -", String(data.stderr || data.stdout).trim().substring(0, 300), "exit", data["exit code"]);
                             liveTab.resolveNote = "The helper did not answer: " + String(data.stderr || data.stdout).trim().split("\n").pop();
                         }
                         liveTab.resolved = r; liveTab.resolving = "";
