@@ -159,6 +159,9 @@
     <entry name="SatTiangong" type="Bool"><default>true</default></entry>
     <entry name="FocusFromWidget" type="Bool"><default>true</default></entry>   <!-- ring on the map the event the widget's list is pointing at (focus.json) -->
     <entry name="FocusColor" type="String"><default>#ffd23f</default></entry>
+    <entry name="FocusStyle" type="Int"><default>1</default></entry>        <!-- 0 ring, 1 ring and pulse, 2 glow, 3 spotlight, 4 reticle, 5 beacon, 6 ripples -->
+    <entry name="FocusStrength" type="Int"><default>100</default></entry>   <!-- size and weight of the mark, % -->
+    <entry name="FocusDim" type="Int"><default>30</default></entry>         <!-- spotlight: how much the rest of the screen darkens, % -->
     <entry name="SatPasses" type="Int"><default>1</default></entry>              <!-- ISS passes over the home place in the widget: 0 off, 1 the visible ones, 2 every pass -->
     <entry name="SatColor" type="Color"><default>#9fe8ff</default></entry>
     <entry name="SatTrack" type="Bool"><default>true</default></entry>

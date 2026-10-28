@@ -382,6 +382,9 @@ RowLayout {
     property alias cfg_SatPasses: satPasses.currentIndex
     property alias cfg_FocusFromWidget: focusFromWidget.checked
     property alias cfg_FocusColor: focusColor.color
+    property alias cfg_FocusStyle: focusStyle.currentIndex
+    property alias cfg_FocusStrength: focusStrength.value
+    property alias cfg_FocusDim: focusDim.value
     property alias cfg_SatColor: satColor.color
     property alias cfg_SatMarkerStyle: satMarkerStyle.currentIndex
     property alias cfg_SatPictureSize: satPictureSize.value
@@ -1287,9 +1290,21 @@ RowLayout {
                 QQC2.Label { visible: !!form.widgetInfo.error; text: form.widgetInfo.error || ""; color: Kirigami.Theme.negativeTextColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 QQC2.Label { visible: form.widgetInfo.installed === true && form.widgetInfo.placed === null; text: "Could not ask plasmashell whether it is on a desktop; add it from the desktop's Add Widgets panel if not."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 RowLayout {
-                    QQC2.CheckBox { id: focusFromWidget; text: "Ring on the map the event the widget's list is pointing at" }
+                    QQC2.CheckBox { id: focusFromWidget; text: "Mark on the map the event the widget's list is pointing at" }
                     KQuickControls.ColorButton { id: focusColor; enabled: focusFromWidget.checked; showAlphaChannel: false; implicitWidth: Kirigami.Units.gridUnit * 2 }
                 }
+                RowLayout {
+                    visible: focusFromWidget.checked
+                    QQC2.Label { text: "Highlight:"; opacity: 0.8 }
+                    QQC2.ComboBox { id: focusStyle; model: ["Ring", "Ring and pulse", "Glow", "Spotlight", "Reticle", "Beacon", "Ripples"] }
+                    QQC2.Label { text: "strength"; opacity: 0.8 }
+                    QQC2.SpinBox { id: focusStrength; from: 25; to: 200; stepSize: 25; textFromValue: function (v) { return v + " %" }; valueFromText: function (t) { return parseInt(t) || 100 } }
+                    QQC2.Label { visible: focusStyle.currentIndex === 3; text: "dim the rest by"; opacity: 0.8 }
+                    QQC2.SpinBox { id: focusDim; visible: focusStyle.currentIndex === 3; from: 10; to: 70; stepSize: 10; textFromValue: function (v) { return v + " %" }; valueFromText: function (t) { return parseInt(t) || 30 } }
+                }
+                QQC2.Label { visible: focusFromWidget.checked; wrapMode: Text.Wrap; Layout.fillWidth: true; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                             text: ["A steady ring in the colour.", "The ring with a slow pulse running out of it.", "A soft halo that breathes.", "The rest of the screen dims and a clear disc stays bright around the event - no colour needed.",
+                                    "Four ticks slide in and lock on, then hold still: moves once, for people who find a heartbeat distracting.", "A radar sweep turning inside the ring.", "Rings running out one after another, continuously."][focusStyle.currentIndex] || "" }
                 QQC2.Label { visible: focusFromWidget.checked; text: "Hover a row in the widget and its event is ringed here, with an arrow from the edge when it is off screen. The widget's own switch for it is under Map controls > This widget."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true; font.pointSize: Kirigami.Theme.smallFont.pointSize }
             }
         }

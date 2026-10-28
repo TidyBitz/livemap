@@ -720,6 +720,7 @@ WallpaperItem {
             onLoaded: {
                 item.cfg = root.cfg;
                 item.clock = Qt.binding(function () { return root.clock });
+                item.fps = Qt.binding(function () { return root.fps });
                 item.dataDir = Qt.binding(function () { return root.dataDir });
                 item.sx = Qt.binding(function () { return root.sx }); item.sy = Qt.binding(function () { return root.sy });
                 item.screen = Qt.binding(function () { return Qt.rect(-map.x, -map.y, root.width, root.height) });

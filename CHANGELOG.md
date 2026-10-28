@@ -22,6 +22,12 @@ release notes written at the time; their dates are the day the version was hande
   "Maritime incidents (UKMTO)"; sources.json: hazard "Maritime security", Crown copyright. Fixtures from the
   real API (41 incidents of October 2026, and the filters list) and four tests. The Gulf of Guinea (MDAT-GoG)
   and South-East Asia (ReCAAP) are not covered yet.
+- Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
+  and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a
+  chosen amount and a clear disc stays around the event), Reticle (four ticks slide in and lock on, then hold
+  still), Beacon (a radar sweep inside the ring) and Ripples (rings running out continuously), with a strength
+  setting for size and weight. The animated ones keep their own clock, so they breathe on a quiet map too, and
+  stop the moment nothing is highlighted.
 - Cluster labels, one switch per layer (Earthquakes > Swarms, Maritime incidents > Runs; both on by default): three or
   more earthquakes or maritime incidents within a few label heights of each other get one label instead of a pile - the strongest quake keeps
   its label and says "+2 nearby"; a run of incidents reads "11 attacks · tanker, tug · Strait of Hormuz · 5–11 d"

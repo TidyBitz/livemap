@@ -1,11 +1,13 @@
 /*
- * The event the companion widget is pointing at, ringed on the map.
+ * The event the companion widget is pointing at, marked on the map.
  *
  * The widget and the wallpaper are separate scenes with no way to talk, so they share a file: while the widget's
  * popup is open and a row is hovered, the widget writes focus.json in the data folder (kind, lat, lon, title,
- * open, at); this layer reads it every 400 ms while the file says the popup is open, every two seconds otherwise. Nothing in the event layers is touched: this is
- * one ring, pulsing with the shared clock, drawn over everything. An event outside the view is pointed at from
- * the nearest edge with its name, since a wallpaper cannot pan.
+ * open, at); this layer reads it every 400 ms while the file says the popup is open, every two seconds otherwise.
+ * Nothing in the event layers is touched: this is one mark drawn over everything, in the style chosen on
+ * Essentials > Events widget (FocusStyle): a steady ring, the ring with a slow pulse, a breathing glow, a
+ * spotlight that dims the rest of the screen, a reticle that locks on, a radar beacon, or ripples. An event
+ * outside the view is pointed at from the nearest edge with its name, since a wallpaper cannot pan.
  */
 import QtQuick
 import QtQuick.Shapes
@@ -14,16 +16,25 @@ import org.kde.plasma.plasma5support as P5Support
 Item {
     id: layer
     property var cfg: null
-    property real clock: 0
+    property real clock: 0                        // the shared pulse clock (ms); advances only while some layer pulses
+    property int fps: 30
     property string dataDir: ""                   // the data folder, as a file:// URL or a path
     property real sx: 1
     property real sy: 1
     property rect screen: Qt.rect(0, 0, 0, 0)     // the screen in this item's coordinates (the map's)
     readonly property real unit: Math.max(1, Screen.width / 1920)
 
+    // 0 ring, 1 ring and pulse, 2 glow, 3 spotlight, 4 reticle, 5 beacon, 6 ripples
+    readonly property int style: cfg && cfg.FocusStyle !== undefined ? cfg.FocusStyle : 1
+    readonly property real strength: (cfg && cfg.FocusStrength !== undefined ? cfg.FocusStrength : 100) / 100
+    readonly property real dim: (cfg && cfg.FocusDim !== undefined ? cfg.FocusDim : 30) / 100
+    readonly property color tone: cfg && cfg.FocusColor ? cfg.FocusColor : "#ffd23f"
+    readonly property bool animated: style === 1 || style === 2 || style === 5 || style === 6
+
     property var target: ({})                     // the file's content (not "focus": that is Item's own, final)
     readonly property bool open: !!target.open && (Date.now() / 1000 - (target.at || 0)) < 120
     readonly property bool showing: open && target.lat !== undefined && target.lat !== null && target.lon !== undefined && target.lon !== null
+    readonly property string key: showing ? String(target.key || "") + ":" + target.lat + "," + target.lon : ""
     readonly property real px: (Number(target.lon) + 180) * sx
     readonly property real py: (90 - Number(target.lat)) * sy
     // inside the screen, or clamped to its edge with an arrow
@@ -52,25 +63,129 @@ Item {
     }
     Timer { interval: layer.open ? 400 : 2000; running: layer.visible; repeat: true; triggeredOnStart: true; onTriggered: layer.read() }
 
-    // the ring: a steady circle and a pulse running out from it, in the highlight colour over a dark halo
+    // The animated styles keep their own clock: the shared one only runs while some event layer pulses, and the
+    // highlight must breathe on a quiet map too. Stopped the moment nothing is shown, so an idle desktop costs nothing.
+    property real t: 0
+    Timer { interval: Math.round(1000 / Math.max(1, layer.fps)); running: layer.showing && layer.animated && layer.fps > 0; repeat: true; onTriggered: layer.t += interval }
+
+    // ---- spotlight: the screen dimmed, a clear soft-edged disc around the event -------------------------------
+    Canvas {
+        id: spot
+        visible: layer.style === 3 && layer.showing
+        x: layer.screen.x; y: layer.screen.y; width: layer.screen.width; height: layer.screen.height
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 250 } }
+        readonly property real hole: 70 * layer.unit * layer.strength
+        readonly property real hx: layer.cx - x
+        readonly property real hy: layer.cy - y
+        onHxChanged: requestPaint()
+        onHyChanged: requestPaint()
+        onHoleChanged: requestPaint()
+        onVisibleChanged: if (visible) requestPaint()
+        onPaint: {
+            var c = getContext("2d");
+            c.reset();
+            c.globalCompositeOperation = "source-over";
+            c.fillStyle = Qt.rgba(0, 0, 0, layer.dim);
+            c.fillRect(0, 0, width, height);
+            c.globalCompositeOperation = "destination-out";
+            var g = c.createRadialGradient(hx, hy, hole * 0.55, hx, hy, hole);
+            g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+            c.fillStyle = g;
+            c.beginPath(); c.arc(hx, hy, hole, 0, 2 * Math.PI); c.fill();
+        }
+    }
+
     Item {
         id: ring
         visible: layer.showing
         x: layer.cx; y: layer.cy
-        readonly property real r: 14 * layer.unit
-        // the pulse: a slow breath rather than a strobe - two and a half seconds, easing out, fading from half strength
-        readonly property real phase: (layer.clock % 2.5) / 2.5
+        readonly property real r: 14 * layer.unit * layer.strength
+        readonly property real line: 2 * layer.unit * Math.min(1.5, Math.max(0.6, layer.strength))
+        readonly property color tone: layer.tone
+        // a slow breath for the pulse and the glow: two and a half seconds, easing out
+        readonly property real phase: (layer.t % 2500) / 2500
         readonly property real eased: 1 - (1 - phase) * (1 - phase)
-        readonly property color tone: layer.cfg && layer.cfg.FocusColor ? layer.cfg.FocusColor : "#ffd23f"
-        Rectangle { x: -parent.r - 3; y: -parent.r - 3; width: 2 * parent.r + 6; height: width; radius: width / 2; color: "transparent"; border.color: "#aa000000"; border.width: 4 * layer.unit }
-        Rectangle { x: -parent.r; y: -parent.r; width: 2 * parent.r; height: width; radius: width / 2; color: "transparent"; border.color: parent.tone; border.width: 2 * layer.unit }
+
+        // ---- ring (styles 0, 1, 5): a steady circle in the colour over a dark halo; the spotlight gets a thin one too
+        Rectangle { visible: layer.style <= 1 || layer.style === 5 || layer.style === 3; x: -parent.r - 3; y: -parent.r - 3; width: 2 * parent.r + 6; height: width; radius: width / 2; color: "transparent"; border.color: "#aa000000"; border.width: parent.line + 2 * layer.unit; opacity: layer.style === 3 ? 0.5 : 1 }
+        Rectangle { visible: layer.style <= 1 || layer.style === 5 || layer.style === 3; x: -parent.r; y: -parent.r; width: 2 * parent.r; height: width; radius: width / 2; color: "transparent"; border.color: parent.tone; border.width: parent.line; opacity: layer.style === 3 ? 0.7 : 1 }
+        // ---- pulse (style 1): one ring running out of the steady one, fading
         Rectangle {
+            visible: layer.style === 1
             readonly property real rr: parent.r * (1 + 1.2 * parent.eased)
             x: -rr; y: -rr; width: 2 * rr; height: width; radius: width / 2
             color: "transparent"; border.color: parent.tone; border.width: 1.5 * layer.unit
             opacity: 0.55 * (1 - parent.eased)
         }
-        // outside the view: an arrow on the ring pointing the way, and the name
+        // ---- glow (style 2): a soft halo breathing between 40 and 75 %
+        Shape {
+            visible: layer.style === 2
+            readonly property real g: ring.r * 3.2
+            opacity: 0.4 + 0.35 * (0.5 - 0.5 * Math.cos(2 * Math.PI * ring.phase))
+            ShapePath {
+                strokeWidth: 0
+                fillGradient: RadialGradient {
+                    centerX: 0; centerY: 0; focalX: 0; focalY: 0; centerRadius: ring.r * 3.2
+                    GradientStop { position: 0; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0.95) }
+                    GradientStop { position: 0.35; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0.5) }
+                    GradientStop { position: 1; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0) }
+                }
+                startX: -ring.r * 3.2; startY: 0
+                PathArc { x: ring.r * 3.2; y: 0; radiusX: ring.r * 3.2; radiusY: ring.r * 3.2 }
+                PathArc { x: -ring.r * 3.2; y: 0; radiusX: ring.r * 3.2; radiusY: ring.r * 3.2 }
+            }
+        }
+        Rectangle { visible: layer.style === 2; anchors.centerIn: parent; width: 5 * layer.unit * layer.strength; height: width; radius: width / 2; color: parent.tone }
+        // ---- reticle (style 4): four ticks slide in from three radii out and lock on
+        property real lock: 1
+        NumberAnimation { id: lockAnim; target: ring; property: "lock"; from: 0; to: 1; duration: 450; easing.type: Easing.OutCubic }
+        Repeater {
+            model: layer.style === 4 ? 4 : 0
+            Item {
+                required property int index
+                rotation: index * 90
+                readonly property real d: ring.r * (1.1 + 2.2 * (1 - ring.lock))     // where the tick's inner end sits
+                Rectangle { x: parent.d; y: -ring.line / 2 - layer.unit; width: ring.r * 0.9; height: ring.line + 2 * layer.unit; color: "#aa000000" }
+                Rectangle { x: parent.d; y: -ring.line / 2; width: ring.r * 0.9; height: ring.line; color: ring.tone }
+            }
+        }
+        Rectangle { visible: layer.style === 4; anchors.centerIn: parent; width: 3 * layer.unit; height: width; radius: width / 2; color: parent.tone; opacity: parent.lock }
+        // ---- beacon (style 5): a translucent wedge sweeping round inside the ring, one turn every two seconds
+        Shape {
+            visible: layer.style === 5
+            rotation: (layer.t / 2000 * 360) % 360
+            ShapePath {
+                strokeWidth: 0
+                fillGradient: ConicalGradient {
+                    centerX: 0; centerY: 0; angle: 0
+                    GradientStop { position: 0; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0.75) }
+                    GradientStop { position: 0.22; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0) }
+                    GradientStop { position: 1; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0) }
+                }
+                startX: 0; startY: 0
+                PathLine { x: ring.r - ring.line; y: 0 }
+                PathArc { x: -(ring.r - ring.line); y: 0; radiusX: ring.r - ring.line; radiusY: ring.r - ring.line; direction: PathArc.Counterclockwise }
+                PathArc { x: ring.r - ring.line; y: 0; radiusX: ring.r - ring.line; radiusY: ring.r - ring.line; direction: PathArc.Counterclockwise }
+                PathLine { x: 0; y: 0 }
+            }
+        }
+        // ---- ripples (style 6): three rings running out one after another, continuously
+        Repeater {
+            model: layer.style === 6 ? 3 : 0
+            Rectangle {
+                required property int index
+                readonly property real ph: ((layer.t + index * 1000) % 3000) / 3000
+                readonly property real ez: 1 - (1 - ph) * (1 - ph)
+                readonly property real rr: ring.r * (0.5 + 2.2 * ez)
+                x: -rr; y: -rr; width: 2 * rr; height: width; radius: width / 2
+                color: "transparent"; border.color: ring.tone; border.width: Math.max(1, 1.8 * layer.unit * (1 - 0.5 * ez))
+                opacity: 0.85 * (1 - ez)
+            }
+        }
+        Rectangle { visible: layer.style === 6; anchors.centerIn: parent; width: 4 * layer.unit * layer.strength; height: width; radius: width / 2; color: parent.tone }
+
+        // ---- outside the view: an arrow on the ring pointing the way, and the name ------------------------------
         Shape {
             visible: !layer.inside
             rotation: layer.angle * 180 / Math.PI
@@ -93,4 +208,5 @@ Item {
             width: Math.min(implicitWidth, 220 * layer.unit); elide: Text.ElideRight
         }
     }
+    onKeyChanged: if (showing && style === 4) lockAnim.restart()
 }
