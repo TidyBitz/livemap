@@ -80,14 +80,17 @@ ColumnLayout {
         opacity: topic === "" ? 0 : (sky.infoTopic === topic ? 1 : 0.5)
         icon.name: "help-contextual"
         implicitWidth: Kirigami.Units.iconSizes.small + 6; implicitHeight: implicitWidth
-        // the bubble opens on hover after a moment (and stays while the pointer is on the ?), or on a click to keep it
+        // the bubble opens on hover after a moment and closes a moment after the pointer has left both the ? and the
+        // bubble - so a bubble that lands beside the pointer never flickers; a click keeps it until the next click
         hoverEnabled: true
         property bool pinned: false
         Timer { id: openSoon; interval: 350; onTriggered: if (ib.hovered) { sky.infoTopic = ib.topic; sky.infoAnchor = ib; } }
-        onHoveredChanged: { if (hovered) openSoon.restart(); else if (!pinned && sky.infoTopic === topic) { sky.infoTopic = ""; sky.infoAnchor = null; } }
+        Timer { id: closeSoon; interval: 400; onTriggered: if (!ib.pinned && !ib.hovered && !sky.bubbleHovered && sky.infoTopic === ib.topic) { sky.infoTopic = ""; sky.infoAnchor = null; } }
+        onHoveredChanged: { if (hovered) { closeSoon.stop(); openSoon.restart(); } else closeSoon.restart(); }
         onClicked: { if (pinned) { pinned = false; sky.infoTopic = ""; sky.infoAnchor = null; } else { pinned = true; sky.infoTopic = topic; sky.infoAnchor = ib; } }
-        Connections { target: sky; function onInfoTopicChanged() { if (sky.infoTopic !== ib.topic) ib.pinned = false; } }
+        Connections { target: sky; function onInfoTopicChanged() { if (sky.infoTopic !== ib.topic) ib.pinned = false; } function onBubbleHoveredChanged() { if (!sky.bubbleHovered && sky.infoTopic === ib.topic) closeSoon.restart(); } }
     }
+    property bool bubbleHovered: false
     // each topic: a title, a line of context, and rows [range, meaning, colour] where there is a scale
     readonly property var infoText: ({
         air: { title: "Air quality index", note: sky.doc.tonight && sky.doc.tonight.air_scale === "eu"
@@ -108,39 +111,24 @@ ColumnLayout {
         sources: { title: "Where this comes from", note: "Forecast and air quality from Open-Meteo, the planetary K index from NOAA's Space Weather Prediction Center; each fetched at most every 20 minutes by the wallpaper's helper and kept, so an outage shows the last answer with its age (the line under the place name). Sunrise, sunset, the moon and the satellite passes are computed on this machine from the home place. Units and the clock follow the wallpaper's Units page.", rows: [] },
         pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
     })
-    // The "?" bubble is its own window beside the popup - on the map, where there is room - never over the tab's
-    // text and never under the pointer (a tooltip window placed by Plasma landed on the ? itself and flickered; a
-    // bubble drawn in the page covered the tab). Placed by hand: to the right of the popup window, level with the
-    // line that opened it, or to the left when the screen ends.
+    // The "?" bubble is its own window beside the ? - on the map, since the ? sits at the popup's right edge - placed
+    // by Plasma (on Wayland a window cannot place itself by screen coordinates). It used to flicker when it landed
+    // under the pointer; now it closes only once the pointer has left both the ? and the bubble, with a grace period.
     PlasmaCore.Dialog {
         id: infoDialog
         type: PlasmaCore.Dialog.Tooltip
-        location: PlasmaCore.Types.Floating
+        location: PlasmaCore.Types.LeftEdge        // beside the ? - to its right, which is just outside the popup; Plasma flips it at a screen edge
         backgroundHints: PlasmaCore.Dialog.SolidBackground
         hideOnWindowDeactivate: false
-        flags: Qt.ToolTip | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus
-        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active && !!sky.Window.window
-        readonly property var win: sky.Window.window
-        readonly property point anchorInWindow: sky.infoAnchor ? sky.infoAnchor.mapToItem(null, 0, 0) : Qt.point(0, 0)
-        readonly property real gap: Kirigami.Units.largeSpacing
-        function place() {
-            if (!win || !sky.infoAnchor) return;
-            var w = width, h = height;
-            var rightX = win.x + win.width + gap, leftX = win.x - w - gap;
-            x = rightX + w <= Screen.virtualX + Screen.width ? rightX : Math.max(Screen.virtualX, leftX);
-            var yy = win.y + anchorInWindow.y + sky.infoAnchor.height / 2 - h / 2;
-            y = Math.max(Screen.virtualY, Math.min(Screen.virtualY + Screen.height - h, yy));
-        }
-        onVisibleChanged: if (visible) place()
-        onAnchorInWindowChanged: if (visible) place()
-        onHeightChanged: if (visible) place()
-        onWidthChanged: if (visible) place()
+        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active
+        visualParent: sky.infoAnchor
         mainItem: ColumnLayout {
             id: infoColumn
             width: Kirigami.Units.gridUnit * 24
             height: implicitHeight
             spacing: Kirigami.Units.smallSpacing
             readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
+            HoverHandler { onHoveredChanged: sky.bubbleHovered = hovered }
             PC3.Label { text: infoColumn.info.title; font.bold: true }
             PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: infoColumn.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
             Repeater {
