@@ -3,13 +3,13 @@
  *
  * The widget and the wallpaper are separate scenes with no way to talk, so they share a file: while the widget's
  * popup is open and a row is hovered, the widget writes focus.json in the data folder (kind, lat, lon, title,
- * open, at); this layer reads it with an XMLHttpRequest - no process, a few hundred bytes - every 300 ms while
- * the file says the popup is open, every two seconds otherwise. Nothing in the event layers is touched: this is
+ * open, at); this layer reads it every 400 ms while the file says the popup is open, every two seconds otherwise. Nothing in the event layers is touched: this is
  * one ring, pulsing with the shared clock, drawn over everything. An event outside the view is pointed at from
  * the nearest edge with its name, since a wallpaper cannot pan.
  */
 import QtQuick
 import QtQuick.Shapes
+import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: layer
@@ -33,20 +33,28 @@ Item {
     readonly property real cy: Math.max(screen.y + margin, Math.min(screen.y + screen.height - margin, py))
     readonly property real angle: Math.atan2(py - cy, px - cx)
 
+    // Reading the file: an XMLHttpRequest on a file:// URL is refused by Qt 6 unless plasmashell is started with
+    // QML_XHR_ALLOW_FILE_READ, so the file is read by a `cat` through the executable engine - a process, but a
+    // two-millisecond one, every 400 ms while the popup is open and every two seconds otherwise.
+    readonly property string path: String(dataDir).replace(/^file:\/\//, "") + "/focus.json"
     function read() {
-        var url = dataDir + "/focus.json";
-        if (url.indexOf("file://") !== 0 && url.indexOf("/") === 0) url = "file://" + url;
-        var xhr = new XMLHttpRequest();
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== XMLHttpRequest.DONE) return;
-            try { layer.target = xhr.responseText ? JSON.parse(xhr.responseText) : ({}); } catch (e) { layer.target = ({}); }
-        };
-        xhr.open("GET", url); xhr.send();
+        if (reader.connectedSources.length > 0) return;              // the last one has not come back yet
+        reader.connectSource("cat '" + path.replace(/'/g, "") + "' 2>/dev/null # " + Date.now());
     }
-    Timer { interval: layer.open ? 300 : 2000; running: layer.visible; repeat: true; triggeredOnStart: true; onTriggered: layer.read() }
+    P5Support.DataSource {
+        id: reader
+        engine: "executable"
+        connectedSources: []
+        onNewData: function (source, data) {
+            disconnectSource(source);
+            try { layer.target = data.stdout ? JSON.parse(data.stdout) : ({}); } catch (e) { layer.target = ({}); }
+        }
+    }
+    Timer { interval: layer.open ? 400 : 2000; running: layer.visible; repeat: true; triggeredOnStart: true; onTriggered: layer.read() }
 
     // the ring: a steady circle and a pulse running out from it, in the highlight colour over a dark halo
     Item {
+        id: ring
         visible: layer.showing
         x: layer.cx; y: layer.cy
         readonly property real r: 14 * layer.unit
@@ -65,11 +73,11 @@ Item {
             visible: !layer.inside
             rotation: layer.angle * 180 / Math.PI
             ShapePath {
-                strokeWidth: 0; fillColor: parent.parent.tone
-                startX: parent.parent.r + 4; startY: -6 * layer.unit
-                PathLine { x: parent.parent.r + 4 + 12 * layer.unit; y: 0 }
-                PathLine { x: parent.parent.r + 4; y: 6 * layer.unit }
-                PathLine { x: parent.parent.r + 4; y: -6 * layer.unit }
+                strokeWidth: 0; fillColor: ring.tone
+                startX: ring.r + 4; startY: -6 * layer.unit
+                PathLine { x: ring.r + 4 + 12 * layer.unit; y: 0 }
+                PathLine { x: ring.r + 4; y: 6 * layer.unit }
+                PathLine { x: ring.r + 4; y: -6 * layer.unit }
             }
         }
         Text {
@@ -78,7 +86,7 @@ Item {
             color: "white"; font.pixelSize: Math.round(8 * layer.unit); font.bold: true
             style: Text.Outline; styleColor: "#cc000000"
             // on the side of the ring away from the edge, so it stays on screen
-            x: layer.cx < layer.screen.x + layer.screen.width / 2 ? parent.r + 6 : -parent.r - 6 - width
+            x: layer.cx < layer.screen.x + layer.screen.width / 2 ? ring.r + 6 : -ring.r - 6 - width
             y: -height / 2
             width: Math.min(implicitWidth, 220 * layer.unit); elide: Text.ElideRight
         }
