@@ -412,7 +412,15 @@ ColumnLayout {
                 width: Math.min(infoBox.width - Kirigami.Units.gridUnit, Kirigami.Units.gridUnit * 24)
                 height: infoColumn.implicitHeight + pad * 2
                 x: Math.max(0, at.x - width - Kirigami.Units.smallSpacing)
-                y: Math.max(-infoBox.y, at.y + (sky.infoAnchor ? sky.infoAnchor.height / 2 : 0) - height / 2)
+                // beside the ?, centred on its line; where that would run past the top of the tab it hangs below the line
+                // instead, and past the bottom it stands above it - never pushed into a corner away from its ?
+                readonly property real ah: sky.infoAnchor ? sky.infoAnchor.height : 0
+                readonly property real centred: at.y + ah / 2 - height / 2
+                readonly property real top: -infoBox.y
+                readonly property real bottom: -infoBox.y + scroll.contentItem.height
+                y: centred >= top && centred + height <= bottom ? centred
+                 : centred < top ? at.y + ah + Kirigami.Units.smallSpacing
+                 : at.y - height - Kirigami.Units.smallSpacing
                 radius: 4
                 Kirigami.Theme.inherit: false
                 Kirigami.Theme.colorSet: Kirigami.Theme.Window
