@@ -185,6 +185,32 @@ function spanText(hours) {
     return (hours / (24 * 365.25)).toFixed(hours < 24 * 3652 ? 1 : 0) + " y";
 }
 
+// ---- clusters ---------------------------------------------------------------------------
+// Groups of nearby things for one label instead of a pile: `points` ({x, y}, in the order of importance - the
+// first of a group leads it), `radius` in the same units. Greedy: each point joins the first group whose leader
+// is within the radius, else starts one. Returns groups as lists of indices, leaders first, in input order.
+function clusterGroups(points, radius) {
+    var groups = [], r2 = radius * radius;
+    for (var i = 0; i < points.length; i++) {
+        var p = points[i], joined = false;
+        for (var g = 0; g < groups.length && !joined; g++) {
+            var lead = points[groups[g][0]], dx = p.x - lead.x, dy = p.y - lead.y;
+            if (dx * dx + dy * dy <= r2) { groups[g].push(i); joined = true; }
+        }
+        if (!joined) groups.push([i]);
+    }
+    return groups;
+}
+
+// "17 h" / "5 d" for one age, "5-11 d" for a span (whole units of the larger scale)
+function spanRange(hoursA, hoursB) {
+    var lo = Math.min(hoursA, hoursB), hi = Math.max(hoursA, hoursB);
+    var a = spanText(lo), b = spanText(hi);
+    if (a === b) return a;
+    var ua = a.split(" ")[1], ub = b.split(" ")[1];
+    return ua === ub ? a.split(" ")[0] + "\u2013" + b : a + "\u2013" + b;
+}
+
 function ageText(hours) {
     if (hours < 1) return Math.max(1, Math.round(hours * 60)) + " min ago";
     if (hours < 48) return Math.round(hours) + " h ago";

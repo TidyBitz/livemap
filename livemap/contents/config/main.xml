@@ -49,6 +49,7 @@
     <entry name="VolcanoAlertColors" type="Bool"><default>true</default></entry>
     <entry name="StormPulseMode" type="Int"><default>1</default></entry>
     <entry name="LabelLines" type="Int"><default>0</default></entry>
+    <entry name="ClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more of a kind close together: one label with the count -->
     <entry name="StormIntensityColors" type="Bool"><default>true</default></entry>
     <entry name="StormTrackColors" type="Bool"><default>true</default></entry>
     <entry name="StormOriginMark" type="Bool"><default>true</default></entry>

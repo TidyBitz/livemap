@@ -62,10 +62,40 @@ Item {
         parts.push(Geo.spanText(hoursOf(e)));
         return parts.join(" · ");
     }
-    readonly property var labelSpecs: labelMode === 0 ? [] : shown.filter(function (e) { return labelMode === 2 || e.level >= 2; }).map(function (e) {
-        return { x: px(e.lon), y: py(e.lat), gap: mark * 0.8, side: "right", text: describe(e), px: labelPx, color: labelInkOf(e),
-                 plate: labelPlate, bold: e.level >= 3 && fresh(e), alpha: 0.4 + 0.6 * fade(e) };
-    })
+    readonly property bool clusterLabels: cfg ? cfg.ClusterLabels : true
+    function describeGroup(list) {
+        // "11 attacks · tanker, tug · Strait of Hormuz · 5–11 d"; mixed types say "incidents"
+        var types = {}, vessels = {}, places = {}, lo = Infinity, hi = 0;
+        for (var i = 0; i < list.length; i++) {
+            var e = list[i];
+            types[e.type] = (types[e.type] || 0) + 1;
+            if (e.vessel_type) vessels[e.vessel_type] = true;
+            if (e.place) places[e.place] = (places[e.place] || 0) + 1;
+            lo = Math.min(lo, hoursOf(e)); hi = Math.max(hi, hoursOf(e));
+        }
+        var tn = Object.keys(types), what = tn.length === 1 ? (tn[0] === "Attack" ? "attacks" : tn[0] === "Advisory" ? "advisories" : tn[0].toLowerCase() + " \u00d7") : "incidents";
+        var place = Object.keys(places).sort(function (a, b) { return places[b] - places[a]; })[0] || "";
+        return [list.length + " " + what, Object.keys(vessels).sort().join(", "), place, Geo.spanRange(lo, hi)].filter(function (t) { return t !== ""; }).join(" \u00b7 ");
+    }
+    readonly property var labelSpecs: (function () {
+        if (labelMode === 0) return [];
+        var list = shown.filter(function (e) { return labelMode === 2 || e.level >= 2; });     // newest first from the helper
+        function specOf(e, text, bold) {
+            return { x: px(e.lon), y: py(e.lat), gap: mark * 0.8, side: "right", text: text, px: labelPx, color: labelInkOf(e),
+                     plate: labelPlate, bold: bold, alpha: 0.4 + 0.6 * fade(e) };
+        }
+        var specs = list.map(function (e) { return specOf(e, describe(e), e.level >= 3 && fresh(e)); });
+        if (!clusterLabels) return specs;
+        // a run of incidents in one strait: three or more within a few label heights become one label with the count
+        var groups = Geo.clusterGroups(specs, 3 * labelPx), out = [];
+        for (var g = 0; g < groups.length; g++) {
+            if (groups[g].length >= 3) {
+                var members = groups[g].map(function (i) { return list[i]; }), lead = members[0];
+                out.push(specOf(lead, describeGroup(members), members.some(function (e) { return e.level >= 3 && fresh(e); })));
+            } else for (var i = 0; i < groups[g].length; i++) out.push(specs[groups[g][i]]);
+        }
+        return out;
+    })()
 
     P5Support.DataSource {
         id: exec

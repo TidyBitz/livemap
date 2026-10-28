@@ -441,6 +441,7 @@ RowLayout {
     property int cfg_PlateOpacity
     property int cfg_TextOpacity
     property alias cfg_LabelLines: labelLines.currentIndex
+    property alias cfg_ClusterLabels: clusterLabels.checked
     property alias cfg_DistanceUnits: distanceUnits.currentIndex
     property alias cfg_TempUnits: tempUnits.currentIndex
     property int cfg_MarkerScale
@@ -2595,6 +2596,8 @@ RowLayout {
             model: ["One line", "Name above the details", "Automatic: two lines where space is tight"]
         }
         Note { visible: sec14.open; text: "Two lines put the name or place on top and what happened (magnitude, category, latency, date) underneath. Automatic keeps one line where it fits and switches a label to two lines when the wide form would run off the screen or into a neighbour." }
+        QQC2.CheckBox { visible: sec14.open; id: clusterLabels; Kirigami.FormData.label: "Clusters:"; text: "Three or more of a kind close together get one label with the count" }
+        Note { visible: sec14.open; text: "A swarm of aftershocks or a run of attacks in one strait would otherwise print a pile of labels over each other. With this on, the strongest earthquake (or the newest incident) keeps its label and says how many more are nearby: 'M6.0 · Port-Olry, Vanuatu · 17 h ago · +2 nearby', '11 attacks · tanker, tug · Strait of Hormuz · 5–11 d'. The marks themselves are all still drawn." }
         KQuickControls.ColorButton { visible: sec14.open; id: plateColor; Kirigami.FormData.label: "Label plate colour:"; showAlphaChannel: false; dialogTitle: "Plate colour" }
         Amount {
             visible: sec14.open

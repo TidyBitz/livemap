@@ -42,7 +42,7 @@ PlasmoidItem {
     readonly property string feedName: Plasmoid.configuration.QuakeFeed || "4.5_day"
 
     readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", tsunami: "〰", alert: "⚠", maritime: "⚓", launch: "↑", sat: "◆" })   // text fallbacks
-    function kindIconUrl(kind) { return kind === "fire" || kind === "sat" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
+    function kindIconUrl(kind) { return kind === "fire" || kind === "sat" || kind === "maritime" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
     readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", tsunami: "Tsunami", alert: "Air raid alert", maritime: "Maritime incident", launch: "Launch", sat: "Satellite" })
     // the Map controls chips: each live layer with the Status names of its sources (the same the wallpaper uses)
     readonly property var layerChips: [
