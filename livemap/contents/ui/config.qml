@@ -1296,7 +1296,7 @@ RowLayout {
                 RowLayout {
                     visible: focusFromWidget.checked
                     QQC2.Label { text: "Highlight:"; opacity: 0.8 }
-                    QQC2.ComboBox { id: focusStyle; model: ["Ring", "Ring and pulse", "Glow", "Spotlight", "Reticle", "Beacon", "Ripples"] }
+                    QQC2.ComboBox { id: focusStyle; model: ["Ring", "Ring and pulse", "Glow", "Spotlight", "Reticle", "Beacon"] }
                     QQC2.Label { text: "strength"; opacity: 0.8 }
                     QQC2.SpinBox { id: focusStrength; from: 25; to: 200; stepSize: 25; textFromValue: function (v) { return v + " %" }; valueFromText: function (t) { return parseInt(t) || 100 } }
                     QQC2.Label { visible: focusStyle.currentIndex === 3; text: "dim the rest by"; opacity: 0.8 }
@@ -1304,7 +1304,7 @@ RowLayout {
                 }
                 QQC2.Label { visible: focusFromWidget.checked; wrapMode: Text.Wrap; Layout.fillWidth: true; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
                              text: ["A steady ring in the colour.", "The ring with a slow pulse running out of it.", "A soft halo that breathes.", "The rest of the screen dims and a clear disc stays bright around the event - no colour needed.",
-                                    "Four ticks slide in and lock on, then hold still: moves once, for people who find a heartbeat distracting.", "A radar sweep turning inside the ring.", "Rings running out one after another, continuously."][focusStyle.currentIndex] || "" }
+                                    "Four ticks slide in and lock on, then hold still: moves once, for people who find a heartbeat distracting.", "A radar sweep turning inside the ring."][focusStyle.currentIndex] || "" }
                 QQC2.Label { visible: focusFromWidget.checked; text: "Hover a row in the widget and its event is ringed here, with an arrow from the edge when it is off screen. The widget's own switch for it is under Map controls > This widget."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true; font.pointSize: Kirigami.Theme.smallFont.pointSize }
             }
         }

@@ -6,7 +6,7 @@
  * open, at); this layer reads it every 400 ms while the file says the popup is open, every two seconds otherwise.
  * Nothing in the event layers is touched: this is one mark drawn over everything, in the style chosen on
  * Essentials > Events widget (FocusStyle): a steady ring, the ring with a slow pulse, a breathing glow, a
- * spotlight that dims the rest of the screen, a reticle that locks on, a radar beacon, or ripples. An event
+ * spotlight that dims the rest of the screen, a reticle that locks on, or a radar beacon. An event
  * outside the view is pointed at from the nearest edge with its name, since a wallpaper cannot pan.
  */
 import QtQuick
@@ -24,12 +24,12 @@ Item {
     property rect screen: Qt.rect(0, 0, 0, 0)     // the screen in this item's coordinates (the map's)
     readonly property real unit: Math.max(1, Screen.width / 1920)
 
-    // 0 ring, 1 ring and pulse, 2 glow, 3 spotlight, 4 reticle, 5 beacon, 6 ripples
+    // 0 ring, 1 ring and pulse, 2 glow, 3 spotlight, 4 reticle, 5 beacon
     readonly property int style: cfg && cfg.FocusStyle !== undefined ? cfg.FocusStyle : 1
     readonly property real strength: (cfg && cfg.FocusStrength !== undefined ? cfg.FocusStrength : 100) / 100
     readonly property real dim: (cfg && cfg.FocusDim !== undefined ? cfg.FocusDim : 30) / 100
     readonly property color tone: cfg && cfg.FocusColor ? cfg.FocusColor : "#ffd23f"
-    readonly property bool animated: style === 1 || style === 2 || style === 5 || style === 6
+    readonly property bool animated: style === 1 || style === 2 || style === 5
 
     property var target: ({})                     // the file's content (not "focus": that is Item's own, final)
     readonly property bool open: !!target.open && (Date.now() / 1000 - (target.at || 0)) < 120
@@ -151,40 +151,32 @@ Item {
             }
         }
         Rectangle { visible: layer.style === 4; anchors.centerIn: parent; width: 3 * layer.unit; height: width; radius: width / 2; color: parent.tone; opacity: parent.lock }
-        // ---- beacon (style 5): a translucent wedge sweeping round inside the ring, one turn every two seconds
-        Shape {
+        // ---- beacon (style 5): a radar sweep inside the ring - a sharp leading line with a trail fading behind it,
+        // one turn every two seconds. Built from plain wedges rather than a conical gradient, which the Shape
+        // renderers do not all draw the same way.
+        Item {
+            id: beacon
             visible: layer.style === 5
             rotation: (layer.t / 2000 * 360) % 360
-            ShapePath {
-                strokeWidth: 0
-                fillGradient: ConicalGradient {
-                    centerX: 0; centerY: 0; angle: 0
-                    GradientStop { position: 0; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0.75) }
-                    GradientStop { position: 0.22; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0) }
-                    GradientStop { position: 1; color: Qt.rgba(ring.tone.r, ring.tone.g, ring.tone.b, 0) }
+            readonly property real rr: ring.r - ring.line
+            Repeater {
+                model: 5                            // five 14-degree wedges trailing the line, each fainter
+                Shape {
+                    required property int index
+                    rotation: -(index + 1) * 14
+                    opacity: 0.45 * (1 - index / 5)
+                    ShapePath {
+                        strokeWidth: 0; fillColor: ring.tone
+                        startX: 0; startY: 0
+                        PathLine { x: beacon.rr; y: 0 }
+                        PathArc { x: beacon.rr * Math.cos(14 * Math.PI / 180); y: beacon.rr * Math.sin(14 * Math.PI / 180); radiusX: beacon.rr; radiusY: beacon.rr }
+                        PathLine { x: 0; y: 0 }
+                    }
                 }
-                startX: 0; startY: 0
-                PathLine { x: ring.r - ring.line; y: 0 }
-                PathArc { x: -(ring.r - ring.line); y: 0; radiusX: ring.r - ring.line; radiusY: ring.r - ring.line; direction: PathArc.Counterclockwise }
-                PathArc { x: ring.r - ring.line; y: 0; radiusX: ring.r - ring.line; radiusY: ring.r - ring.line; direction: PathArc.Counterclockwise }
-                PathLine { x: 0; y: 0 }
             }
+            Rectangle { x: 0; y: -layer.unit * 0.75; width: parent.rr; height: Math.max(1, 1.5 * layer.unit); color: ring.tone }   // the leading line
+            Rectangle { anchors.centerIn: parent; width: 3 * layer.unit; height: width; radius: width / 2; color: ring.tone }
         }
-        // ---- ripples (style 6): three rings running out one after another, continuously
-        Repeater {
-            model: layer.style === 6 ? 3 : 0
-            Rectangle {
-                required property int index
-                readonly property real ph: ((layer.t + index * 1000) % 3000) / 3000
-                readonly property real ez: 1 - (1 - ph) * (1 - ph)
-                readonly property real rr: ring.r * (0.5 + 2.2 * ez)
-                x: -rr; y: -rr; width: 2 * rr; height: width; radius: width / 2
-                color: "transparent"; border.color: ring.tone; border.width: Math.max(1, 1.8 * layer.unit * (1 - 0.5 * ez))
-                opacity: 0.85 * (1 - ez)
-            }
-        }
-        Rectangle { visible: layer.style === 6; anchors.centerIn: parent; width: 4 * layer.unit * layer.strength; height: width; radius: width / 2; color: parent.tone }
-
         // ---- outside the view: an arrow on the ring pointing the way, and the name ------------------------------
         Shape {
             visible: !layer.inside
