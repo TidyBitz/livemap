@@ -97,7 +97,11 @@ release notes written at the time; their dates are the day the version was hande
 ### Fixed
 - Storms: a GDACS name is "IN-FA-25", the name and a two-digit year, and the name was cut at the first hyphen, so
   Typhoon In-Fa was "In" on the map and in the widget, beside the JTWC record of the same storm as a second
-  system. Only the year comes off now, and the two records merge as they should.
+  system. Only the year comes off now, and the two records merge as they should. Beyond the one case: two
+  sources' names for a storm are compared leniently (hyphens, spaces, case), the distance within which two
+  records count as one storm grows with the time between their fixes (GDACS can be a day behind the centre),
+  and any two records from different sources that still sit within reach of each other are reported as a
+  possible twin - in Status and in the daily probe - instead of silently drawn twice.
 - Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
   fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
   now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps

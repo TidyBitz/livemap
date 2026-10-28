@@ -512,17 +512,17 @@ def fetch_storms_merged(debug=False):
         st["ids"] = ["gdacs:%s" % st["id"]] if st.get("id") else []
     for n in nhc:
         n["ids"] = ["%s:%s" % (n.get("source", "nhc").lower(), n["id"])] if n.get("id") else []
-    by_name = {st["name"].lower(): st for st in storms}
+    by_name = {same_name_key(st["name"]): st for st in storms}
     matched = set()
     for n in nhc:
-        st = by_name.get(n["name"].lower())
+        st = by_name.get(same_name_key(n["name"]))
         if st is None:                                  # the two feeds rename a storm at different moments ("Twenty-E" ->
-            best, best_km = None, 250                   # "Rachel"): the same storm is the one within 250 km that no name matched
+            best, best_km = None, None                  # "Rachel"): the same storm is the one nearest within reach that no name matched
             for cand in storms:
                 if id(cand) in matched or cand.get("source", "").endswith(("NHC", "JTWC")):
                     continue
                 km = haversine_km(cand["lat"], cand["lon"], n["lat"], n["lon"])
-                if km < best_km:
+                if km < same_storm_reach(cand, n) and (best_km is None or km < best_km):
                     best, best_km = cand, km
             st = best
         if st is None:
@@ -543,9 +543,42 @@ def fetch_storms_merged(debug=False):
             st["dots"], st["forecast"] = n["dots"], n["forecast"]
             if not st.get("cone") or n.get("cone"):
                 st["cone"], st["cone_estimated"] = n.get("cone", []), True
+    # what did not merge but looks like it should have: two records from different sources within reach of each
+    # other. Nothing is forced - they stay two storms - but the Status page and the daily probe say so, because the
+    # last time this happened it was a mangled name (GDACS's "IN-FA-25" read as "In"), and only the map showed it
+    for a, b in twins(storms):
+        errors.append("storms: '%s' (%s) and '%s' (%s) are %d km apart and may be one storm - a name or position is off"
+                      % (a["name"], a.get("source", "?"), b["name"], b.get("source", "?"), round(haversine_km(a["lat"], a["lon"], b["lat"], b["lon"]))))
     if errors:
         storms.append({"_problems": errors})      # carried to the caller, stripped below
     return storms
+
+
+def same_name_key(name):
+    """Two sources' names for one storm, compared leniently: case, hyphens, spaces and apostrophes do not count,
+    so "In-Fa", "IN FA" and "Infa" are one key."""
+    return re.sub(r"[-\s'\.]", "", str(name or "")).lower()
+
+
+def same_storm_reach(a, b):
+    """How far apart two records of one storm may be: 250 km, plus 35 km for every hour between their fixes - a
+    typhoon moves 20-40 km/h, and GDACS's record can be a day behind the centre's."""
+    gap = abs((a.get("hours") or 0) - (b.get("hours") or 0))
+    return 250 + 35 * min(gap, 48)
+
+
+def twins(storms):
+    """Pairs of unmerged records from different sources that lie within each other's reach."""
+    out = []
+    real = [st for st in storms if "_problems" not in st and st.get("lat") is not None]
+    for i, a in enumerate(real):
+        for b in real[i + 1:]:
+            sa, sb = str(a.get("source", "")), str(b.get("source", ""))
+            if sa == sb or set(a.get("ids") or []) & set(b.get("ids") or []):
+                continue
+            if haversine_km(a["lat"], a["lon"], b["lat"], b["lon"]) < same_storm_reach(a, b):
+                out.append((a, b))
+    return out
 
 
 def cmd_storms(args):

@@ -627,3 +627,17 @@ def test_gdacs_storm_names_keep_their_hyphen():
     assert re.sub(r"-\d{1,2}$", "", "VANCE-25").title() == "Vance"
     assert re.sub(r"-\d{1,2}$", "", "THREE-25").title() == "Three"
     assert "re.sub(r\"-\\d{1,2}$\"" in open(storms.__file__, encoding="utf-8").read()
+
+
+def test_storm_twins_and_lenient_names():
+    """Two sources' records of one storm: matched by a lenient name, else by a reach that grows with the age gap;
+    what still does not merge is reported as a possible twin."""
+    from livemap_helper import storms
+    assert storms.same_name_key("IN-FA") == storms.same_name_key("In Fa") == storms.same_name_key("infa")
+    gd = {"name": "In", "source": "GDACS", "lat": 14.0, "lon": 158.0, "hours": 30, "ids": ["gdacs:1"]}
+    jt = {"name": "In-Fa", "source": "JTWC", "lat": 16.5, "lon": 150.5, "hours": 2, "ids": ["jtwc:wp30"]}   # ~900 km on, a day later
+    assert storms.same_storm_reach(gd, jt) > 1200
+    pairs = storms.twins([gd, jt])
+    assert len(pairs) == 1
+    far = {"name": "Other", "source": "JTWC", "lat": -20.0, "lon": 60.0, "hours": 1, "ids": ["jtwc:sh05"]}
+    assert storms.twins([gd, far]) == []

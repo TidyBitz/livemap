@@ -61,6 +61,22 @@ scripts/check.py                              "all good": versions, metadata, ge
 6. A line under Unreleased in CHANGELOG.md, commit, push, install:
    `cd ~/Documents/Projects/livemap && ./livemap.sh install`.
 
+## Parsing rules, learned the hard way
+
+- **Never derive an identity by truncating a string.** GDACS names storms "IN-FA-25"; cutting at the first hyphen
+  to drop the year turned Typhoon In-Fa into "In", a second storm beside the JTWC record. Strip only the suffix you
+  can name (`re.sub(r"-\d{1,2}$", "", ...)`), keep the source's own string in the record, and compare names
+  leniently (`storms.same_name_key`: case, hyphens, spaces and apostrophes do not count).
+- **Splitting on a delimiter is fine only when the format defines it** (KML coordinate triples, CAP's "code;
+  description"), and then inside a try/except with a fixture that has the odd case.
+- **When two sources describe one thing, match by position with time in mind.** Records can be a day apart; the
+  reach grows with the age gap (`storms.same_storm_reach`). What still does not merge is reported, not hidden
+  (`storms.twins` -> a feed problem -> Status and the daily probe), because a silent duplicate only shows on the map.
+- **Every parser has a fixture with the real answer**, and the fixture gets the strange cases as they are met:
+  a hyphenated name, an accented place, a missing optional field, an empty list, a 0 that means "none".
+- **Downstream reads the record shape, never the source's field names.** `kind`, `when`, `lat`/`lon`, `title`,
+  `facts` are the contract; a source change is contained in its module.
+
 ## Adding a source
 
 A new source is: a module (or a function in the family's module) with its URL at the top and a parser; a
