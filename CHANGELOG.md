@@ -120,6 +120,11 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- Widget: the ring on the map could stay on an event after the pointer had left the widget. When the list was
+  rebuilt under the pointer (a refresh, a launch countdown ticking over, a sort), the hovered row was destroyed
+  without reporting the hover's end, so the wallpaper kept ringing it until another row was hovered. The
+  pointer leaving the list now clears the focus whatever the rows did, and a row kept under the pointer renews
+  the stamp every minute so a long look does not expire either.
 - Storms: a GDACS name is "IN-FA-25", the name and a two-digit year, and the name was cut at the first hyphen, so
   Typhoon In-Fa was "In" on the map and in the widget, beside the JTWC record of the same storm as a second
   system. Only the year comes off now, and the two records merge as they should. Beyond the one case: two

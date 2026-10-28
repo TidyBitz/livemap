@@ -401,6 +401,9 @@ PlasmoidItem {
         focusExec.connectSource('d="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"; mkdir -p "$d"; printf \'%s\' \'' + json + '\' > "$d/focus.json.tmp" && mv -f "$d/focus.json.tmp" "$d/focus.json" # ' + Date.now());
     }
     Timer { id: focusSend; interval: 120; onTriggered: root.focusWrite() }
+    // the wallpaper treats a focus older than two minutes as gone (a crashed or closed widget must not leave a ring):
+    // while a row stays hovered, the stamp is refreshed every minute
+    Timer { interval: 60000; repeat: true; running: root.focusItem !== null; onTriggered: root.focusWrite() }
     P5Support.DataSource { id: focusExec; engine: "executable"; connectedSources: []; onNewData: function (source, data) { disconnectSource(source); } }
     onHoverHighlightChanged: focusSend.restart()
     function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
@@ -615,6 +618,11 @@ PlasmoidItem {
                         spacing: 2
                         clip: true
                         onContentYChanged: root.bubbleAway(root.bubbleRow)       // the row under the pointer changed: no stale bubble
+                        // The ring on the map must never outlive the hover. A row's own hoveredChanged is not enough: when the
+                        // list is rebuilt under the pointer (a refresh, a countdown ticking, a sort), the hovered delegate is
+                        // destroyed without saying goodbye, and the ring stayed on the map until another row was hovered.
+                        // So the pointer leaving the whole list clears it, whatever the rows did in between.
+                        HoverHandler { onHoveredChanged: if (!hovered) root.focusOff(null) }
                         delegate: Loader {
                             required property var modelData
                             required property int index
