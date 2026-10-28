@@ -96,7 +96,9 @@ def fetch_storms(debug=False):
             hours = round((now - datetime.strptime(str(pr.get("datemodified") or pr.get("todate"))[:19], "%Y-%m-%dT%H:%M:%S").timestamp()) / 3600, 1)
         except (ValueError, TypeError):
             pass
-        st = {"id": pr.get("eventid"), "name": str(pr.get("eventname") or pr.get("name") or "").split("-")[0].title(),
+        # GDACS names are "IN-FA-25": the storm's name and a two-digit year. Only the year comes off - cutting at the
+        # first hyphen made Typhoon In-Fa "In", a second storm beside the JTWC one
+        st = {"id": pr.get("eventid"), "name": re.sub(r"-\d{1,2}$", "", str(pr.get("eventname") or pr.get("name") or "")).title(),
               "kind": kind, "cat": cat, "wind": round(wind), "wind_is_peak": True, "lat": lat, "lon": lon, "alert": pr.get("alertlevel", ""), "hours": hours,
               "source": pr.get("source", ""), "past": [], "forecast": [], "cone": [], "dots": []}
         try:

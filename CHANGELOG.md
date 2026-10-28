@@ -95,6 +95,9 @@ release notes written at the time; their dates are the day the version was hande
   when it is already there.
 
 ### Fixed
+- Storms: a GDACS name is "IN-FA-25", the name and a two-digit year, and the name was cut at the first hyphen, so
+  Typhoon In-Fa was "In" on the map and in the widget, beside the JTWC record of the same storm as a second
+  system. Only the year comes off now, and the two records merge as they should.
 - Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
   fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
   now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps

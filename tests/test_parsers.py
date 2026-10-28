@@ -618,3 +618,12 @@ def test_bubble_pictures_fetched_to_files(tmp_path, monkeypatch):
     assert len(calls) == 2
     idx = json.loads((tmp_path / "pictures.json").read_text())
     assert idx["https://bad.example/x.png"]["error"].startswith("<urlopen error") or "timed out" in idx["https://bad.example/x.png"]["error"]
+
+
+def test_gdacs_storm_names_keep_their_hyphen():
+    import re
+    from livemap_helper import storms
+    assert re.sub(r"-\d{1,2}$", "", "IN-FA-25").title() == "In-Fa"
+    assert re.sub(r"-\d{1,2}$", "", "VANCE-25").title() == "Vance"
+    assert re.sub(r"-\d{1,2}$", "", "THREE-25").title() == "Three"
+    assert "re.sub(r\"-\\d{1,2}$\"" in open(storms.__file__, encoding="utf-8").read()
