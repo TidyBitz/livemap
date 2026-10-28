@@ -359,6 +359,8 @@ RowLayout {
     property alias cfg_SatHubble: satHubble.checked
     property alias cfg_SatTiangong: satTiangong.checked
     property alias cfg_SatPasses: satPasses.currentIndex
+    property alias cfg_FocusFromWidget: focusFromWidget.checked
+    property alias cfg_FocusColor: focusColor.color
     property alias cfg_SatColor: satColor.color
     property alias cfg_SatMarkerStyle: satMarkerStyle.currentIndex
     property alias cfg_SatPictureSize: satPictureSize.value
@@ -1263,6 +1265,11 @@ RowLayout {
                 }
                 QQC2.Label { visible: !!form.widgetInfo.error; text: form.widgetInfo.error || ""; color: Kirigami.Theme.negativeTextColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 QQC2.Label { visible: form.widgetInfo.installed === true && form.widgetInfo.placed === null; text: "Could not ask plasmashell whether it is on a desktop; add it from the desktop's Add Widgets panel if not."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                RowLayout {
+                    QQC2.CheckBox { id: focusFromWidget; text: "Ring on the map the event the widget's list is pointing at" }
+                    KQuickControls.ColorButton { id: focusColor; enabled: focusFromWidget.checked; showAlphaChannel: false; implicitWidth: Kirigami.Units.gridUnit * 2 }
+                }
+                QQC2.Label { visible: focusFromWidget.checked; text: "Hover a row in the widget and its event is ringed here, with an arrow from the edge when it is off screen. The widget's own switch for it is under Map controls > This widget."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true; font.pointSize: Kirigami.Theme.smallFont.pointSize }
             }
         }
         RowLayout {

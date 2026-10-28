@@ -362,7 +362,7 @@ PlasmoidItem {
     Component.onCompleted: { refresh(); refreshMode(); }
     Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
-    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); }
+    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); focusItem = null; focusSend.restart(); }
 
     toolTipMainText: "Live World Map"
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
@@ -381,6 +381,26 @@ PlasmoidItem {
     readonly property int previewMode: Plasmoid.configuration.Preview === undefined ? 2 : Plasmoid.configuration.Preview
     property var bubbleItem: ({})
     property Item bubbleRow: null
+    // ---- the event under the pointer, told to the wallpaper: focus.json in the data folder, which the wallpaper's
+    // FocusLayer reads a few times a second while the popup is open and rings the event on the map. Written by a
+    // shell printf (no interpreter to start), at most every 120 ms while the pointer moves down the list.
+    readonly property bool hoverHighlight: Plasmoid.configuration.HoverHighlight === undefined ? true : Plasmoid.configuration.HoverHighlight
+    property var focusItem: null
+    function focusOn(it) { if (!hoverHighlight) return; focusItem = it; focusSend.restart(); }
+    function focusOff(it) { if (focusItem === it || it === null) { focusItem = null; focusSend.restart(); } }
+    function focusWrite() {
+        var it = focusItem;
+        var doc = { open: root.expanded && root.hoverHighlight, at: Math.round(Date.now() / 1000) };
+        if (it && it.lat !== undefined && it.lat !== null && it.lon !== undefined && it.lon !== null) {
+            doc.kind = it.kind; doc.lat = Number(it.lat); doc.lon = Number(it.lon); doc.key = String(it.key || "");
+            doc.title = String(it.title || "").replace(/['\\]/g, "").substring(0, 80);
+        }
+        var json = JSON.stringify(doc).replace(/'/g, "");
+        focusExec.connectSource('d="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"; mkdir -p "$d"; printf \'%s\' \'' + json + '\' > "$d/focus.json.tmp" && mv -f "$d/focus.json.tmp" "$d/focus.json" # ' + Date.now());
+    }
+    Timer { id: focusSend; interval: 120; onTriggered: root.focusWrite() }
+    P5Support.DataSource { id: focusExec; engine: "executable"; connectedSources: []; onNewData: function (source, data) { disconnectSource(source); } }
+    onHoverHighlightChanged: focusSend.restart()
     function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
     function bubbleAway(row) { if (bubbleRow === row) { bubbleTimer.stop(); bubble.visible = false; bubbleRow = null; } }
     Timer { id: bubbleTimer; interval: 550; onTriggered: if (root.bubbleRow) { bubble.visualParent = root.bubbleRow; bubble.visible = true; } }
@@ -724,6 +744,7 @@ PlasmoidItem {
                         onHoveredChanged: {
                             if (hovered && root.previewMode > 0) root.bubbleFor(row, modelData);
                             else if (!hovered) root.bubbleAway(row);
+                            if (hovered) root.focusOn(modelData); else root.focusOff(modelData);
                         }
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
@@ -1093,6 +1114,12 @@ PlasmoidItem {
                 }
                 Heading { text: "This widget" }
                 // the widget's own behaviour, the same settings as its configuration page (Plasmoid.configuration writes through)
+                PC3.Switch {
+                    text: "Ring the hovered event on the map"
+                    checked: root.hoverHighlight
+                    onToggled: Plasmoid.configuration.HoverHighlight = checked
+                    PC3.ToolTip.text: "Hover a row and the wallpaper rings its event, with an arrow from the edge when it is off screen (the wallpaper's own switch is on Essentials)"; PC3.ToolTip.visible: hovered
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     PC3.Switch {

@@ -6,6 +6,14 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Hover a row in the widget and its event is ringed on the map: a steady ring with a pulse running out of it in
+  a colour of your choice, and when the event is off screen a ring at the nearest edge with an arrow and the
+  event's name, since a wallpaper cannot pan. The widget writes focus.json in the data folder (a shell printf, no
+  interpreter) at most every 120 ms; the wallpaper's FocusLayer reads it with an XMLHttpRequest every 300 ms
+  while the popup is open and every two seconds otherwise, so nothing in the event layers is touched and the
+  cost is one small item moving. Two switches: Essentials > Events widget "Ring on the map the event the
+  widget's list is pointing at" (with the colour) on the wallpaper, and Map controls > This widget "Ring the
+  hovered event on the map" in the widget.
 - Widget: a Sky tab, between Live and Map controls, about your sky at the home place from Essentials. Now
   (temperature, conditions, feels-like, today's high and low, wind, humidity, cloud, pressure and its trend); the
   next seven days, one 24-hour strip each - colour for the temperature hour by hour, the night ends darkened,

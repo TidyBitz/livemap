@@ -696,6 +696,22 @@ WallpaperItem {
                 console.warn("livemap: network layer failed to load (is plasma5support installed?)")
         }
 
+        // -- the event the widget's list points at, ringed over everything (FocusLayer.qml, focus.json) ----
+        Loader {
+            anchors.fill: parent
+            z: 3
+            active: cfg.FocusFromWidget !== false
+            source: "FocusLayer.qml"
+            onLoaded: {
+                item.cfg = root.cfg;
+                item.clock = Qt.binding(function () { return root.clock });
+                item.dataDir = Qt.binding(function () { return root.dataDir });
+                item.sx = Qt.binding(function () { return root.sx }); item.sy = Qt.binding(function () { return root.sy });
+                item.screen = Qt.binding(function () { return Qt.rect(-map.x, -map.y, root.width, root.height) });
+            }
+            onStatusChanged: if (status === Loader.Error) console.warn("livemap: focus layer failed to load")
+        }
+
         // -- every event label, drawn last so nothing covers it ---------------------
         LabelPass {
             anchors.fill: parent

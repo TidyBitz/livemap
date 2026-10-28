@@ -74,6 +74,10 @@ test; a line in docs/SOURCES.md. The consistency test will tell you what you for
   controls › Sources › "Live streams" shows what each channel page resolved to.
 - **Imagery looks old after a change**: frames are cut once per view and style and cached under the data folder's
   `frames/`; Status › "Map style imagery" lists them; deleting a frame folder forces a rebuild.
+- **The widget and the wallpaper never talk directly**: they share files in the data folder. mode.json (the widget's
+  Map controls, read by the wallpaper within 20 s), layers.json (the wallpaper's switches and units, for the feed),
+  focus.json (the hovered row, read a few times a second while the popup is open). A new channel between them is
+  another small file, not D-Bus or a shared singleton.
 - **Settings differ between screens**: Plasma keeps a wallpaper configuration per screen. Styles ("Saved as") are
   shared through the data folder; the rest is per screen by design.
 

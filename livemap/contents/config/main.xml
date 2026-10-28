@@ -156,6 +156,8 @@
     <entry name="SatIss" type="Bool"><default>true</default></entry>
     <entry name="SatHubble" type="Bool"><default>true</default></entry>
     <entry name="SatTiangong" type="Bool"><default>true</default></entry>
+    <entry name="FocusFromWidget" type="Bool"><default>true</default></entry>   <!-- ring on the map the event the widget's list is pointing at (focus.json) -->
+    <entry name="FocusColor" type="String"><default>#ffd23f</default></entry>
     <entry name="SatPasses" type="Int"><default>1</default></entry>              <!-- ISS passes over the home place in the widget: 0 off, 1 the visible ones, 2 every pass -->
     <entry name="SatColor" type="Color"><default>#9fe8ff</default></entry>
     <entry name="SatTrack" type="Bool"><default>true</default></entry>
