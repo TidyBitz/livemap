@@ -58,15 +58,17 @@ Item {
         visible: layer.showing
         x: layer.cx; y: layer.cy
         readonly property real r: 14 * layer.unit
-        readonly property real phase: (layer.clock % 1.6) / 1.6
+        // the pulse: a slow breath rather than a strobe - two and a half seconds, easing out, fading from half strength
+        readonly property real phase: (layer.clock % 2.5) / 2.5
+        readonly property real eased: 1 - (1 - phase) * (1 - phase)
         readonly property color tone: layer.cfg && layer.cfg.FocusColor ? layer.cfg.FocusColor : "#ffd23f"
         Rectangle { x: -parent.r - 3; y: -parent.r - 3; width: 2 * parent.r + 6; height: width; radius: width / 2; color: "transparent"; border.color: "#aa000000"; border.width: 4 * layer.unit }
         Rectangle { x: -parent.r; y: -parent.r; width: 2 * parent.r; height: width; radius: width / 2; color: "transparent"; border.color: parent.tone; border.width: 2 * layer.unit }
         Rectangle {
-            readonly property real rr: parent.r * (1 + 1.4 * parent.phase)
+            readonly property real rr: parent.r * (1 + 1.2 * parent.eased)
             x: -rr; y: -rr; width: 2 * rr; height: width; radius: width / 2
             color: "transparent"; border.color: parent.tone; border.width: 1.5 * layer.unit
-            opacity: 1 - parent.phase
+            opacity: 0.55 * (1 - parent.eased)
         }
         // outside the view: an arrow on the ring pointing the way, and the name
         Shape {
