@@ -21,11 +21,11 @@ Item {
     property rect screen: Qt.rect(0, 0, 0, 0)     // the screen in this item's coordinates (the map's)
     readonly property real unit: Math.max(1, Screen.width / 1920)
 
-    property var focus: ({})                      // the file's content
-    readonly property bool open: !!focus.open && (Date.now() / 1000 - (focus.at || 0)) < 120
-    readonly property bool showing: open && focus.lat !== undefined && focus.lat !== null && focus.lon !== undefined && focus.lon !== null
-    readonly property real px: (Number(focus.lon) + 180) * sx
-    readonly property real py: (90 - Number(focus.lat)) * sy
+    property var target: ({})                     // the file's content (not "focus": that is Item's own, final)
+    readonly property bool open: !!target.open && (Date.now() / 1000 - (target.at || 0)) < 120
+    readonly property bool showing: open && target.lat !== undefined && target.lat !== null && target.lon !== undefined && target.lon !== null
+    readonly property real px: (Number(target.lon) + 180) * sx
+    readonly property real py: (90 - Number(target.lat)) * sy
     // inside the screen, or clamped to its edge with an arrow
     readonly property real margin: 22 * unit
     readonly property bool inside: showing && px >= screen.x && px <= screen.x + screen.width && py >= screen.y && py <= screen.y + screen.height
@@ -39,7 +39,7 @@ Item {
         var xhr = new XMLHttpRequest();
         xhr.onreadystatechange = function () {
             if (xhr.readyState !== XMLHttpRequest.DONE) return;
-            try { layer.focus = xhr.responseText ? JSON.parse(xhr.responseText) : ({}); } catch (e) { layer.focus = ({}); }
+            try { layer.target = xhr.responseText ? JSON.parse(xhr.responseText) : ({}); } catch (e) { layer.target = ({}); }
         };
         xhr.open("GET", url); xhr.send();
     }
@@ -74,7 +74,7 @@ Item {
         }
         Text {
             visible: !layer.inside
-            text: layer.focus.title || ""
+            text: layer.target.title || ""
             color: "white"; font.pixelSize: Math.round(8 * layer.unit); font.bold: true
             style: Text.Outline; styleColor: "#cc000000"
             // on the side of the ring away from the edge, so it stays on screen

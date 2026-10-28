@@ -1256,7 +1256,7 @@ RowLayout {
                         onClicked: Qt.openUrlExternally(form.widgetInfo.store || "https://store.kde.org")
                     }
                     QQC2.Label {
-                        visible: form.widgetInfo.placed && form.widgetInfo.placed.length > 0
+                        visible: !!(form.widgetInfo.placed && form.widgetInfo.placed.length > 0)
                         text: "✓ On " + (form.widgetInfo.placed && form.widgetInfo.placed.length > 1 ? form.widgetInfo.placed.length + " desktops" : "this desktop")
                         color: Kirigami.Theme.positiveTextColor
                     }
