@@ -876,9 +876,19 @@ PlasmoidItem {
                     if (!channelLive || resolving === u) return;
                     // an earlier empty answer is not final: the next time this stream is chosen it is asked again, fresh, once
                     if (resolved[u] !== undefined && !fresh) { if (resolved[u] === "" && !retried[u]) { retried[u] = true; fresh = true; } else return; }
-                    resolving = u;
-                    liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
+                    // "resolving" is set only once the helper has really been asked: chosenUrl changes while this layout is still
+                    // being built, before liveExec exists, and a throw after setting it left the tab "Looking for the stream" for good
+                    try {
+                        liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
+                        resolving = u;
+                        resolveWatch.restart();
+                    } catch (e) {
+                        console.warn("livemap widget: live-url could not be asked yet:", e);
+                    }
                 }
+                // no answer within 40 s (two page fetches at most): give up on this ask so Reload comes back
+                Timer { id: resolveWatch; interval: 40000; onTriggered: { if (liveTab.resolving !== "") { liveTab.resolveNote = "The helper did not answer in time"; liveTab.resolving = ""; } } }
+                Component.onCompleted: resolve(chosenUrl)
                 property string resolveNote: ""
                 property var retried: ({})
                 Timer { id: retryTimer; property string url: ""; interval: 4000; onTriggered: if (liveTab.chosenUrl === url) liveTab.resolve(url, true) }
