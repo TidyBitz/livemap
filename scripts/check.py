@@ -24,8 +24,13 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WP = os.path.join(ROOT, "livemap")
 WG = os.path.join(ROOT, "livemap-widget")
+# Item's own properties: a `property` of one of these names fails with "Cannot override FINAL property" and takes
+# the whole file (and whatever loads it) down - focus, top and bottom each cost an install in October 2026
 RESERVED = ("layer", "clip", "states", "data", "status", "scale", "source", "spacing", "state", "parent",
-            "children", "enabled", "visible", "width", "height", "x", "y", "z", "opacity", "anchors")
+            "children", "enabled", "visible", "width", "height", "x", "y", "z", "opacity", "anchors",
+            "focus", "activeFocus", "top", "bottom", "left", "right", "horizontalCenter", "verticalCenter", "baseline",
+            "rotation", "transform", "smooth", "antialiasing", "implicitWidth", "implicitHeight", "childrenRect",
+            "resources", "visibleChildren", "objectName", "containmentMask", "palette")
 problems = []
 
 

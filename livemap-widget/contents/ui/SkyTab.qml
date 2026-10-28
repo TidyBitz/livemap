@@ -7,6 +7,7 @@
  * today; hovering a strip opens a bubble with that hour's line.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.core as PlasmaCore
@@ -107,6 +108,55 @@ ColumnLayout {
         sources: { title: "Where this comes from", note: "Forecast and air quality from Open-Meteo, the planetary K index from NOAA's Space Weather Prediction Center; each fetched at most every 20 minutes by the wallpaper's helper and kept, so an outage shows the last answer with its age (the line under the place name). Sunrise, sunset, the moon and the satellite passes are computed on this machine from the home place. Units and the clock follow the wallpaper's Units page.", rows: [] },
         pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
     })
+    // The "?" bubble is its own window beside the popup - on the map, where there is room - never over the tab's
+    // text and never under the pointer (a tooltip window placed by Plasma landed on the ? itself and flickered; a
+    // bubble drawn in the page covered the tab). Placed by hand: to the right of the popup window, level with the
+    // line that opened it, or to the left when the screen ends.
+    PlasmaCore.Dialog {
+        id: infoDialog
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.Floating
+        backgroundHints: PlasmaCore.Dialog.SolidBackground
+        hideOnWindowDeactivate: false
+        flags: Qt.ToolTip | Qt.WindowStaysOnTopHint | Qt.WindowDoesNotAcceptFocus
+        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active && !!sky.Window.window
+        readonly property var win: sky.Window.window
+        readonly property point anchorInWindow: sky.infoAnchor ? sky.infoAnchor.mapToItem(null, 0, 0) : Qt.point(0, 0)
+        readonly property real gap: Kirigami.Units.largeSpacing
+        function place() {
+            if (!win || !sky.infoAnchor) return;
+            var w = width, h = height;
+            var rightX = win.x + win.width + gap, leftX = win.x - w - gap;
+            x = rightX + w <= Screen.virtualX + Screen.width ? rightX : Math.max(Screen.virtualX, leftX);
+            var yy = win.y + anchorInWindow.y + sky.infoAnchor.height / 2 - h / 2;
+            y = Math.max(Screen.virtualY, Math.min(Screen.virtualY + Screen.height - h, yy));
+        }
+        onVisibleChanged: if (visible) place()
+        onAnchorInWindowChanged: if (visible) place()
+        onHeightChanged: if (visible) place()
+        onWidthChanged: if (visible) place()
+        mainItem: ColumnLayout {
+            id: infoColumn
+            width: Kirigami.Units.gridUnit * 24
+            height: implicitHeight
+            spacing: Kirigami.Units.smallSpacing
+            readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
+            PC3.Label { text: infoColumn.info.title; font.bold: true }
+            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: infoColumn.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+            Repeater {
+                model: infoColumn.info.rows
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
+                    PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
+                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                }
+            }
+        }
+    }
+
     // ---- placeholder states ----
     PlasmaExtras.PlaceholderMessage {
         visible: !sky.ready
@@ -402,54 +452,7 @@ ColumnLayout {
                     }
                 }
             }
-            // the "?" bubble: to the left of the ? that opened it (the ? is at the end of its line), vertically centred on it
-            // and kept inside the tab's width; drawn in the popup, not as a tooltip window, which flickered under the pointer
-            Rectangle {
-                id: infoBubble
-                visible: sky.infoTopic !== "" && sky.infoAnchor !== null
-                z: 100
-                readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
-                readonly property point at: sky.infoAnchor ? sky.infoAnchor.mapToItem(infoBox, 0, 0) : Qt.point(0, 0)
-                readonly property real pad: Kirigami.Units.largeSpacing
-                width: Math.min(infoBox.width - Kirigami.Units.gridUnit, Kirigami.Units.gridUnit * 24)
-                height: infoColumn.implicitHeight + pad * 2
-                x: Math.max(0, at.x - width - Kirigami.Units.smallSpacing)
-                // beside the ?, centred on its line; where that would run past the top of the tab it hangs below the line
-                // instead, and past the bottom it stands above it - never pushed into a corner away from its ?
-                readonly property real ah: sky.infoAnchor ? sky.infoAnchor.height : 0
-                readonly property real centred: at.y + ah / 2 - height / 2
-                readonly property real limitTop: -infoBox.y                                   // (not "top"/"bottom": those are Item's anchor lines, final)
-                readonly property real limitBottom: -infoBox.y + scroll.contentItem.height
-                y: centred >= limitTop && centred + height <= limitBottom ? centred
-                 : centred < limitTop ? at.y + ah + Kirigami.Units.smallSpacing
-                 : at.y - height - Kirigami.Units.smallSpacing
-                radius: 4
-                Kirigami.Theme.inherit: false
-                Kirigami.Theme.colorSet: Kirigami.Theme.Window
-                color: Qt.rgba(Kirigami.Theme.backgroundColor.r, Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 1)
-                border.color: Kirigami.Theme.highlightColor; border.width: 1
-                ColumnLayout {
-                    id: infoColumn
-                    x: infoBubble.pad; y: infoBubble.pad
-                    width: infoBubble.width - infoBubble.pad * 2
-                    spacing: Kirigami.Units.smallSpacing
-                    PC3.Label { text: infoBubble.info.title; font.bold: true }
-                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: infoBubble.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
-                    Repeater {
-                        model: infoBubble.info.rows
-                        RowLayout {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            spacing: Kirigami.Units.smallSpacing
-                            Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
-                            PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
-                            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
-                        }
-                    }
-                }
-            }
             }
         }
     }
-
 }
