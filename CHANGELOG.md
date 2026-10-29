@@ -177,6 +177,10 @@ release notes written at the time; their dates are the day the version was hande
 - The Events widget says how old each kind's data is: an empty kind reads "none right now · as of 3 min ago"
   when the source was reached, "no data yet" when it never was - so nothing happening and a source down are
   told apart.
+- What keeps the map animating is now said where you can see it: Status > Power and load reads "pulse clock
+  running at 30 fps for storms, maritime" (or "idle"), and the widget's Map controls tab has the same line under
+  the power notice. Every tick of that clock redraws the whole screen, so when plasmashell is busy this is the
+  first thing to look at; Ageing and pulses > Newly reported is the knob (layers.json: `pulsing`, `fps`).
 - Night mode (Day and night > Night): the terminator as before, the whole map at night always, or at night during
   your own night - civil dusk to dawn at the home place - so the city lights are the picture through the
   evening wherever the sun is.

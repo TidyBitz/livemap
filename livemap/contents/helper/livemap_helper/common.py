@@ -472,6 +472,15 @@ def read_layers_int(key, default):
         return default
 
 
+def read_layers_list(key):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        v = d.get(key) if isinstance(d, dict) else None
+        return [str(x) for x in v] if isinstance(v, list) else []
+    except (OSError, ValueError):
+        return []
+
+
 def read_layers_str(key, default=""):
     try:
         d = json.loads(LAYERS.read_text(encoding="utf-8"))
@@ -482,8 +491,10 @@ def read_layers_str(key, default=""):
 
 
 def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None,
-                 home=None, passes=None, saving=None, why=None, home_name=None, maritime_days=None):
+                 home=None, passes=None, saving=None, why=None, home_name=None, maritime_days=None, pulsing=None, fps=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
+    if pulsing is not None:
+        pulsing = [l for l in pulsing.split(",") if l in LAYER_NAMES]
     if why is not None:
         why = why.strip()[:120]
     if units is not None:
@@ -502,7 +513,8 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
             and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)) \
             and (saving is None or read_layers_int("saving", 0) == int(saving)) and (why is None or read_layers_str("why") == why) \
             and (home_name is None or read_layers_str("home_name") == home_name) \
-            and (maritime_days is None or read_layers_int("maritime_days", 14) == int(maritime_days)):
+            and (maritime_days is None or read_layers_int("maritime_days", 14) == int(maritime_days)) \
+            and (pulsing is None or read_layers_list("pulsing") == pulsing) and (fps is None or read_layers_int("fps", 0) == int(fps)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -521,7 +533,11 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    # the widget and the Status check say so, the map itself no longer does
                                    "saving": int(saving) if saving is not None else read_layers_int("saving", 0),
                                    "why": why if why is not None else read_layers_str("why"),
-                                   "maritime_days": int(maritime_days) if maritime_days is not None else read_layers_int("maritime_days", 14),   # the window the maritime layer shows; the widget lists the same
+                                   "maritime_days": int(maritime_days) if maritime_days is not None else read_layers_int("maritime_days", 14),
+                                   # the layers keeping the pulse clock running (every tick redraws the whole screen) and the rate: the first
+                                   # thing to look at when plasmashell is busy; Status > Power and load and the widget's Map controls say it
+                                   "pulsing": pulsing if pulsing is not None else read_layers_list("pulsing"),
+                                   "fps": int(fps) if fps is not None else read_layers_int("fps", 0),   # the window the maritime layer shows; the widget lists the same
                                    "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:

@@ -84,7 +84,7 @@ def main():
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
     pw.add_argument("--home"); pw.add_argument("--home-name"); pw.add_argument("--passes", type=int)
-    pw.add_argument("--saving", type=int); pw.add_argument("--why"); pw.add_argument("--maritime-days", dest="maritime_days", type=int)           # what the wallpaper holds back and why, for the widget
+    pw.add_argument("--saving", type=int); pw.add_argument("--why"); pw.add_argument("--maritime-days", dest="maritime_days", type=int); pw.add_argument("--pulsing"); pw.add_argument("--fps", type=int)           # what the wallpaper holds back and why, for the widget
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)

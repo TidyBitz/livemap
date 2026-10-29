@@ -12,7 +12,7 @@ import urllib.request
 from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, read_layers_str, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, dist_text, speed_text, _http, fetch_json, UA
+    wind_text, dist_text, speed_text, _http, fetch_json, UA, read_layers_list
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -671,7 +671,7 @@ def cmd_feed(args):
     except Exception as e:                        # noqa: BLE001 - pictures are a bonus
         problems.append("pictures: %s" % e)
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip,
-          "saving": read_layers_int("saving", 0), "why": read_layers_str("why")})
+          "saving": read_layers_int("saving", 0), "why": read_layers_str("why"), "pulsing": read_layers_list("pulsing"), "fps": read_layers_int("fps", 0)})
 
 
 HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version
@@ -770,6 +770,8 @@ def chk_power():
                                           "%d %%" % cpu if cpu is not None else "n/a", "%d %%" % gpu if gpu is not None else "n/a",
                                           {"amd": "sysfs", "nvidia": "nvidia-smi", "intel-clock": "Intel clock estimate", "none": "no reading, CPU decides"}[how])
     saving, why = read_layers_int("saving", 0), read_layers_str("why")
+    pulsing, fps = read_layers_list("pulsing"), read_layers_int("fps", 0)
+    detail += "; pulse clock %s" % (("running at %d fps for %s - every tick redraws the whole screen" % (fps, ", ".join(pulsing))) if pulsing else "idle (nothing pulsing; the map redraws only when something changes)")
     if saving:                                    # the wallpaper is holding back: say so here, where the user looks for it
         return "warn", ("live layers off - " if saving == 2 else "animations paused - ") + (why or "power saving") + "; " + detail
     return "ok", detail

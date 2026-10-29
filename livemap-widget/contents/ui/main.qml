@@ -73,6 +73,8 @@ PlasmoidItem {
     readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", maritime: "maritime", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
     property int saving: 0                        // what the wallpaper holds back: 0 nothing, 1 animations paused, 2 live layers off
+    property var pulsing: []                      // the layers keeping the map's pulse clock running (layers.json via the feed)
+    property int mapFps: 0
     property string savingWhy: ""                 // and why: "load guard: CPU 63 %, GPU ?", "on battery", "paused from the widget"
     readonly property string savingText: saving === 0 ? "" : (saving === 2 ? "Live layers off on the map" : "Animations paused on the map") + (savingWhy ? " \u00b7 " + savingWhy : "")
     property var alertStrip: ({ hours: 6, rows: [] })   // the air raid alerts of the last hours, one row per oblast (the strip under the group header)
@@ -306,7 +308,7 @@ PlasmoidItem {
                     var r = JSON.parse(data.stdout);
                     root.items = r.items || [];
                     root.layers = r.layers === undefined ? null : r.layers;
-                    root.saving = r.saving || 0; root.savingWhy = r.why || "";
+                    root.saving = r.saving || 0; root.savingWhy = r.why || ""; root.pulsing = r.pulsing || []; root.mapFps = r.fps || 0;
                     root.ages = r.ages || ({});
                     root.alertStrip = r.alert_strip || ({ hours: 6, rows: [] });
                     root.problems = r.problems || [];
@@ -1024,6 +1026,13 @@ PlasmoidItem {
                     visible: root.saving > 0
                     type: Kirigami.MessageType.Information
                     text: root.savingText + (root.savingWhy.indexOf("load guard") === 0 ? "  \u2014  Full speed below overrides it for a while; Settings > Performance and power sets the thresholds." : "")
+                }
+                // what keeps the map animating: every tick of the pulse clock redraws the whole screen, so when plasmashell is
+                // busy this line says which layer is asking for it
+                PC3.Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    text: root.pulsing.length > 0 ? "Map animating at " + root.mapFps + " fps for: " + root.pulsing.map(function (l) { var c = root.layerChips.find(function (x) { return x.layer === l; }); return c ? c.name.toLowerCase() : l; }).join(", ") + " (Settings > Ageing and pulses sets how long events pulse)"
+                                                  : "Map still: nothing is pulsing, it redraws only when something changes"
                 }
                 Heading { text: "Quick settings \u00b7 the widget's own" }
                 RowLayout {

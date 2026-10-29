@@ -35,6 +35,8 @@ Item {
     property string home: ""                      // "lat,lon" of the home place, for the ISS passes
     property string homeName: ""                  // its name as typed on Essentials, for the Sky tab
     property int passes: 0                        // 0 off, 1 visible passes in the widget, 2 every pass
+    property string pulsing: ""                   // the layers keeping the pulse clock running right now, "storms,maritime"
+    property int fps: 30
     property int maritimeDays: 14                 // the maritime layer's window, so the widget lists the same incidents
     property int saving: 0                        // what the wallpaper holds back (0 nothing, 1 animations, 2 live layers), for the widget
     property string savingWhy: ""                 // and why ("load guard: CPU 63 %, GPU ?", "on battery", "paused from the widget")
@@ -80,6 +82,6 @@ Item {
         running: watch.helper !== ""
         repeat: true
         triggeredOnStart: true
-        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " --fire-sources " + watch.fireSources + " --flood-sources " + watch.floodSources + " --quake-sources " + watch.quakeSources + (watch.home !== "" ? " --home '" + watch.home.replace(/[^0-9.,-]/g, "") + "' --home-name '" + watch.homeName.replace(/[^\w .,'-]/g, "").replace(/'/g, "") + "'" : "") + " --passes " + watch.passes + " --maritime-days " + watch.maritimeDays + " --saving " + watch.saving + " --why '" + watch.savingWhy.replace(/[^\w %:?.,-]/g, "") + "' # " + Date.now())
+        onTriggered: exec.connectSource("python3 '" + watch.helper + "' power --layers '" + watch.layers + "' --units " + watch.units + " --fire-focus " + watch.fireFocus + " --flood-level " + watch.floodLevel + " --nws-each " + (watch.nwsEach ? 1 : 0) + " --fire-sources " + watch.fireSources + " --flood-sources " + watch.floodSources + " --quake-sources " + watch.quakeSources + (watch.home !== "" ? " --home '" + watch.home.replace(/[^0-9.,-]/g, "") + "' --home-name '" + watch.homeName.replace(/[^\w .,'-]/g, "").replace(/'/g, "") + "'" : "") + " --passes " + watch.passes + " --maritime-days " + watch.maritimeDays + " --pulsing '" + watch.pulsing.replace(/[^a-z,]/g, "") + "' --fps " + watch.fps + " --saving " + watch.saving + " --why '" + watch.savingWhy.replace(/[^\w %:?.,-]/g, "") + "' # " + Date.now())
     }
 }

@@ -56,6 +56,8 @@ WallpaperItem {
             item.homeName = Qt.binding(function () { return cfg.HomeCity || "" });
             item.passes = Qt.binding(function () { return cfg.SatPasses === undefined ? 0 : cfg.SatPasses });
             item.maritimeDays = Qt.binding(function () { return cfg.ShowMaritime ? cfg.MaritimeDays : 14 });
+            item.pulsing = Qt.binding(function () { return root.fps > 0 ? root.pulsing : "" });
+            item.fps = Qt.binding(function () { return root.fps });
             item.saving = Qt.binding(function () { return root.saving });
             item.savingWhy = Qt.binding(function () { return root.savingWhy });
         }
@@ -83,6 +85,10 @@ WallpaperItem {
     property real clock: 0
     readonly property var pulseLayers: [quakeLoader, stormLoader, volcanoLoader, fireLoader, floodLoader, tsunamiLoader, alertLoader, maritimeLoader, launchLoader, netLoader]
     readonly property bool anyPulse: pulseLayers.some(function (l) { return l.item && l.item.pulseWanted; })
+    // which layers keep the clock running, for the widget and Status (every tick redraws the whole screen, so this is the
+    // first thing to look at when plasmashell is busy)
+    readonly property var pulseNames: ["quakes", "storms", "volcanoes", "fires", "floods", "tsunami", "alerts", "maritime", "launches", "network"]
+    readonly property string pulsing: pulseLayers.map(function (l, i) { return l.item && l.item.pulseWanted ? root.pulseNames[i] : ""; }).filter(function (n) { return n !== ""; }).join(",")
     Timer {
         interval: Math.round(1000 / Math.max(1, root.fps))
         running: root.fps > 0 && root.anyPulse
