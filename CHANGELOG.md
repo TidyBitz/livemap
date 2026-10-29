@@ -13,7 +13,7 @@ release notes written at the time; their dates are the day the version was hande
   reads the same (`maritime.py`, every 15 minutes, last answer kept). Every incident - attack, attempted or
   illegal boarding, hijack, kidnap, suspicious activity, electronic interference, advisory - is a diamond with
   an anchor at the reported position, coloured by what happened (red: hijack, kidnap, or an attack UKMTO itself
-  pins red; orange: attack or boarding; yellow: the rest), full size and pulsing while fresh (24 h), shrinking
+  pins red; orange: attack or boarding; yellow: the rest), full size while fresh (24 h) and pulsing while newly reported (the shared window), shrinking
   and fading over the window shown (Settings > Maritime incidents: 1 to 30 days, 14 by default; colours;
   labels "Attack · tanker · Strait of Hormuz · 3 h" for attacks and worse, all, or none). The widget lists the
   same incidents (Events, its own Show box, Map controls chip and Sources row) with the vessel type, UKMTO's
@@ -231,6 +231,11 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- The maritime layer kept the whole map's pulse clock running around the clock: it pulsed every attack of the
+  last 24 hours, and UKMTO lists an attack most days, so some ring was always running and the screen was
+  redrawn at full rate all day (the other layers pulse only while an event is newly reported, 3 h by default).
+  It now pulses an attack for the shared "Newly reported" window (Ageing and pulses) like every other layer;
+  the 24 h "fresh" window only sets the mark's size.
 - Widget: the ring on the map could stay on an event after the pointer had left the widget. When the list was
   rebuilt under the pointer (a refresh, a launch countdown ticking over, a sort), the hovered row was destroyed
   without reporting the hover's end, so the wallpaper kept ringing it until another row was hovered. The

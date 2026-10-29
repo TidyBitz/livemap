@@ -263,7 +263,7 @@
     <entry name="MaritimeLabelPlate" type="Bool"><default>true</default></entry>
     <entry name="MaritimeTextFollows" type="Bool"><default>true</default></entry>
     <entry name="MaritimeTextColor" type="Color"><default>#ffd0b0</default></entry>
-    <entry name="MaritimePulse" type="Bool"><default>true</default></entry>     <!-- rings from an attack of the last day -->
+    <entry name="MaritimePulse" type="Bool"><default>true</default></entry>     <!-- rings from a newly reported attack (PulseNewHours) -->
     <entry name="MaritimeFreshHours" type="Int"><default>24</default></entry>  <!-- an incident counts as fresh (full size, pulsing) for this long -->
     <entry name="FloodLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 orange and red, 2 all, 3 red only -->
     <entry name="FloodLabelSize" type="Int"><default>10</default></entry>

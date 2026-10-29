@@ -4,7 +4,7 @@
  * every incident of the last days as a mark at the reported position - a diamond with an anchor, coloured by
  * what happened: red for a hijack, a kidnap, or an attack UKMTO itself flags red; orange for an attack or a
  * boarding; yellow for a suspicious approach, electronic interference or an advisory. An incident of the last
- * day is full size and, for an attack, rings run out from it; older ones shrink and fade over the window shown.
+ * day is full size, a newly reported attack has rings running out from it; older ones shrink and fade over the window shown.
  * Labelled "Attack · tanker · Strait of Hormuz · 3 h". Crown copyright, via the Royal Navy's API.
  */
 import QtQuick
@@ -46,10 +46,16 @@ Item {
 
     function hoursOf(e) { return Math.max(0, nowSec - e.when) / 3600 }
     function fresh(e) { return hoursOf(e) < freshHours }
+    // what pulses: an attack or worse younger than the shared 'Newly reported' window (Ageing and pulses), the same
+    // clock the other layers use - not the 24 h 'fresh' window, which is for size. UKMTO lists an attack most days,
+    // and a layer that always has something pulsing keeps the pulse clock, and so the whole screen's redraws, running
+    // at full rate around the clock.
+    readonly property real pulseNewHours: cfg ? cfg.PulseNewHours : 3
+    function pulses(e) { return e.level >= 2 && hoursOf(e) < pulseNewHours }
     // 1 while fresh, then down to 0.35 at the end of the window: the mark shrinks and fades but stays legible
     function fade(e) { return 1 - 0.65 * Geo.ageMix(hoursOf(e), freshHours, Math.max(freshHours + 1, days * 24)) }
     readonly property var shown: incidents.filter(function (e) { return e.lat !== null && e.lon !== null && hoursOf(e) <= days * 24; })
-    readonly property bool pulseWanted: pulse && shown.some(function (e) { return e.level >= 2 && fresh(e); })
+    readonly property bool pulseWanted: pulse && fps > 0 && shown.some(pulses)
 
     function px(lon) { return (lon + 180) / 360 * width }
     function py(lat) { return (90 - lat) / 180 * height }
@@ -134,8 +140,8 @@ Item {
             readonly property real k: overlay.fade(modelData)
             readonly property bool live: overlay.fresh(modelData)
             readonly property real r: overlay.mark * (0.6 + 0.4 * k) * (modelData.level >= 2 ? 1 : 0.8)
-            Repeater {                            // rings running out from a fresh attack
-                model: ev.live && modelData.level >= 2 && overlay.pulse && overlay.fps > 0 ? 2 : 0
+            Repeater {                            // rings running out from a newly reported attack
+                model: overlay.pulses(modelData) && overlay.pulse && overlay.fps > 0 ? 2 : 0
                 Rectangle {
                     required property int index
                     readonly property real s: Geo.pulse(overlay.clock + index * overlay.pulseMs / 2, ev.index, overlay.pulseMs, overlay.periodMs)

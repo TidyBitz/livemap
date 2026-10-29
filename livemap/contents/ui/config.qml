@@ -2311,7 +2311,7 @@ RowLayout {
             value: form.cfg_MaritimeLayerOpacity
             onValueChanged: form.cfg_MaritimeLayerOpacity = value
         }
-        Note { visible: sec9m.open; text: "UKMTO (United Kingdom Maritime Trade Operations) is the Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the Arabian Gulf and the Strait of Hormuz. Every incident it publishes - attacks, boardings, hijacks, kidnaps, suspicious approaches, electronic interference, advisories - is a diamond with an anchor at the reported position: red for a hijack, a kidnap or an attack UKMTO flags red, orange for an attack or a boarding, yellow for the rest. Fresh incidents are full size and an attack pulses; older ones shrink and fade over the window. Looked at every 15 minutes. The Events widget lists the same incidents with the full report." }
+        Note { visible: sec9m.open; text: "UKMTO (United Kingdom Maritime Trade Operations) is the Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the Arabian Gulf and the Strait of Hormuz. Every incident it publishes - attacks, boardings, hijacks, kidnaps, suspicious approaches, electronic interference, advisories - is a diamond with an anchor at the reported position: red for a hijack, a kidnap or an attack UKMTO flags red, orange for an attack or a boarding, yellow for the rest. Fresh incidents are full size and a newly reported attack pulses; older ones shrink and fade over the window. Looked at every 15 minutes. The Events widget lists the same incidents with the full report." }
         RowLayout {
             visible: sec9m.open
             Kirigami.FormData.label: "Window:"
@@ -2349,7 +2349,7 @@ RowLayout {
             KQuickControls.ColorButton { id: maritimeTextColor; enabled: !maritimeFollows.checked; showAlphaChannel: false; dialogTitle: "Maritime label colour" }
         }
         LabelStyle { visible: sec9m.open; id: maritimeStyle; label: "Maritime label style:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; plated: maritimePlate.checked }
-        QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from an attack while it is fresh" }
+        QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from a newly reported attack (the window is Ageing and pulses > Newly reported)" }
         Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. Nothing covers the Gulf of Guinea or South-East Asia yet - those centres (MDAT-GoG, ReCAAP) are separate sources." }
 
 
