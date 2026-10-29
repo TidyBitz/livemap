@@ -856,7 +856,17 @@ RowLayout {
         connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { form.frameState = JSON.parse(data.stdout) || ({}); } catch (e) {} }
     }
-    Timer { interval: 2500; running: true; repeat: true; triggeredOnStart: true; onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
+    // The Imagery banner follows the helper's frame-state file. Every 2.5 s is right while a build runs or has just
+    // finished (the progress bar moves); the rest of the time, every 15 s - this page lives inside plasmashell, and a
+    // Python start every 2.5 s for as long as the settings stay open was a steady few percent of a core for nothing.
+    Timer { interval: form.frameBuilding || form.frameJustReady || form.frameRecent ? 2500 : 15000; running: true; repeat: true; triggeredOnStart: true
+            onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
+    property bool frameRecent: false                 // a lever was just moved or Apply pressed: watch closely for a while
+    Timer { id: frameRecentOff; interval: 40000; onTriggered: form.frameRecent = false }
+    function frameWatchClosely() { frameRecent = true; frameRecentOff.restart(); }
+    // the levers that make the wallpaper build imagery: watch closely once one moves (the build starts after Apply)
+    readonly property string frameLevers: [cfg_MapStyle, cfg_FillMode, cfg_FrameNorth, cfg_FrameSouth, cfg_FrameWest, cfg_FrameEast].join(",")
+    onFrameLeversChanged: if (watchingLevers) frameWatchClosely()
     readonly property bool frameBuilding: frameState.state === "building" && (frameState.age || 0) < 900
     readonly property bool frameJustReady: frameState.state === "ready" && (frameState.age || 0) < 12
     readonly property bool frameFailed: frameState.state === "failed" && (frameState.age || 0) < 3600

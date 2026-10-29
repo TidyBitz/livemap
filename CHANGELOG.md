@@ -235,6 +235,10 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Settings: while the settings window was open, the Imagery banner asked the helper for the frame state every
+  2.5 seconds - a Python start each time, inside plasmashell, a steady few percent of a core for as long as the
+  window stayed open, which made the wallpaper look busier than it is when measured with the settings up. It
+  now asks every 15 s, and every 2.5 s only while a build runs, has just finished, or a frame lever was moved.
 - The maritime layer kept the whole map's pulse clock running around the clock: it pulsed every attack of the
   last 24 hours, and UKMTO lists an attack most days, so some ring was always running and the screen was
   redrawn at full rate all day (the other layers pulse only while an event is newly reported, 3 h by default).
