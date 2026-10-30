@@ -217,7 +217,7 @@ def local_pictures(items):
             continue
         e = index.get(url) or {}
         f = e.get("file")
-        if f and (PICTURES / f).exists():
+        if f and (PICTURES / f).exists() and not snapshot_premature(url, e.get("at", 0)):
             it["image"] = (PICTURES / f).as_uri()
             continue
         if e.get("error") and now - e.get("at", 0) < 3600:
@@ -269,6 +269,26 @@ def local_pictures(items):
             pass
 
 
+def snapshot_premature(url, fetched_at):
+    """A Worldview snapshot fetched before its date's afternoon pass was processed is a black tile; it is
+    fetched again once the pass should be there (17:00 solar time of the TIME date at the box's longitude)."""
+    import time
+    if "wvs.earthdata.nasa.gov" not in url:
+        return False
+    m = re.search(r"TIME=(\d{4}-\d{2}-\d{2})", url)
+    b = re.search(r"BBOX=([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)", url)
+    if not m or not b:
+        return False
+    try:
+        lon = (float(b.group(2)) + float(b.group(4))) / 2
+        import calendar
+        day0 = calendar.timegm(time.strptime(m.group(1), "%Y-%m-%d"))
+    except (ValueError, OverflowError):
+        return False
+    ready = day0 + 17 * 3600 - lon / 15.0 * 3600                   # 17:00 solar time of that date, as UTC
+    return fetched_at < ready
+
+
 def satellite_snapshot(lat, lon, now=None):
     """A true-colour satellite picture of the area round a point, from NASA Worldview's snapshot service (the
     same GIBS imagery the clouds come from): the latest daytime pass, today's where the afternoon pass has
@@ -279,8 +299,12 @@ def satellite_snapshot(lat, lon, now=None):
         lat, lon = float(lat), float(lon)
     except (TypeError, ValueError):
         return ""
-    solar_hour = (time.gmtime(now).tm_hour + lon / 15.0) % 24
-    day = now if solar_hour >= 17 else now - 86400
+    # The date is the place's own solar date, not the UTC one: late in the evening west of Greenwich the UTC
+    # date has already turned, and asking for "today" then returned a black tile (no pass processed yet) that
+    # the picture cache kept for a fortnight. The afternoon pass is ready from about 17:00 solar time.
+    local = now + lon / 15.0 * 3600
+    solar_hour = time.gmtime(local).tm_hour
+    day = local if solar_hour >= 17 else local - 86400
     date = time.strftime("%Y-%m-%d", time.gmtime(day))
     s, n = max(-85, lat - 5), min(85, lat + 5)
     w, e = lon - 7, lon + 7

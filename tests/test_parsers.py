@@ -684,3 +684,26 @@ def test_ukmto_odd_records_are_skipped():
                                       "not a record", {"incidentNumber": 4, "locationLatitude": 95, "locationLongitude": 45, "utcDateOfIncident": "2026-10-01T00:00:00Z"}])
     assert [it["number"] for it in items] == [3] and items[0]["type"] == "Incident" and items[0]["title"] == "Incident · at sea" and items[0]["crew_held"] == 0
     assert maritime.parse_incidents({"incidents": []}) == [] and maritime.parse_incidents(None) == []
+
+
+def test_satellite_snapshot_uses_the_solar_date():
+    """00:52 UTC on 30 Oct: the Azores (26°W) and Panama (81°W) are still on the evening of 29 Oct, whose afternoon
+    pass is processed; 30 Oct has no imagery yet and came back as a black tile."""
+    from livemap_helper.feed import satellite_snapshot
+    now = time.mktime(time.strptime("2026-10-30 00:52", "%Y-%m-%d %H:%M")) - time.timezone      # as UTC
+    assert "TIME=2026-10-29&" in satellite_snapshot(37.9, -26.3, now)
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, now)
+    assert "TIME=2026-10-29&" in satellite_snapshot(35.0, 139.0, now)       # Japan, 09:52 on the 30th: the 30th's pass not yet
+    noon = now + 15 * 3600                                                   # 15:52 UTC on the 30th
+    assert "TIME=2026-10-30&" in satellite_snapshot(35.0, 139.0, noon)      # Japan, 00:52 on the 31st: the 30th's pass is done
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, noon)       # Panama, 10:30 on the 30th: not yet
+
+
+def test_premature_snapshot_is_fetched_again():
+    from livemap_helper.feed import snapshot_premature, satellite_snapshot
+    now = time.mktime(time.strptime("2026-10-30 00:52", "%Y-%m-%d %H:%M")) - time.timezone
+    url = satellite_snapshot(7.6, -80.6, now).replace("TIME=2026-10-29", "TIME=2026-10-30")   # what the old code asked for
+    assert snapshot_premature(url, now)                                     # fetched before Panama's 30 Oct pass: black
+    assert not snapshot_premature(url, now + 24 * 3600)                    # a day later the pass is there
+    assert not snapshot_premature(satellite_snapshot(7.6, -80.6, now), now)   # the right date, fetched after its pass
+    assert not snapshot_premature("https://earthquake.usgs.gov/x.jpg", 0)
