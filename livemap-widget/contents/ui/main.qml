@@ -353,6 +353,13 @@ PlasmoidItem {
         busy = true;
         exec.connectSource(helperShell + "feed --feed " + feedName + " # " + Date.now());
     }
+    // A spinner is an animation at the screen's frame rate for as long as it turns, and a flag that never clears
+    // (a helper run cut short by a wallpaper reload or a plasmashell restart answers nothing) kept one turning for
+    // hours - a steady tenth of a core, until the widget was removed and added back. So every "busy" has a watchdog:
+    // past its time the flag drops, the list says the helper did not answer, and the next refresh runs as usual.
+    Timer { interval: 120000; running: root.busy; onTriggered: { root.busy = false; root.problem = root.problem || "The helper did not answer in two minutes; refresh to try again"; } }
+    Timer { interval: 120000; running: root.pastBusy; onTriggered: root.pastBusy = false }
+    Timer { interval: 180000; running: root.statusBusy; onTriggered: { root.statusBusy = false; root.statusProblem = root.statusProblem || "The checks did not finish in three minutes"; } }
     function refreshMode() { exec.connectSource(helperShell + "power # " + Date.now()) }
     function setMode(args) { exec.connectSource(helperShell + "mode " + args + " # " + Date.now()) }
     function checkStatus() {
@@ -446,7 +453,7 @@ PlasmoidItem {
                 asynchronous: true
                 cache: true
                 sourceSize.width: Kirigami.Units.gridUnit * 44
-                PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible }
+                PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible && bubble.visible }
                 // a picture the helper has not fetched yet (it fetches a few per feed run and hands over files) is loaded from
                 // the source directly; past ten seconds say so, so a spinner is never the whole story
                 Timer { id: slow; interval: 10000; running: picture.status === Image.Loading; onTriggered: slowNote.visible = true }
@@ -584,7 +591,7 @@ PlasmoidItem {
                     PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
                                      PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
                     PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
-                    PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+                    PC3.BusyIndicator { running: (root.busy || root.pastBusy) && root.expanded && visible; visible: root.busy || root.pastBusy; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
                 }
                 RowLayout {                                   // custom range
                     visible: root.range === 4
@@ -1202,7 +1209,7 @@ PlasmoidItem {
                                + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
                                + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
                     }
-                    PC3.BusyIndicator { visible: root.statusBusy; running: visible; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
+                    PC3.BusyIndicator { visible: root.statusBusy; running: visible && root.expanded; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
                     PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }

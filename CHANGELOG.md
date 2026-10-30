@@ -235,6 +235,15 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Widget: a spinner that never stopped. The "busy" flag behind the refresh spinner (and the Status one) cleared
+  only when the helper answered; a run cut short by a wallpaper reload or a plasmashell restart never did, and a
+  spinner is an animation at the screen's frame rate for as long as it turns - a steady tenth of a core, until
+  the widget was removed and added back. Every busy flag now has a watchdog (two minutes for the feed, three
+  for the checks) that drops it and says the helper did not answer; spinners only turn while they can be seen.
+- Focus file: the wallpaper no longer polls focus.json with a `cat` every 400 ms while the popup is open and
+  every 2 s otherwise. A file-system watcher (FocusWatch.qml, Qt.labs.folderlistmodel) says when the widget
+  has written it, and only then is it read; a slow safety read remains (every second while open, every 10 s
+  otherwise), and on a system without the module the old polling stays. An idle desktop spawns nothing.
 - Settings: while the settings window was open, the Imagery banner asked the helper for the frame state every
   2.5 seconds - a Python start each time, inside plasmashell, a steady few percent of a core for as long as the
   window stayed open, which made the wallpaper look busier than it is when measured with the settings up. It

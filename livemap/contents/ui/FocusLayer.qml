@@ -61,7 +61,17 @@ Item {
             try { layer.target = data.stdout ? JSON.parse(data.stdout) : ({}); } catch (e) { layer.target = ({}); }
         }
     }
-    Timer { interval: layer.open ? 400 : 2000; running: layer.visible; repeat: true; triggeredOnStart: true; onTriggered: layer.read() }
+    // The file is normally read only when it changes: FocusWatch keeps a file-system watcher on the folder (no
+    // process at all while nothing happens). The poll stays as the fallback - every 400 ms / 2 s without the
+    // watcher, a slow safety read with it - every second while open, every 10 s otherwise (a change the watcher missed, a stale "open" to let expire).
+    Loader {
+        id: watcher
+        source: "FocusWatch.qml"
+        onLoaded: { item.folder = Qt.binding(function () { return String(layer.dataDir).replace(/^file:\/\//, "") ? "file://" + String(layer.dataDir).replace(/^file:\/\//, "") : "" }); item.changed.connect(layer.read); }
+        onStatusChanged: if (status === Loader.Error) console.warn("livemap focus: Qt.labs.folderlistmodel not available, polling focus.json instead")
+    }
+    readonly property bool watching: watcher.status === Loader.Ready
+    Timer { interval: layer.watching ? (layer.open ? 1000 : 10000) : (layer.open ? 400 : 2000); running: layer.visible; repeat: true; triggeredOnStart: true; onTriggered: layer.read() }
 
     // The animated styles keep their own clock: the shared one only runs while some event layer pulses, and the
     // highlight must breathe on a quiet map too. Stopped the moment nothing is shown, so an idle desktop costs nothing.
