@@ -598,7 +598,7 @@ PlasmoidItem {
                         readonly property bool turning: root.busy || root.pastBusy
                         contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
                             Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !refreshButton.turning; enabled: refreshButton.enabled }
-                            PC3.BusyIndicator { anchors.centerIn: parent; width: parent.width; height: width; visible: refreshButton.turning; running: visible && root.expanded } }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: refreshButton.turning; running: visible && root.expanded } }
                     }
                 }
                 RowLayout {                                   // custom range
@@ -1222,7 +1222,7 @@ PlasmoidItem {
                         icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered
                         contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
                             Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !root.statusBusy; enabled: checkButton.enabled }
-                            PC3.BusyIndicator { anchors.centerIn: parent; width: parent.width; height: width; visible: root.statusBusy; running: visible && root.expanded } }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: root.statusBusy; running: visible && root.expanded } }
                     }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
