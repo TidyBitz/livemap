@@ -235,6 +235,8 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Widget: the refresh spinner turns on the refresh button itself (Events, and the Sources check) instead of appearing
+  beside it and pushing the button sideways while it turns.
 - Blank satellite pictures in the bubbles. The Worldview snapshot's date was chosen from the UTC clock: late in
   the evening west of Greenwich the UTC date had already turned, "today" had no pass processed yet, and NASA
   answered a black tile - which the picture cache then kept for a fortnight. The date is now the place's own

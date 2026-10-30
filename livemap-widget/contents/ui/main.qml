@@ -590,8 +590,16 @@ PlasmoidItem {
                                      PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
                     PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
                                      PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
-                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
-                    PC3.BusyIndicator { running: (root.busy || root.pastBusy) && root.expanded && visible; visible: root.busy || root.pastBusy; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+                    // the spinner sits on the button itself (its icon hidden meanwhile), so nothing in the row moves while it turns
+                    PC3.ToolButton {
+                        id: refreshButton
+                        icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); }
+                        PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered
+                        readonly property bool turning: root.busy || root.pastBusy
+                        contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
+                            Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !refreshButton.turning; enabled: refreshButton.enabled }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: parent.width; height: width; visible: refreshButton.turning; running: visible && root.expanded } }
+                    }
                 }
                 RowLayout {                                   // custom range
                     visible: root.range === 4
@@ -1209,8 +1217,13 @@ PlasmoidItem {
                                + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
                                + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
                     }
-                    PC3.BusyIndicator { visible: root.statusBusy; running: visible && root.expanded; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
-                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
+                    PC3.ToolButton {
+                        id: checkButton
+                        icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered
+                        contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth
+                            Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !root.statusBusy; enabled: checkButton.enabled }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: parent.width; height: width; visible: root.statusBusy; running: visible && root.expanded } }
+                    }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
                 // the list at its full height: the tab scrolls, not the list
