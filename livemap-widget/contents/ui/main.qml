@@ -964,11 +964,75 @@ PlasmoidItem {
                     return list.concat(more);
                 })()
                 readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""
-                PC3.ComboBox {
+                // ---- what each stream is: camera, delay, what to expect - a ? beside the list, like the Sky tab's ----
+                readonly property var streamNotes: [
+                    { match: "@sen", title: "Sen · 4K Earth views", lines: [
+                        "Sen's SpaceTV-1: three 4K cameras on the outside of ESA's Columbus module (flown in 2024). One looks forward along the direction of travel to the horizon, one straight down, one at Harmony's forward docking port; the stream cuts between them.",
+                        "Delay: the picture reaches you some 20 to 60 seconds after the camera saw it - the station's downlink, Sen's processing and YouTube's buffering. At 7.7 km/s that is 150 to 450 km behind the marker on the map, which shows where the station is now. Read the TIME UTC box in the overlay against your clock for the exact figure.",
+                        "The forward camera shows ground hundreds of kilometres ahead of the station, so a coastline in the picture is not under the marker either.",
+                        "Gaps: for a few minutes each orbit the station is out of relay-satellite coverage and the stream shows a notice or a recent replay; the overlay says so."] },
+                    { match: "ROboUHfPUrU", title: "NASA · HD Earth views", lines: [
+                        "NASA's external high-definition camera view, mostly the Earth below; the broadcast id changes now and then, so the list carries NASA's playlist, which follows it.",
+                        "Delay: typically 30 to 60 seconds behind real time. When the station is out of relay coverage the picture goes grey or blue; during crew operations the view may switch to the cabin."] },
+                    { match: "M3HKLzjvKPc", title: "NASA · ISS inside and out", lines: [
+                        "The same NASA feed with the crew's working day: cabin views and air-to-ground audio when the crew is on duty (roughly 06:00 to 19:30 UTC), Earth views otherwise. Delay 30 to 60 seconds."] },
+                    { match: "@NASA/live", title: "NASA TV", lines: [
+                        "NASA's programme channel: launches, spacewalks, dockings and briefings as scheduled, not a continuous Earth view. Between events it shows replays or the Earth feed."] },
+                    { match: "@CGTN", title: "CGTN · Tiangong events", lines: [
+                        "China's state broadcaster's English channel. Tiangong launches, dockings and spacewalks are carried live here; the rest of the time it is a news channel. Tiangong's own orbit is drawn on the map from CelesTrak elements; there is no continuous public camera feed from the station."] } ]
+                function notesFor(url) {
+                    var u = String(url || "");
+                    for (var i = 0; i < streamNotes.length; i++) if (u.indexOf(streamNotes[i].match) >= 0) return streamNotes[i];
+                    return { title: "About this stream", lines: ["A YouTube live stream chosen in the widget's settings. Live video reaches you some 20 to 60 seconds after the camera saw it, so a view from orbit always trails the marker on the map, which shows where the spacecraft is now."] };
+                }
+                property bool infoOpen: false
+                property bool infoPinned: false
+                property bool infoHovered: false
+                RowLayout {
                     Layout.fillWidth: true
-                    model: liveTab.choices.map(function (c) { return c.title })
-                    currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
-                    onActivated: function (i) { liveTab.chosen = i }
+                    spacing: Kirigami.Units.smallSpacing
+                    PC3.ComboBox {
+                        Layout.fillWidth: true
+                        model: liveTab.choices.map(function (c) { return c.title })
+                        currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
+                        onActivated: function (i) { liveTab.chosen = i }
+                    }
+                    PC3.ToolButton {
+                        id: streamInfo
+                        icon.name: "help-contextual"
+                        opacity: liveTab.infoOpen ? 1 : 0.6
+                        hoverEnabled: true
+                        PC3.ToolTip.text: "About this stream"; PC3.ToolTip.visible: hovered && !liveTab.infoOpen
+                        Timer { id: streamInfoOpen; interval: 350; onTriggered: if (streamInfo.hovered) liveTab.infoOpen = true }
+                        Timer { id: streamInfoClose; interval: 400; onTriggered: if (!liveTab.infoPinned && !streamInfo.hovered && !liveTab.infoHovered) liveTab.infoOpen = false }
+                        onHoveredChanged: { if (hovered) { streamInfoClose.stop(); streamInfoOpen.restart(); } else streamInfoClose.restart(); }
+                        onClicked: { liveTab.infoPinned = !liveTab.infoPinned; liveTab.infoOpen = liveTab.infoPinned; }
+                    }
+                }
+                onInfoHoveredChanged: if (!infoHovered) streamInfoClose.restart()
+                onChosenChanged: { infoPinned = false; infoOpen = false; }
+                PlasmaCore.Dialog {
+                    type: PlasmaCore.Dialog.Tooltip
+                    location: PlasmaCore.Types.LeftEdge
+                    backgroundHints: PlasmaCore.Dialog.SolidBackground
+                    hideOnWindowDeactivate: false
+                    visible: liveTab.infoOpen && liveTab.visible && root.expanded
+                    visualParent: streamInfo
+                    mainItem: ColumnLayout {
+                        id: streamInfoColumn
+                        width: Kirigami.Units.gridUnit * 24
+                        height: implicitHeight
+                        spacing: Kirigami.Units.smallSpacing
+                        readonly property var info: liveTab.notesFor(liveTab.chosenUrl)
+                        HoverHandler { onHoveredChanged: liveTab.infoHovered = hovered }
+                        PC3.Label { text: streamInfoColumn.info.title; font.bold: true }
+                        Repeater {
+                            model: streamInfoColumn.info.lines
+                            PC3.Label { required property string modelData; Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                        }
+                        PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                    text: liveTab.chosenUrl ? liveTab.chosenUrl.replace(/^https?:\/\//, "") : "" }
+                    }
                 }
                 Loader {
                     id: liveWeb

@@ -181,6 +181,10 @@ release notes written at the time; their dates are the day the version was hande
   running at 30 fps for storms, maritime" (or "idle"), and the widget's Map controls tab has the same line under
   the power notice. Every tick of that clock redraws the whole screen, so when plasmashell is busy this is the
   first thing to look at; Ageing and pulses > Newly reported is the knob (layers.json: `pulsing`, `fps`).
+- Live tab: a ? beside the stream list opens a note about the chosen stream - whose camera it is and where it
+  points, how far behind real time the picture runs and what that means against the marker on the map, when it
+  goes dark - for Sen's 4K cameras, NASA's HD and cabin feeds, NASA TV and CGTN, with a general note for any
+  other stream. Same bubble as the Sky tab's: opens on hover, a click keeps it.
 - Night mode (Day and night > Night): the terminator as before, the whole map at night always, or at night during
   your own night - civil dusk to dawn at the home place - so the city lights are the picture through the
   evening wherever the sun is.
