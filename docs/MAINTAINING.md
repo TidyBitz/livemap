@@ -117,6 +117,11 @@ test; a line in docs/SOURCES.md. The consistency test will tell you what you for
 - **Settings differ between screens**: Plasma keeps a wallpaper configuration per screen. Styles ("Saved as") are
   shared through the data folder; the rest is per screen by design.
 
+## Libraries
+
+docs/DEPENDENCIES.md lists every library, QML module and program in use and the rules: standard library plus
+three optional distro packages, no pip, nothing downloaded is code. A new import goes there first.
+
 ## Keys, accounts, licences
 
 None required. Every source is free and key-less by choice; the licences and attributions are in `sources.json`

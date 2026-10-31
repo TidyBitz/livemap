@@ -185,6 +185,9 @@ release notes written at the time; their dates are the day the version was hande
   points, how far behind real time the picture runs and what that means against the marker on the map, when it
   goes dark - for Sen's 4K cameras, NASA's HD and cabin feeds, NASA TV and CGTN, with a general note for any
   other stream. Same bubble as the Sky tab's: opens on hover, a click keeps it.
+- docs/DEPENDENCIES.md: every library, QML module and program the wallpaper, the widget and the install script
+  use, what each optional one is for and what happens without it, and the supply-chain rules (standard library
+  plus three optional distro packages; no package manager; nothing downloaded is code; QML never fetches).
 - Night mode (Day and night > Night): the terminator as before, the whole map at night always, or at night during
   your own night - civil dusk to dawn at the home place - so the city lights are the picture through the
   evening wherever the sun is.

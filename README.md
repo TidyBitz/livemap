@@ -186,7 +186,9 @@ How the project is kept alive - the daily probe, the fix routine, where every pa
 "where you are" summary for the home city); each feed's format and handling in [docs/SOURCES.md](docs/SOURCES.md).
 
 Every source is fetched over HTTPS only, capped in size, parsed as data and never executed; strings that end
-up on the desktop are filtered and rendered as plain text. The data folder is `~/.local/share/livemap`.
+up on the desktop are filtered and rendered as plain text. The data folder is `~/.local/share/livemap`. What the
+project depends on - the Python standard library, three optional distro libraries, Plasma's own QML modules, and
+no package manager at all - is listed in [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md).
 
 ## Companion widget
 
@@ -243,6 +245,7 @@ wallpaper's helper and caches; nothing is fetched twice.
                                  the daily source probe (sources.yml: every live source asked, an issue opened, updated
                                  and closed by itself); Dependabot; bug and feature templates
     docs/SOURCES.md, docs/COVERAGE.md   every feed's format and handling; what covers where (generated)
+    docs/DEPENDENCIES.md         every library, module and program the wallpaper, widget and script use, and the supply-chain rules
     docs/screenshots/            the pictures in this README (v0.46/ holds the previous set)
     CHANGELOG.md                 every release, newest first
 
