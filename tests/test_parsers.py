@@ -707,3 +707,15 @@ def test_premature_snapshot_is_fetched_again():
     assert not snapshot_premature(url, now + 24 * 3600)                    # a day later the pass is there
     assert not snapshot_premature(satellite_snapshot(7.6, -80.6, now), now)   # the right date, fetched after its pass
     assert not snapshot_premature("https://earthquake.usgs.gov/x.jpg", 0)
+
+
+def test_launch_page_prefers_the_webcast_then_the_provider_then_space_launch_now():
+    from livemap_helper.space import launch_page
+    L = {"slug": "falcon-9-block-5-starlink-group-15-18", "infoURLs": [{"priority": 10, "url": "https://www.spacex.com/launches/sl-15-18"}],
+         "vidURLs": [{"priority": 10, "url": "https://www.youtube.com/watch?v=OVOVtaf15eY"}]}
+    assert launch_page(L) == "https://www.youtube.com/watch?v=OVOVtaf15eY"
+    L["vidURLs"] = []
+    assert launch_page(L) == "https://www.spacex.com/launches/sl-15-18"
+    L["infoURLs"] = [{"url": "http://insecure.example"}]                       # not https: skipped
+    assert launch_page(L) == "https://spacelaunchnow.me/launch/falcon-9-block-5-starlink-group-15-18"
+    assert launch_page({}) == "https://spacelaunchnow.me/launch/upcoming"

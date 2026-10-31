@@ -605,7 +605,7 @@ def cmd_feed(args):
         for L in fetch_launches():
             if now - 1800 < L["net"] < now + 7 * 86400:
                 items.append({"kind": "launch", "when": L["net"], "title": "%s \u00b7 %s" % (L["rocket"], L["mission"] or L["name"]),
-                              "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": (L.get("videos") or [{}])[0].get("url") or "https://ll.thespacedevs.com/2.2.0/launch/%s/" % L["id"],
+                              "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": L.get("page") or (L.get("videos") or [{}])[0].get("url") or "https://spacelaunchnow.me/launch/upcoming",
                               "lat": L["lat"], "lon": L["lon"], "level": 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": True,
                               "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", ""),
                               "key": "launch:%s" % L["id"], **facts_for("launch", L)})

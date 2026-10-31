@@ -239,6 +239,11 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- A launch row with no webcast listed yet opened the raw Launch Library API record (a page of JSON). It now opens
+  the webcast when LL2 lists one, else the provider's own page for the launch (SpaceX's, Rocket Lab's), else
+  Space Launch Now's page for it, which embeds the webcast once there is one. And the launch list is refreshed
+  every quarter of an hour while a launch is inside the next two hours (hourly otherwise), since the webcast
+  link usually appears in the last hour.
 - The Spotlight highlight's canvas - the whole screen, eleven million pixels on a 5K monitor - was a permanent
   item whatever style was chosen, and repainted itself on every read of the focus file, because with nothing
   highlighted its centre was not a number and "changed" every time: a hundred milliseconds or more of the GUI
