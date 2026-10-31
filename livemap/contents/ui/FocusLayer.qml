@@ -79,30 +79,38 @@ Item {
     Timer { interval: Math.round(1000 / Math.max(1, layer.fps)); running: layer.showing && layer.animated && layer.fps > 0; repeat: true; onTriggered: layer.t += interval }
 
     // ---- spotlight: the screen dimmed, a clear soft-edged disc around the event -------------------------------
-    Canvas {
-        id: spot
-        visible: layer.style === 3 && layer.showing
-        x: layer.screen.x; y: layer.screen.y; width: layer.screen.width; height: layer.screen.height
-        opacity: visible ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 250 } }
-        readonly property real hole: 70 * layer.unit * layer.strength
-        readonly property real hx: layer.cx - x
-        readonly property real hy: layer.cy - y
-        onHxChanged: requestPaint()
-        onHyChanged: requestPaint()
-        onHoleChanged: requestPaint()
-        onVisibleChanged: if (visible) requestPaint()
-        onPaint: {
-            var c = getContext("2d");
-            c.reset();
-            c.globalCompositeOperation = "source-over";
-            c.fillStyle = Qt.rgba(0, 0, 0, layer.dim);
-            c.fillRect(0, 0, width, height);
-            c.globalCompositeOperation = "destination-out";
-            var g = c.createRadialGradient(hx, hy, hole * 0.55, hx, hy, hole);
-            g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
-            c.fillStyle = g;
-            c.beginPath(); c.arc(hx, hy, hole, 0, 2 * Math.PI); c.fill();
+    // The canvas is the whole screen (11 million pixels on a 5K monitor), so it exists only while the spotlight is
+    // actually showing: as a permanent item it kept its full-screen buffer around and - with no target, when its
+    // centre was not a number - repainted on every read of the focus file, each paint a hundred milliseconds of the
+    // GUI thread and an error line in the journal.
+    Loader {
+        active: layer.style === 3 && layer.showing && layer.screen.width > 0 && isFinite(layer.cx) && isFinite(layer.cy)
+        sourceComponent: Canvas {
+            id: spot
+            x: layer.screen.x; y: layer.screen.y; width: layer.screen.width; height: layer.screen.height
+            renderStrategy: Canvas.Threaded          // painted off the GUI thread
+            opacity: 0
+            Component.onCompleted: opacity = 1
+            Behavior on opacity { NumberAnimation { duration: 250 } }
+            readonly property real hole: 70 * layer.unit * layer.strength
+            readonly property real hx: layer.cx - x
+            readonly property real hy: layer.cy - y
+            onHxChanged: requestPaint()
+            onHyChanged: requestPaint()
+            onHoleChanged: requestPaint()
+            onPaint: {
+                if (!isFinite(hx) || !isFinite(hy) || !(hole > 0)) return;
+                var c = getContext("2d");
+                c.reset();
+                c.globalCompositeOperation = "source-over";
+                c.fillStyle = Qt.rgba(0, 0, 0, layer.dim);
+                c.fillRect(0, 0, width, height);
+                c.globalCompositeOperation = "destination-out";
+                var g = c.createRadialGradient(hx, hy, hole * 0.55, hx, hy, hole);
+                g.addColorStop(0, "rgba(0,0,0,1)"); g.addColorStop(1, "rgba(0,0,0,0)");
+                c.fillStyle = g;
+                c.beginPath(); c.arc(hx, hy, hole, 0, 2 * Math.PI); c.fill();
+            }
         }
     }
 

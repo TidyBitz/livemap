@@ -239,6 +239,12 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- The Spotlight highlight's canvas - the whole screen, eleven million pixels on a 5K monitor - was a permanent
+  item whatever style was chosen, and repainted itself on every read of the focus file, because with nothing
+  highlighted its centre was not a number and "changed" every time: a hundred milliseconds or more of the GUI
+  thread per read (every second while the widget was open, every ten seconds otherwise) and an error line in
+  the journal each time (`createRadialGradient(): Incorrect arguments`). It now exists only while the spotlight is
+  actually showing, paints off the GUI thread, and never paints without a target.
 - Widget: the refresh spinner turns on the refresh button itself (Events, and the Sources check) instead of appearing
   beside it and pushing the button sideways while it turns.
 - Blank satellite pictures in the bubbles. The Worldview snapshot's date was chosen from the UTC clock: late in
