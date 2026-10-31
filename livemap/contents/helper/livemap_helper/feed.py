@@ -242,6 +242,10 @@ def local_pictures(items):
                 from PIL import Image
                 import io
                 im = Image.open(io.BytesIO(body))
+                if "wvs.earthdata.nasa.gov" in url and mostly_black(im):
+                    # a snapshot whose day is not yet imaged here (near the date line a day's swath arrives last, up to
+                    # a day late), or a placeholder: not kept, asked again after the usual hour
+                    raise ValueError("the satellite's picture of this day is not there yet")
                 if ext != "gif" and im.width > 1200:
                     im = im.convert("RGB")
                     im.thumbnail((1200, 1200 * 4))
@@ -267,6 +271,19 @@ def local_pictures(items):
             PICTURES_INDEX.write_text(json.dumps(index), encoding="utf-8")
         except OSError:
             pass
+
+
+def mostly_black(im, share=0.35):
+    """True when more than `share` of a picture is (near) black: a Worldview snapshot for a day the satellite has not
+    yet covered here comes back black where the swath is missing - sometimes a strip of real imagery along one
+    edge and nothing else, which the date arithmetic cannot foresee."""
+    try:
+        small = im.convert("L")
+        small.thumbnail((64, 64))
+        px = list(small.getdata())
+        return bool(px) and sum(1 for v in px if v < 8) / len(px) > share
+    except Exception:                                             # noqa: BLE001 - an odd mode: keep the picture
+        return False
 
 
 def snapshot_premature(url, fetched_at):

@@ -2,6 +2,8 @@
 import json
 import time
 
+import pytest
+
 from conftest import fixture
 
 from livemap_helper import fires, floods, storms, tsunami, volcanoes
@@ -719,3 +721,12 @@ def test_launch_page_prefers_the_webcast_then_the_provider_then_space_launch_now
     L["infoURLs"] = [{"url": "http://insecure.example"}]                       # not https: skipped
     assert launch_page(L) == "https://spacelaunchnow.me/launch/falcon-9-block-5-starlink-group-15-18"
     assert launch_page({}) == "https://spacelaunchnow.me/launch/upcoming"
+
+
+def test_mostly_black_snapshot_is_not_kept():
+    from livemap_helper.feed import mostly_black
+    from PIL import Image                                          # pillow is in the test requirements
+    black = Image.new("RGB", (560, 400), (0, 0, 0))
+    strip = black.copy(); strip.paste((40, 90, 160), (0, 340, 560, 400))                 # a strip of sea along the bottom, the rest black
+    land = Image.new("RGB", (560, 400), (60, 110, 60)); land.paste((0, 0, 0), (0, 0, 100, 400))   # a night edge on a real picture
+    assert mostly_black(black) and mostly_black(strip) and not mostly_black(land)

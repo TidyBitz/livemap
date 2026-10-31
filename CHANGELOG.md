@@ -256,7 +256,10 @@ release notes written at the time; their dates are the day the version was hande
   the evening west of Greenwich the UTC date had already turned, "today" had no pass processed yet, and NASA
   answered a black tile - which the picture cache then kept for a fortnight. The date is now the place's own
   solar date (the afternoon pass is ready from about 17:00 solar time), and a snapshot that was fetched before
-  its date's pass could exist is fetched again once it can (`snapshot_premature`). Tests for both.
+  its date's pass could exist is fetched again once it can (`snapshot_premature`). And a snapshot that comes
+  back mostly black anyway - near the date line a day's swath arrives last, sometimes a strip of real imagery
+  along one edge and nothing else, which no date arithmetic foresees - is not kept at all (`mostly_black`,
+  with Pillow): it is asked for again after the usual hour. Tests for all three.
 - Widget: a spinner that never stopped. The "busy" flag behind the refresh spinner (and the Status one) cleared
   only when the helper answered; a run cut short by a wallpaper reload or a plasmashell restart never did, and a
   spinner is an animation at the screen's frame rate for as long as it turns - a steady tenth of a core, until
