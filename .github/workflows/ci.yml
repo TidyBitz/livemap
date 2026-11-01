@@ -44,7 +44,7 @@ jobs:
           exit $status
       - name: build livemap.zip
         run: scripts/package.sh
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: livemap.zip
           path: livemap.zip
