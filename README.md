@@ -1,6 +1,6 @@
 # Live World Map
 
-![The whole world at night: city lights, storm tracks in the Pacific, the Vanuatu quake swarm, the ISS and the companion widget](docs/screenshots/world-night.webp)
+![Midday over the Americas, night over Asia: live clouds from the geostationary satellites, typhoon In-Fa's track and cone, cyclone Murasu in the Bay of Bengal, the volcanoes above normal, the quakes of the day, UKMTO's incidents in the Gulf, Tiangong and Hubble on their orbits, and the widget's Live tab showing Earth from the ISS](docs/screenshots/world-day-clouds.webp)
 
 A live situational-awareness wallpaper for KDE Plasma 6, with a companion desktop widget.
 
@@ -24,6 +24,10 @@ CPU or GPU is busy, and a daily probe on GitHub asks every source whether it sti
 | *Air raid alerts as edge lights: a new alert breathes brightest red, settled ones hold a steady edge, the frontline's long-running ones drop to ochre, all-clears fade in cool blue - the city lights inside stay* | *The widget: under the Air raid alerts header, one row per oblast for the last six hours - a bar for every alert, newest on the right* |
 | ![The widget's preview bubble for a storm: the satellite's view and the facts](docs/screenshots/widget-storm-bubble.webp) | ![The settings' Essentials page](docs/screenshots/settings-essentials.webp) |
 | *Rest the pointer on an event and a bubble says what the feed knows - here In-Fa, with NASA's latest satellite pass, winds, position, the last fix and when the record changed* | *Settings: a sidebar with a switch and a health dot per layer, Essentials first - style, profile, home, framing and the widget* |
+| ![The widget on the desktop, opaque while in use](docs/screenshots/widget-opaque.webp) | ![The same widget faded to let the map through once the pointer has left it](docs/screenshots/widget-faded.webp) |
+| *The widget on the desktop: opaque while the pointer is on it - the list, the kind icons, NEW tags, a link per row* | *A few seconds after the pointer leaves it fades to the opacity you choose (Fade when idle), and the map shows through; any movement over it brings it back* |
+| ![The whole world at night](docs/screenshots/world-night.webp) | ![Time zones over the live clouds](docs/screenshots/world-time-zones-clouds.webp) |
+| *The whole world at night: city lights, storm tracks in the Pacific, the Vanuatu quake swarm, the ISS* | *Time zones as classic labels with each zone's local time, over the live clouds; the settings page faded in the corner* |
 
 ### Space
 
