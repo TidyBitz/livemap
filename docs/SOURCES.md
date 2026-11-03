@@ -426,6 +426,24 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   shown on the tab (amber past an hour, red past three, with the error when a fetch failed). Units follow the
   wallpaper's Units page through layers.json (distance, wind, 12/24 h clock, temperature). Cached in `sky.json`.
 
+### Rain radar - RainViewer (`radar.py`, `livemap-helper radar`)
+- **What:** the last two hours of weather radar as a world mosaic, assembled by RainViewer from the composites
+  the national weather services publish; served as Web Mercator tiles per ten-minute frame. Keyless; free for
+  non-commercial use with attribution ("Radar: RainViewer").
+- **Format:** `api.rainviewer.com/public/weather-maps.json` - `host`, `radar.past[]` and `radar.nowcast[]` of
+  `{time, path}` where the path is a content hash (`/v2/radar/<hash>`), `satellite.infrared[]`; tiles at
+  `<host><path>/<size>/<z>/<x>/<y>/<colour>/<smooth>_<snow>.png`, RGBA with transparent "nothing". The nowcast
+  list has been empty in October 2026; it is used when present.
+- **Processing (`radar_loop`):** the index cached five minutes; the last `FRAMES = 7` frames; for each, the
+  3 × 3 tiles at `ZOOM = 6` round the home place (`tile_of`, Web Mercator) composed with Pillow over a dark base
+  drawn from the Natural Earth files (`_basemap`: country fills, state lines, borders, coasts, in Mercator so
+  the tiles register), the radar at 85 % so the map shows through heavy rain, a ring at home; one PNG per frame
+  under `radar/`, named by time and hash so a frame is fetched once; frames older than three hours deleted.
+  `echoes` is the share of radar pixels carrying rain across the frames: the widget says "nothing on the radar"
+  when it is near zero, with the caveat that an empty tile cannot tell dry from uncovered.
+- **Fixtures:** `rainviewer_index.json` (13 past frames, no nowcast) and `rainviewer_tile.png` (zoom 6, 15/24,
+  the tile over St. Louis, rain to the north and east).
+
 ### Live tab - YouTube channel /live pages (`live.py`, `livemap-helper live-url`)
 - **What:** which broadcast a channel is showing now, so the widget can embed it without a hard-coded video id
   (NASA rotates the ISS stream's id; Sen's 4K view is the default, NASA HD and others in the list, more in the

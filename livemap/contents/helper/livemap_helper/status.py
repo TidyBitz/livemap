@@ -26,6 +26,7 @@ from .space import chk_launches, chk_sats
 from .storms import chk_storms, chk_storms_jtwc, chk_storms_nhc
 from .tsunami import chk_tsunami
 from .maritime import chk_maritime
+from .radar import chk_radar
 from .vaac import chk_vaac
 from .volcanoes import chk_geonet, chk_jma, chk_eruptions, chk_usgs_alerts, chk_volcanoes, chk_weekly_page
 
@@ -217,7 +218,7 @@ def status_jobs(offline=False, feed="4.5_day"):
             ("Power and load", chk_power)]
     if not offline:
         jobs += [("Storms (GDACS)", chk_storms), ("Storms, secondary (NHC)", chk_storms_nhc), ("Storms, secondary (JTWC)", chk_storms_jtwc), ("Wildfires (GDACS)", chk_fires), ("US fire incidents (NIFC)", chk_nifc), ("Canadian fires (CWFIS)", chk_cwfis), ("European burnt areas (EFFIS)", chk_effis), ("Floods (GDACS)", chk_floods), ("Air raid alerts (alerts.in.ua)", chk_air_alerts), ("US flood alerts (NWS)", chk_nws_floods), ("European warnings (MeteoAlarm)", chk_meteoalarm), ("Canadian alerts (Environment Canada)", chk_eccc), ("England flood warnings (Environment Agency)", chk_ea), ("Tsunami bulletins (PTWC / NTWC)", chk_tsunami), ("Maritime incidents (UKMTO)", chk_maritime), ("Volcanoes (Smithsonian / USGS)", chk_volcanoes), ("Volcano alert levels (USGS)", chk_usgs_alerts), ("Volcano alert levels (GeoNet)", chk_geonet), ("Volcano alert levels (JMA)", chk_jma), ("Ash advisories (Washington VAAC)", chk_vaac), ("Eruption database (Smithsonian)", chk_eruptions), ("Weekly report page (Smithsonian)", chk_weekly_page),
-                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats), ("Weather at home (Open-Meteo)", chk_open_meteo), ("Space weather (NOAA SWPC)", chk_swpc), ("Live streams (YouTube channel pages)", chk_live), ("Bubble pictures (ShakeMaps, storm charts)", chk_pictures),
+                 ("Fire hotspots (NASA FIRMS)", chk_hotspots), ("Satellite elements (CelesTrak)", chk_sats), ("Weather at home (Open-Meteo)", chk_open_meteo), ("Space weather (NOAA SWPC)", chk_swpc), ("Rain radar (RainViewer)", chk_radar), ("Live streams (YouTube channel pages)", chk_live), ("Bubble pictures (ShakeMaps, storm charts)", chk_pictures),
                  ("Launches (The Space Devs)", chk_launches), ("Earthquake feed (USGS)", lambda: chk_usgs(feed)), ("Earthquakes, secondary (EMSC)", chk_emsc), ("Cloud image (matteason.co.uk)", chk_clouds), ("Cloud stitching (NASA GIBS, EUMETView)", chk_cloud_stitch),
                  ("NASA image server", chk_nasa)]
     return jobs

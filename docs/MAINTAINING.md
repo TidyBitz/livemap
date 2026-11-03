@@ -33,6 +33,7 @@ livemap/contents/helper/livemap_helper/      the Python helper: every source has
   space.py passes.py   satellites, crews, launches; ISS/Tiangong passes over home
   maritime.py   UKMTO maritime incidents (the Royal Navy's API behind ukmto.org)
   sky.py        the widget's Sky tab (Open-Meteo, NOAA SWPC)
+  radar.py      the Sky tab's rain radar loop (RainViewer tiles over a Natural Earth base)
   live.py       YouTube channel /live pages -> the broadcast on now (the widget's Live tab)
   feed.py       the widget's event list: one record shape for every kind, the facts rows, pictures
   status.py     the Status checks: one chk_* per source, the names the settings and sources.json refer to

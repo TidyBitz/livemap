@@ -181,6 +181,15 @@ release notes written at the time; their dates are the day the version was hande
   running at 30 fps for storms, maritime" (or "idle"), and the widget's Map controls tab has the same line under
   the power notice. Every tick of that clock redraws the whole screen, so when plasmashell is busy this is the
   first thing to look at; Ageing and pulses > Newly reported is the knob (layers.json: `pulsing`, `fps`).
+- Sky tab: a Radar button opens the last hour of weather radar round the home place as a loop - RainViewer's
+  composite of the national services' radars (NEXRAD, the European, Japanese, Australian, Canadian services and
+  more; keyless, free for non-commercial use with attribution), seven frames ten minutes apart, nine tiles each
+  composed by the helper over a dark base cut from the Natural Earth files the wallpaper already has, with a ring
+  at home; about 1 500 km across. Play/pause, a scrubber, the frame's time, a refresh; fetched only while the
+  pop-up is open and every ten minutes after, a frame fetched once (its path is a content hash) and kept three
+  hours. The pop-up says plainly when nothing is on the radar, since an empty tile cannot tell dry from
+  uncovered (the oceans, most of Africa and much of Asia have no shared radar). Needs python3-pillow.
+  `livemap-helper radar`, Status "Rain radar (RainViewer)", a sources.json record, fixtures and tests.
 - Live tab: a ? beside the stream list opens a note about the chosen stream - whose camera it is and where it
   points, how far behind real time the picture runs and what that means against the marker on the map, when it
   goes dark - for Sen's 4K cameras, NASA's HD and cabin feeds, NASA TV and CGTN, with a general note for any

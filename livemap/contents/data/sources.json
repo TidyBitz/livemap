@@ -700,6 +700,22 @@
       "note": "The Indian Ocean area: the Red Sea, the Gulf of Aden, the Somali Basin, the Arabian Sea, the Gulf of Oman, the Strait of Hormuz and the Arabian Gulf. The Gulf of Guinea (MDAT-GoG) and South-East Asia (ReCAAP) are not covered yet"
     },
     {
+      "id": "rainviewer",
+      "name": "RainViewer radar composite",
+      "hazard": "weather",
+      "regions": [
+        "world"
+      ],
+      "gives": "the last two hours of weather radar round the home place as a loop, from the national services' composites (NEXRAD, the European, Japanese, Australian and Canadian services and more); empty where no service shares a radar",
+      "lead": "minutes",
+      "cadence": "every 10 min while the radar pop-up is open",
+      "official": false,
+      "licence": "RainViewer public API, free for non-commercial use with attribution",
+      "attribution": "Radar: RainViewer",
+      "url": "https://www.rainviewer.com/",
+      "status": "Rain radar (RainViewer)"
+    },
+    {
       "id": "swpc-kp",
       "name": "NOAA SWPC planetary K index",
       "hazard": "weather",
