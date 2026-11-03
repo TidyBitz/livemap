@@ -22,6 +22,7 @@ FRAMES = 7                                        # an hour: six steps of ten mi
 ZOOM = 6                                          # 3 x 3 tiles at zoom 6: about 1 500 km across at mid-latitudes
 INDEX_KEEP = 5 * 60
 TILE_KEEP = 3 * 3600                              # a frame older than this leaves the folder
+RENDER = 2                                        # bumped when a frame's drawing changes: cached frames are rebuilt once
 
 RADAR = DATA / "radar"
 RADAR_INDEX = DATA / "radar-index.json"
@@ -216,7 +217,7 @@ def build_frame(host, when, path, lat, lon, z, base, names=None):
     d.ellipse((px - 6, py - 6, px + 6, py + 6), outline=(255, 210, 63, 255), width=2)
     d.ellipse((px - 2, py - 2, px + 2, py + 2), fill=(255, 210, 63, 255))
     RADAR.mkdir(parents=True, exist_ok=True)
-    dest = RADAR / ("%d_%s.png" % (when, path.rsplit("/", 1)[-1]))
+    dest = RADAR / ("%d_%s_r%d.png" % (when, path.rsplit("/", 1)[-1], RENDER))
     tmp = dest.with_suffix(".tmp%d.png" % os.getpid())
     im.convert("RGB").save(tmp, "PNG", optimize=True)
     tmp.replace(dest)
@@ -241,8 +242,8 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
         notes = json.loads(notes_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         notes = {}
-    base_file = RADAR / ("base_%d_%d_%d.png" % (z, tx, ty))
-    names_file = RADAR / ("names_%d_%d_%d.png" % (z, tx, ty))
+    base_file = RADAR / ("base_%d_%d_%d_r%d.png" % (z, tx, ty, RENDER))
+    names_file = RADAR / ("names_%d_%d_%d_r%d.png" % (z, tx, ty, RENDER))
     base = names = None
 
     def cached(file, make):
@@ -258,7 +259,7 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
 
     out, errors = [], []
     for i, (when, path) in enumerate(frames):
-        name = "%d_%s.png" % (when, path.rsplit("/", 1)[-1])
+        name = "%d_%s_r%d.png" % (when, path.rsplit("/", 1)[-1], RENDER)
         dest = RADAR / name
         if dest.exists():
             out.append({"time": when, "file": dest.as_uri(), "nowcast": i >= len(frames) - cast, "echoes": notes.get(name, 0.0)})
