@@ -114,6 +114,63 @@ def _basemap(west, south, east, north, size):
     return im
 
 
+def _names(west, south, east, north, size):
+    """The names, as a transparent overlay drawn over the radar: the states or provinces faintly, the biggest
+    cities with a dot - the rain needs somewhere to be."""
+    from PIL import Image, ImageDraw
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    n_w, n_s = _merc(north), _merc(south)
+
+    def to_px(lon, lat):
+        return ((lon - west) / (east - west) * size, (_merc(lat) - n_w) / (n_s - n_w) * size)
+    try:
+        from PIL import ImageFont
+        try:
+            big, small = ImageFont.load_default(size=13), ImageFont.load_default(size=12)
+        except TypeError:                                         # Pillow before 10.1: one bitmap size
+            big = small = ImageFont.load_default()
+        taken = []
+
+        def free(x, y, w_, h_):
+            for (ax, ay, aw, ah) in taken:
+                if x < ax + aw and x + w_ > ax and y < ay + ah and y + h_ > ay:
+                    return False
+            return 0 <= x and x + w_ <= size and 0 <= y and y + h_ <= size
+
+        for feat in json.loads((BORDERS / "ne_10m_admin_1_label_points.geojson").read_text(encoding="utf-8")).get("features", []):
+            pr = feat.get("properties") or {}
+            c = (feat.get("geometry") or {}).get("coordinates") or [None, None]
+            name = str(pr.get("name") or "").upper()
+            if not name or c[0] is None or not (west <= c[0] <= east and south <= c[1] <= north) or int(pr.get("scalerank") or 9) > 4:
+                continue
+            x, y = to_px(c[0], c[1])
+            bw = draw.textlength(name, font=small)
+            if free(x - bw / 2, y - 7, bw, 14):
+                draw.text((x - bw / 2, y - 7), name, fill=(120, 132, 148, 255), font=small, stroke_width=2, stroke_fill=(10, 16, 26, 230))
+                taken.append((x - bw / 2, y - 7, bw, 14))
+        cities = []
+        for feat in json.loads((BORDERS / "ne_10m_populated_places_simple.geojson").read_text(encoding="utf-8")).get("features", []):
+            pr = feat.get("properties") or {}
+            c = (feat.get("geometry") or {}).get("coordinates") or [pr.get("longitude"), pr.get("latitude")]
+            if c[0] is None or not (west <= c[0] <= east and south <= c[1] <= north):
+                continue
+            cities.append((int(pr.get("pop_max") or 0), str(pr.get("name") or ""), float(c[0]), float(c[1])))
+        cities.sort(reverse=True)
+        for pop, name, lon_, lat_ in cities[:14]:
+            if not name:
+                continue
+            x, y = to_px(lon_, lat_)
+            bw = draw.textlength(name, font=big)
+            if free(x + 6, y - 8, bw, 16):
+                draw.ellipse((x - 2.5, y - 2.5, x + 2.5, y + 2.5), fill=(200, 210, 222, 255))
+                draw.text((x + 6, y - 8), name, fill=(225, 232, 240, 255), font=big, stroke_width=2, stroke_fill=(10, 16, 26, 230))
+                taken.append((x + 6, y - 8, bw, 16))
+    except Exception:                                             # noqa: BLE001 - no name files, an odd Pillow: the map is still a map
+        pass
+    return im
+
+
 def _merc(lat):
     phi = math.radians(max(-85.05, min(85.05, lat)))
     return math.log(math.tan(phi) + 1.0 / math.cos(phi))
@@ -127,7 +184,7 @@ def fetch_tile(host, path, z, x, y):
     return body
 
 
-def build_frame(host, when, path, lat, lon, z, base):
+def build_frame(host, when, path, lat, lon, z, base, names=None):
     """One frame: the 3 x 3 tiles round the home place over the base map, saved as a file. Returns (file,
     echoes) - echoes is the share of radar pixels that carry rain, to tell an empty hour from an empty region."""
     from PIL import Image
@@ -150,6 +207,8 @@ def build_frame(host, when, path, lat, lon, z, base):
     echoes = 1 - hist[0] / float(sum(hist))
     layer.putalpha(alpha.point(lambda a: int(a * 0.85)))      # a touch of the map through heavy rain
     im.alpha_composite(layer)
+    if names is not None:
+        im.alpha_composite(names)
     # the home place: a small ring
     from PIL import ImageDraw
     px, py = (cx - tx + 1) * TILE_SIZE, (cy - ty + 1) * TILE_SIZE
@@ -183,15 +242,16 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
     except (OSError, ValueError):
         notes = {}
     base_file = RADAR / ("base_%d_%d_%d.png" % (z, tx, ty))
-    base = None
+    names_file = RADAR / ("names_%d_%d_%d.png" % (z, tx, ty))
+    base = names = None
 
-    def the_base():
+    def cached(file, make):
         from PIL import Image
-        if base_file.exists():
-            return Image.open(base_file).convert("RGBA")
-        im = _basemap(w, s, e, n, 3 * TILE_SIZE)
+        if file.exists():
+            return Image.open(file).convert("RGBA")
+        im = make(w, s, e, n, 3 * TILE_SIZE)
         try:
-            im.save(base_file, "PNG", optimize=True)
+            im.save(file, "PNG", optimize=True)
         except OSError:
             pass
         return im
@@ -205,8 +265,8 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
             continue
         try:
             if base is None:
-                base = the_base()
-            f, echoes = build_frame(host, when, path, lat, lon, z, base)
+                base, names = cached(base_file, _basemap), cached(names_file, _names)
+            f, echoes = build_frame(host, when, path, lat, lon, z, base, names)
             notes[name] = round(echoes, 4)
             out.append({"time": when, "file": f.as_uri(), "nowcast": i >= len(frames) - cast, "echoes": notes[name]})
         except Exception as ex:                                   # noqa: BLE001 - one frame short, the loop still plays
