@@ -114,6 +114,117 @@ ColumnLayout {
     // The "?" bubble is its own window beside the ? - on the map, since the ? sits at the popup's right edge - placed
     // by Plasma (on Wayland a window cannot place itself by screen coordinates). It used to flicker when it landed
     // under the pointer; now it closes only once the pointer has left both the ? and the bubble, with a grace period.
+    // ---- rain radar: the last hour round the home place as a loop, in a pop-up beside the Radar button ----
+    // The helper fetches RainViewer's tiles (nine per frame) and composes each frame over a dark base map, a file
+    // per frame; the widget only cycles pictures. Asked when the pop-up opens and every ten minutes while it stays open.
+    property bool radarOpen: false
+    property var radar: ({})
+    property bool radarBusy: false
+    property string radarProblem: ""
+    property int radarFrame: 0
+    property bool radarPlaying: true
+    readonly property var radarFrames: radar.frames || []
+    function radarFetch() {
+        if (helperShell === "" || radarBusy) return;
+        radarBusy = true;
+        radarExec.connectSource(helperShell + "radar # " + Date.now());
+    }
+    P5Support.DataSource {
+        id: radarExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: function (source, data) {
+            disconnectSource(source);
+            sky.radarBusy = false;
+            try {
+                var r = JSON.parse(data.stdout);
+                if (r.problem) { sky.radarProblem = r.problem; return; }
+                sky.radarProblem = r.errors && r.errors.length > 0 && (!r.frames || r.frames.length === 0) ? r.errors.join("; ") : "";
+                sky.radar = r;
+                sky.radarFrame = Math.max(0, (r.frames || []).length - 1);
+            } catch (e) { sky.radarProblem = "The helper did not answer properly"; }
+        }
+    }
+    onRadarOpenChanged: if (radarOpen) radarFetch()
+    Timer { interval: 10 * 60 * 1000; running: sky.radarOpen && sky.active; repeat: true; onTriggered: sky.radarFetch() }
+    Timer { interval: 90000; running: sky.radarBusy; onTriggered: { sky.radarBusy = false; sky.radarProblem = sky.radarProblem || "The radar did not answer in time"; } }
+    // the loop: half a second a frame, a longer hold on the newest
+    Timer {
+        interval: sky.radarFrame >= sky.radarFrames.length - 1 ? 1500 : 500
+        running: sky.radarOpen && sky.active && sky.radarPlaying && sky.radarFrames.length > 1
+        repeat: true
+        onTriggered: sky.radarFrame = (sky.radarFrame + 1) % sky.radarFrames.length
+    }
+    function radarTime(f) {
+        if (!f) return "";
+        var d = new Date(f.time * 1000);
+        return Qt.formatTime(d, ((sky.doc.units || [0, 0, 0, 0])[2]) ? "h:mm ap" : "HH:mm") + (f.nowcast ? " · forecast" : "");
+    }
+    PlasmaCore.Dialog {
+        id: radarDialog
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.LeftEdge
+        backgroundHints: PlasmaCore.Dialog.SolidBackground
+        hideOnWindowDeactivate: false
+        visible: sky.radarOpen && sky.active
+        visualParent: radarButton
+        mainItem: ColumnLayout {
+            id: radarColumn
+            width: Kirigami.Units.gridUnit * 26
+            height: implicitHeight
+            spacing: Kirigami.Units.smallSpacing
+            RowLayout {
+                Layout.fillWidth: true
+                PC3.Label { text: "Rain radar · " + (sky.doc.name || "home"); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                PC3.Label { text: sky.radarTime(sky.radarFrames[sky.radarFrame]); opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                PC3.ToolButton { icon.name: sky.radarPlaying ? "media-playback-pause" : "media-playback-start"; onClicked: sky.radarPlaying = !sky.radarPlaying; enabled: sky.radarFrames.length > 1 }
+                PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.radarBusy; onClicked: sky.radarFetch() }
+                PC3.ToolButton { icon.name: "window-close"; onClicked: sky.radarOpen = false }
+            }
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: width
+                Rectangle { anchors.fill: parent; color: "#0a101a"; radius: 3 }
+                // every frame loaded once and kept, the current one shown: switching one Image's source would blank
+                // between frames while the next loads
+                Repeater {
+                    model: sky.radarFrames
+                    Image {
+                        required property var modelData
+                        required property int index
+                        anchors.fill: parent
+                        visible: index === Math.min(sky.radarFrame, sky.radarFrames.length - 1)
+                        source: modelData.file
+                        fillMode: Image.PreserveAspectFit
+                        cache: true; asynchronous: true; smooth: true
+                    }
+                }
+                PC3.BusyIndicator { anchors.centerIn: parent; visible: sky.radarBusy && sky.radarFrames.length === 0; running: visible }
+                PC3.Label {
+                    anchors.centerIn: parent; width: parent.width * 0.8; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter
+                    visible: !sky.radarBusy && sky.radarFrames.length === 0
+                    text: sky.radarProblem || "No radar pictures yet"
+                }
+            }
+            // the frame scrubber: one tick per frame
+            PC3.Slider {
+                Layout.fillWidth: true
+                visible: sky.radarFrames.length > 1
+                from: 0; to: Math.max(0, sky.radarFrames.length - 1); stepSize: 1
+                value: sky.radarFrame
+                onMoved: { sky.radarPlaying = false; sky.radarFrame = Math.round(value); }
+            }
+            PC3.Label {
+                Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                text: sky.radarFrames.length === 0 ? ""
+                    : (sky.radar.echoes > 0.002 ? "Rain or snow in the box over the last hour." : "Nothing on the radar in the last hour - either dry, or no weather service shares a radar for this area (the oceans, most of Africa and much of Asia have none).")
+                      + " About " + Math.round(1500 * Math.cos((sky.radar.home ? sky.radar.home[0] : 40) * Math.PI / 180) / 0.79) + " km across; the ring is home."
+                      + (sky.radar.errors && sky.radar.errors.length > 0 ? " Some frames could not be fetched: " + sky.radar.errors[0] : "")
+            }
+            PC3.Label { text: "Radar: RainViewer · the national weather services' composites · a frame every 10 min"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.fillWidth: true; wrapMode: Text.Wrap }
+        }
+    }
+
     PlasmaCore.Dialog {
         id: infoDialog
         type: PlasmaCore.Dialog.Tooltip
@@ -178,6 +289,13 @@ ColumnLayout {
                 Layout.fillWidth: true
                 PC3.Label { text: parent.parent.d.name || ""; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
                 PC3.Label { text: (parent.parent.now.time || "") + (parent.parent.d.timezone ? " · " + parent.parent.d.timezone.replace(/_/g, " ") : ""); opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                PC3.ToolButton {
+                    id: radarButton
+                    icon.name: "weather-showers"; text: "Radar"; display: PC3.AbstractButton.TextBesideIcon
+                    checkable: true; checked: sky.radarOpen
+                    onToggled: sky.radarOpen = checked
+                    PC3.ToolTip.text: "The last hour of weather radar round " + (sky.doc.name || "the home place") + " (RainViewer)"; PC3.ToolTip.visible: hovered && !sky.radarOpen
+                }
                 PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered }
                 InfoButton { topic: "sources" }
             }

@@ -33,7 +33,7 @@ and Debian/Ubuntu/neon; the feature is simply off without it):
 
 | Library | Package (Fedora) | Used for | Without it |
 |---|---|---|---|
-| Pillow (`PIL`) | `python3-pillow` | cutting map frames for regions and the non-seasonal styles, the time-zone tint, downscaling bubble pictures, the black-tile check on satellite snapshots, faster cloud stitching | seasonal style only at native size; pictures kept as fetched; cloud fallback slower |
+| Pillow (`PIL`) | `python3-pillow` | cutting map frames for regions and the non-seasonal styles, the time-zone tint, downscaling bubble pictures, the black-tile check on satellite snapshots, the rain radar frames, faster cloud stitching | seasonal style only at native size; pictures kept as fetched; no radar pop-up (it says so); cloud fallback slower |
 | NumPy | `python3-numpy` | extracting the city lights from the Black Marble image | city lights not extracted |
 | maxminddb | `python3-maxminddb` | reading the DB-IP GeoIP database for the Network layer | Network layer unavailable (off by default anyway) |
 

@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from conftest import fixture
+from conftest import FIXTURES, fixture
 
 from livemap_helper import fires, floods, storms, tsunami, volcanoes
 from livemap_helper.common import storm_kind
@@ -730,3 +730,31 @@ def test_mostly_black_snapshot_is_not_kept():
     strip = black.copy(); strip.paste((40, 90, 160), (0, 340, 560, 400))                 # a strip of sea along the bottom, the rest black
     land = Image.new("RGB", (560, 400), (60, 110, 60)); land.paste((0, 0, 0), (0, 0, 100, 400))   # a night edge on a real picture
     assert mostly_black(black) and mostly_black(strip) and not mostly_black(land)
+
+
+# ---- rain radar (RainViewer) -------------------------------------------------------------------------------
+def test_rainviewer_index_and_tiles():
+    from livemap_helper import radar
+    idx = json.loads(fixture("rainviewer_index.json"))
+    frames, cast = radar.frames_of(idx, 7)
+    assert len(frames) == 7 and cast == 0 and frames[-1] == (1793731200, "/v2/radar/94d716ae4fc3")
+    assert frames[0][0] < frames[-1][0] and all(b[0] - a[0] == 600 for a, b in zip(frames, frames[1:]))   # ten-minute steps, oldest first
+    x, y = radar.tile_of(38.637, -90.2419, 6)
+    assert (int(x), int(y)) == (15, 24)                                                             # St. Louis's tile at zoom 6
+    w, s, e, n = radar.tile_bounds(15, 24, 6)
+    assert w < -90.2419 < e and s < 38.637 < n
+
+
+def test_rainviewer_loop_builds_frames(no_network, data_dir):
+    from livemap_helper import radar
+    from livemap_helper.common import BORDERS
+    idx = json.loads(fixture("rainviewer_index.json"))
+    no_network("weather-maps.json", fixture("rainviewer_index.json"))
+    no_network("tilecache.rainviewer.com", (FIXTURES / "rainviewer_tile.png"))
+    BORDERS.mkdir(parents=True, exist_ok=True)                                                     # no border files: a plain dark base
+    r = radar.radar_loop(38.637, -90.2419, now=idx["generated"])
+    assert len(r["frames"]) == 7 and r["errors"] == [] and r["echoes"] > 0.1
+    assert all(f["file"].startswith("file://") for f in r["frames"]) and (data_dir / "radar").exists()
+    assert r["box"][0] < -90.24 < r["box"][2] and r["box"][1] < 38.64 < r["box"][3]
+    again = radar.radar_loop(38.637, -90.2419, now=idx["generated"])                              # the second run fetches nothing: files exist
+    assert [f["file"] for f in again["frames"]] == [f["file"] for f in r["frames"]]

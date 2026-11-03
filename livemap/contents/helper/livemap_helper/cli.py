@@ -56,6 +56,7 @@ from .storms import cmd_storms
 from .styles import cmd_styles
 from .tsunami import cmd_tsunami
 from .maritime import cmd_maritime
+from .radar import cmd_radar
 from .volcanoes import cmd_volcanoes
 from .widget import cmd_widget
 from .live import cmd_live_url
@@ -118,6 +119,7 @@ def main():
     cv.set_defaults(fn=cmd_coverage)
     ts = sub.add_parser("tsunami"); ts.add_argument("--table", action="store_true"); ts.add_argument("--stale", type=float, default=2)
     ts.add_argument("--max-age", dest="max_age", type=float, default=5); ts.set_defaults(fn=cmd_tsunami)
+    rd = sub.add_parser("radar"); rd.add_argument("--lat"); rd.add_argument("--lon"); rd.add_argument("--zoom", type=int, default=6); rd.add_argument("--frames", type=int, default=7); rd.set_defaults(fn=cmd_radar)
     mr = sub.add_parser("maritime"); mr.add_argument("--table", action="store_true"); mr.add_argument("--stale", type=float, default=6)
     mr.add_argument("--max-age", dest="max_age", type=float, default=15); mr.add_argument("--days", type=float, default=0); mr.set_defaults(fn=cmd_maritime)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
