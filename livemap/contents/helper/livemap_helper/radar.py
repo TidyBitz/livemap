@@ -137,13 +137,14 @@ def build_frame(host, when, path, lat, lon, z, base):
     n = 2 ** z
     im = base.copy()
     layer = Image.new("RGBA", (3 * TILE_SIZE, 3 * TILE_SIZE), (0, 0, 0, 0))
-    for dy in (-1, 0, 1):
-        for dx in (-1, 0, 1):
-            x, y = (tx + dx) % n, ty + dy
-            if y < 0 or y >= n:
-                continue
-            tile = Image.open(io.BytesIO(fetch_tile(host, path, z, x, y))).convert("RGBA")
-            layer.paste(tile, ((dx + 1) * TILE_SIZE, (dy + 1) * TILE_SIZE))
+    wanted = [(dx, dy, (tx + dx) % n, ty + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1) if 0 <= ty + dy < n]
+    # the nine tiles at once: one after another, sixty-odd small fetches for a loop took ten seconds to open
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=9) as pool:
+        bodies = list(pool.map(lambda w: fetch_tile(host, path, z, w[2], w[3]), wanted))
+    for (dx, dy, _x, _y), body in zip(wanted, bodies):
+        tile = Image.open(io.BytesIO(body)).convert("RGBA")
+        layer.paste(tile, ((dx + 1) * TILE_SIZE, (dy + 1) * TILE_SIZE))
     alpha = layer.getchannel("A")
     hist = alpha.histogram()
     echoes = 1 - hist[0] / float(sum(hist))
@@ -173,19 +174,41 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
     tx, ty = int(cx), int(cy)
     w, s, _e, _n = tile_bounds(tx - 1, ty + 1, z)
     _w2, _s2, e, n = tile_bounds(tx + 1, ty - 1, z)
+    # the base map is drawn once per box (the Natural Earth files are megabytes to parse) and kept beside the frames;
+    # each frame's share of rain pixels is remembered too, so a loop served from the cache still knows what it shows
+    RADAR.mkdir(parents=True, exist_ok=True)
+    notes_file = RADAR / "frames.json"
+    try:
+        notes = json.loads(notes_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        notes = {}
+    base_file = RADAR / ("base_%d_%d_%d.png" % (z, tx, ty))
     base = None
-    out, errors, echoes_max = [], [], 0.0
+
+    def the_base():
+        from PIL import Image
+        if base_file.exists():
+            return Image.open(base_file).convert("RGBA")
+        im = _basemap(w, s, e, n, 3 * TILE_SIZE)
+        try:
+            im.save(base_file, "PNG", optimize=True)
+        except OSError:
+            pass
+        return im
+
+    out, errors = [], []
     for i, (when, path) in enumerate(frames):
-        dest = RADAR / ("%d_%s.png" % (when, path.rsplit("/", 1)[-1]))
+        name = "%d_%s.png" % (when, path.rsplit("/", 1)[-1])
+        dest = RADAR / name
         if dest.exists():
-            out.append({"time": when, "file": dest.as_uri(), "nowcast": i >= len(frames) - cast})
+            out.append({"time": when, "file": dest.as_uri(), "nowcast": i >= len(frames) - cast, "echoes": notes.get(name, 0.0)})
             continue
         try:
             if base is None:
-                base = _basemap(w, s, e, n, 3 * TILE_SIZE)
+                base = the_base()
             f, echoes = build_frame(host, when, path, lat, lon, z, base)
-            echoes_max = max(echoes_max, echoes)
-            out.append({"time": when, "file": f.as_uri(), "nowcast": i >= len(frames) - cast})
+            notes[name] = round(echoes, 4)
+            out.append({"time": when, "file": f.as_uri(), "nowcast": i >= len(frames) - cast, "echoes": notes[name]})
         except Exception as ex:                                   # noqa: BLE001 - one frame short, the loop still plays
             errors.append("%s: %s" % (time.strftime("%H:%M", time.gmtime(when)), ex))
     # old frames leave
@@ -193,10 +216,12 @@ def radar_loop(lat, lon, z=ZOOM, count=FRAMES, now=None):
         for f in RADAR.glob("*.png"):
             if now - f.stat().st_mtime > TILE_KEEP:
                 f.unlink()
+                notes.pop(f.name, None)
+        notes_file.write_text(json.dumps(notes), encoding="utf-8")
     except OSError:
         pass
     return {"frames": out, "box": [w, s, e, n], "zoom": z, "home": [lat, lon], "generated": index.get("generated"),
-            "echoes": round(echoes_max, 4), "errors": errors, "attribution": "Radar: RainViewer (rainviewer.com)"}
+            "echoes": round(max([f["echoes"] for f in out] + [0.0]), 4), "errors": errors, "attribution": "Radar: RainViewer (rainviewer.com)"}
 
 
 def cmd_radar(args):
