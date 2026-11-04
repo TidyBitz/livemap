@@ -27,11 +27,14 @@ ColumnLayout {
     readonly property string problem: doc.problem || ""
     spacing: Kirigami.Units.smallSpacing
 
-    function refresh(force) {
+    // refresh(false): opening the tab - the helper's 20-minute cache decides whether the sources are asked.
+    // refresh(true): the timer - the same, every 20 minutes. refresh(true, true): the Fetch again button - the
+    // sources are asked again now (the helper allows that once a minute), so the ages really do go back to zero.
+    function refresh(force, fresh) {
         if (busy) return;
         if (!force && Date.now() / 1000 - fetchedAt < 600) return;
         busy = true;
-        exec.connectSource(helperShell + "sky # " + Date.now());
+        exec.connectSource(helperShell + "sky" + (fresh ? " --fresh" : "") + " # " + Date.now());
     }
     onActiveChanged: if (active) refresh(false)
     Timer { interval: 20 * 60 * 1000; running: sky.active; repeat: true; onTriggered: sky.refresh(true) }
@@ -305,7 +308,7 @@ ColumnLayout {
                 // the spinner turns on the button itself while the fetch runs, like the Events tab's: nothing in the row moves
                 PC3.ToolButton {
                     id: skyRefresh
-                    icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered
+                    icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true, true); PC3.ToolTip.text: "Fetch again from the sources (Open-Meteo, SWPC)"; PC3.ToolTip.visible: hovered
                     contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
                         Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !sky.busy; enabled: skyRefresh.enabled }
                         PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: sky.busy; running: visible && sky.active } }

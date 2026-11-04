@@ -251,6 +251,8 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Sky tab: the Fetch again button now asks the sources again (`sky --fresh`), not just the helper's 20-minute cache,
+  so the ages really return to zero; at most once a minute. Opening the tab and the 20-minute timer keep the cache.
 - A launch row with no webcast listed yet opened the raw Launch Library API record (a page of JSON). It now opens
   the webcast when LL2 lists one, else the provider's own page for the launch (SpaceX's, Rocket Lab's), else
   Space Launch Now's page for it, which embeds the webcast once there is one. And the launch list is refreshed

@@ -758,3 +758,16 @@ def test_rainviewer_loop_builds_frames(no_network, data_dir):
     assert r["box"][0] < -90.24 < r["box"][2] and r["box"][1] < 38.64 < r["box"][3]
     again = radar.radar_loop(38.637, -90.2419, now=idx["generated"])                              # the second run fetches nothing: files exist
     assert [f["file"] for f in again["frames"]] == [f["file"] for f in r["frames"]]
+
+
+def test_sky_fetch_again_asks_the_sources_once_a_minute():
+    from livemap_helper.sky import cached
+    calls = []
+    def fetch():
+        calls.append(1); return {"n": len(calls)}
+    cache = {}
+    assert cached(cache, "x", fetch, 1000)["data"] == {"n": 1}
+    assert cached(cache, "x", fetch, 1300)["data"] == {"n": 1}                      # five minutes on: the cache answers
+    assert cached(cache, "x", fetch, 1300, fresh=True)["data"] == {"n": 2}          # Fetch again: asked
+    assert cached(cache, "x", fetch, 1330, fresh=True)["data"] == {"n": 2}          # thirty seconds later: not again
+    assert cached(cache, "x", fetch, 1370, fresh=True)["data"] == {"n": 3}

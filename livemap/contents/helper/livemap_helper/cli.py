@@ -95,7 +95,7 @@ def main():
     mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
     wd = sub.add_parser("widget"); wd.add_argument("--add", action="store_true"); wd.add_argument("--configure", action="store_true"); wd.set_defaults(fn=cmd_widget)
-    sk = sub.add_parser("sky"); sk.add_argument("--lat"); sk.add_argument("--lon"); sk.add_argument("--units"); sk.set_defaults(fn=cmd_sky)
+    sk = sub.add_parser("sky"); sk.add_argument("--lat"); sk.add_argument("--lon"); sk.add_argument("--units"); sk.add_argument("--fresh", action="store_true"); sk.set_defaults(fn=cmd_sky)
     lv = sub.add_parser("live-url"); lv.add_argument("url"); lv.add_argument("--fresh", action="store_true"); lv.set_defaults(fn=cmd_live_url)
     fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60)
     fe.add_argument("--since", type=float); fe.add_argument("--until", type=float); fe.set_defaults(fn=cmd_feed)    # epoch seconds: past events from history.json

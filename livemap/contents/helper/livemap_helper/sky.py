@@ -146,10 +146,15 @@ def dark_hours(lat, lon, day_start, tz):
 
 
 # ---- the sources, cached ---------------------------------------------------------------------------------------
-def cached(cache, key, fetch, now):
-    """cache[key] = {"at", "data"} or {"at", "error", "data": the last good}: ask again after KEEP seconds."""
+FRESH_FLOOR = 60                                 # "fetch again" asks the sources again, but not more than once a minute
+
+
+def cached(cache, key, fetch, now, fresh=False):
+    """cache[key] = {"at", "data"} or {"at", "error", "data": the last good}: ask again after KEEP seconds, or
+    on request (`fresh`, the widget's Fetch again button) once the last ask is a minute old."""
     entry = cache.get(key) or {}
-    if now - entry.get("at", 0) < KEEP and entry.get("data") is not None and not entry.get("error"):
+    keep = FRESH_FLOOR if fresh else KEEP
+    if now - entry.get("at", 0) < keep and entry.get("data") is not None and not entry.get("error"):
         return entry
     try:
         data = fetch()
@@ -208,10 +213,10 @@ def age_words(seconds):
 
 
 # ---- the document --------------------------------------------------------------------------------------------------
-def build(lat, lon, u, cache, now):
-    fc = cached(cache, "forecast", lambda: fetch_json(FORECAST % (lat, lon), timeout=10, what="Open-Meteo forecast"), now)
-    air = cached(cache, "air", lambda: fetch_json(AIR % (lat, lon), timeout=8, what="Open-Meteo air quality"), now)
-    kp = cached(cache, "kp", fetch_kp, now)
+def build(lat, lon, u, cache, now, fresh=False):
+    fc = cached(cache, "forecast", lambda: fetch_json(FORECAST % (lat, lon), timeout=10, what="Open-Meteo forecast"), now, fresh)
+    air = cached(cache, "air", lambda: fetch_json(AIR % (lat, lon), timeout=8, what="Open-Meteo air quality"), now, fresh)
+    kp = cached(cache, "kp", fetch_kp, now, fresh)
     out = {"lat": lat, "lon": lon, "units": u, "at": now, "name": read_layers_str("home_name") or ("%.2f\u00b0%s, %.2f\u00b0%s" % (abs(lat), "N" if lat >= 0 else "S", abs(lon), "E" if lon >= 0 else "W")),
            "ages": {k: {"age": age_words(now - e["good_at"]) if e.get("good_at") else "no data yet",
                         "minutes": round((now - e["good_at"]) / 60) if e.get("good_at") else None, "error": e.get("error", "")}
@@ -388,7 +393,7 @@ def cmd_sky(args):
     except (OSError, ValueError):
         cache = {}
     cache["key"] = "%.3f,%.3f" % (lat, lon)
-    doc = build(lat, lon, u, cache, now)
+    doc = build(lat, lon, u, cache, now, bool(getattr(args, "fresh", False)))
     try:
         CACHE.parent.mkdir(parents=True, exist_ok=True)
         CACHE.write_text(json.dumps(cache), encoding="utf-8")
