@@ -178,7 +178,13 @@ ColumnLayout {
                 PC3.Label { text: "Rain radar · " + (sky.doc.name || "home"); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
                 PC3.Label { text: sky.radarTime(sky.radarFrames[sky.radarFrame]); opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                 PC3.ToolButton { icon.name: sky.radarPlaying ? "media-playback-pause" : "media-playback-start"; onClicked: sky.radarPlaying = !sky.radarPlaying; enabled: sky.radarFrames.length > 1 }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.radarBusy; onClicked: sky.radarFetch() }
+                PC3.ToolButton {
+                    id: radarRefresh
+                    icon.name: "view-refresh"; enabled: !sky.radarBusy; onClicked: sky.radarFetch(); PC3.ToolTip.text: "Fetch the latest frames"; PC3.ToolTip.visible: hovered
+                    contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                        Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !sky.radarBusy; enabled: radarRefresh.enabled }
+                        PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: sky.radarBusy; running: visible && sky.radarOpen } }
+                }
                 PC3.ToolButton { icon.name: "window-close"; onClicked: sky.radarOpen = false }
             }
             Item {
@@ -296,7 +302,14 @@ ColumnLayout {
                     onToggled: sky.radarOpen = checked
                     PC3.ToolTip.text: "The last hour of weather radar round " + (sky.doc.name || "the home place") + " (RainViewer)"; PC3.ToolTip.visible: hovered && !sky.radarOpen
                 }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered }
+                // the spinner turns on the button itself while the fetch runs, like the Events tab's: nothing in the row moves
+                PC3.ToolButton {
+                    id: skyRefresh
+                    icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered
+                    contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                        Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !sky.busy; enabled: skyRefresh.enabled }
+                        PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: sky.busy; running: visible && sky.active } }
+                }
                 InfoButton { topic: "sources" }
             }
             Flow {
