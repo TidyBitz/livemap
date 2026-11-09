@@ -13,6 +13,7 @@
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
     <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAlerts" type="Bool"><default>true</default></entry>
+    <entry name="ShowMaritime" type="Bool"><default>true</default></entry>
     <entry name="ShowLaunches" type="Bool"><default>true</default></entry>
     <entry name="ShowSats" type="Bool"><default>true</default></entry>
     <entry name="FollowMap" type="Bool"><default>true</default></entry>
@@ -26,6 +27,7 @@
     <entry name="NewMinutes" type="Int"><default>60</default></entry>
     <entry name="IdleOpacity" type="Int"><default>45</default></entry>   <!-- on the desktop: the widget's opacity when idle (or always, with FadeIdle off) -->
     <entry name="FadeIdle" type="Bool"><default>true</default></entry>
+    <entry name="HoverHighlight" type="Bool"><default>true</default></entry>   <!-- hovering a row rings its event on the map (focus.json, read by the wallpaper) -->
     <entry name="IdleSeconds" type="Int"><default>3</default></entry>
     <entry name="Preview" type="Int"><default>2</default></entry>      <!-- hover bubble: 0 off, 1 details, 2 details and pictures -->
     <!-- The default is Sen's 4K Earth view (the best picture; a channel /live page, resolved by the helper to whatever

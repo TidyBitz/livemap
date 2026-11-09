@@ -58,10 +58,27 @@ Item {
     }
     // What this layer wants labelled; main.qml's LabelPass draws these above everything (see Geo.placeLabels).
     // Strongest first, so when two are close the stronger one gets the space.
-    readonly property var labelSpecs: labelMode === 0 ? [] : quakes.filter(function (e) { return e.mag >= labelMin; }).map(function (e) {
-        return { x: (e.lon + 180) / 360 * width, y: (90 - e.lat) / 180 * height, gap: reachOf(e.mag) + 5 * unit, side: "right",
-                 text: labelFor(e), text2: labelFor2(e), px: labelPx, color: Geo.mix(labelColor, agedColor, agedOf(e)), plate: labelPlate, alpha: 1 - 0.4 * agedOf(e) };
-    })
+    readonly property bool clusterLabels: cfg ? cfg.QuakeClusterLabels : true
+    readonly property var labelSpecs: (function () {
+        if (labelMode === 0) return [];
+        var list = quakes.filter(function (e) { return e.mag >= labelMin; });     // strongest first already
+        var specs = list.map(function (e) {
+            return { x: (e.lon + 180) / 360 * width, y: (90 - e.lat) / 180 * height, gap: reachOf(e.mag) + 5 * unit, side: "right",
+                     text: labelFor(e), text2: labelFor2(e), px: labelPx, color: Geo.mix(labelColor, agedColor, agedOf(e)), plate: labelPlate, alpha: 1 - 0.4 * agedOf(e) };
+        });
+        if (!clusterLabels) return specs;
+        // a swarm: three or more within a few label heights of each other become the strongest one's label, "+N nearby"
+        var groups = Geo.clusterGroups(specs, 3 * labelPx), out = [];
+        for (var g = 0; g < groups.length; g++) {
+            var lead = specs[groups[g][0]], n = groups[g].length - 1;
+            if (n >= 2) {
+                var more = " \u00b7 +" + n + " nearby";
+                lead = Object.assign({}, lead, { text: lead.text + more, text2: lead.text2 ? lead.text2 + more : "" });
+                out.push(lead);
+            } else for (var i = 0; i < groups[g].length; i++) out.push(specs[groups[g][i]]);
+        }
+        return out;
+    })()
     property int pulsingCount: 0
     // Animation clock. Qt's own animations run at the monitor's refresh rate and force a full redraw
     // each time; stepping a clock with a Timer lets the settings choose 10-60 updates a second, and

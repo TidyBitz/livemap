@@ -403,7 +403,7 @@ MODE = DATA / "mode.json"          # written by the companion widget: {"pause": 
 LAYERS = DATA / "layers.json"
 
 
-LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "tsunami", "alerts", "launches", "sats", "network")
+LAYER_NAMES = ("quakes", "volcanoes", "storms", "fires", "floods", "tsunami", "alerts", "maritime", "launches", "sats", "network")
 
 
 def read_layers():
@@ -472,6 +472,15 @@ def read_layers_int(key, default):
         return default
 
 
+def read_layers_list(key):
+    try:
+        d = json.loads(LAYERS.read_text(encoding="utf-8"))
+        v = d.get(key) if isinstance(d, dict) else None
+        return [str(x) for x in v] if isinstance(v, list) else []
+    except (OSError, ValueError):
+        return []
+
+
 def read_layers_str(key, default=""):
     try:
         d = json.loads(LAYERS.read_text(encoding="utf-8"))
@@ -482,8 +491,10 @@ def read_layers_str(key, default=""):
 
 
 def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=None, fire_sources=None, flood_sources=None, quake_sources=None,
-                 home=None, passes=None, saving=None, why=None, home_name=None):
+                 home=None, passes=None, saving=None, why=None, home_name=None, maritime_days=None, pulsing=None, fps=None):
     shown = [l for l in shown.split(",") if l in LAYER_NAMES]
+    if pulsing is not None:
+        pulsing = [l for l in pulsing.split(",") if l in LAYER_NAMES]
     if why is not None:
         why = why.strip()[:120]
     if units is not None:
@@ -501,7 +512,9 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
             and (quake_sources is None or read_layers_int("quake_sources", 3) == int(quake_sources)) \
             and (home is None or read_layers_str("home") == home) and (passes is None or read_layers_int("passes", 0) == int(passes)) \
             and (saving is None or read_layers_int("saving", 0) == int(saving)) and (why is None or read_layers_str("why") == why) \
-            and (home_name is None or read_layers_str("home_name") == home_name):
+            and (home_name is None or read_layers_str("home_name") == home_name) \
+            and (maritime_days is None or read_layers_int("maritime_days", 14) == int(maritime_days)) \
+            and (pulsing is None or read_layers_list("pulsing") == pulsing) and (fps is None or read_layers_int("fps", 0) == int(fps)):
         return
     try:
         LAYERS.parent.mkdir(parents=True, exist_ok=True)
@@ -520,6 +533,11 @@ def write_layers(shown, units=None, fire_focus=None, flood_level=None, nws_each=
                                    # the widget and the Status check say so, the map itself no longer does
                                    "saving": int(saving) if saving is not None else read_layers_int("saving", 0),
                                    "why": why if why is not None else read_layers_str("why"),
+                                   "maritime_days": int(maritime_days) if maritime_days is not None else read_layers_int("maritime_days", 14),
+                                   # the layers keeping the pulse clock running (every tick redraws the whole screen) and the rate: the first
+                                   # thing to look at when plasmashell is busy; Status > Power and load and the widget's Map controls say it
+                                   "pulsing": pulsing if pulsing is not None else read_layers_list("pulsing"),
+                                   "fps": int(fps) if fps is not None else read_layers_int("fps", 0),   # the window the maritime layer shows; the widget lists the same
                                    "at": int(time.time())}), encoding="utf-8")
         tmp.replace(LAYERS)
     except OSError:
@@ -624,16 +642,25 @@ def safe_xml(text):
     return text
 
 
+LONG_FACTS = ("Report",)                 # fact rows that carry a whole narrative (a UKMTO report): paragraphs, up to LONG_LEN
+
+
+LONG_LEN = 1200
+
+
 def clean(obj, maxlen=160):
-    """Strings from the network are shown on the desktop: keep them printable, short and free of markup."""
+    """Strings from the network are shown on the desktop: keep them printable, short and free of markup.
+    Line breaks stay (a facts value may be a list, or paragraphs); a fact row named in LONG_FACTS may be long."""
     if isinstance(obj, str):
-        t = "".join(ch for ch in obj if ch.isprintable() and ch not in "<>")
+        t = "".join(ch for ch in obj if (ch.isprintable() or ch == "\n") and ch not in "<>")
         if t.startswith("https://"):
             return t if len(t) <= 512 else ""          # links: keep whole or drop, never truncate
         return t if len(t) <= maxlen else t[:maxlen - 1] + "\u2026"
     if isinstance(obj, dict):
         return {k: clean(v, maxlen) for k, v in obj.items()}
     if isinstance(obj, list):
+        if len(obj) in (2, 3) and obj[0] in LONG_FACTS and isinstance(obj[1], str):
+            return [obj[0], clean(obj[1], LONG_LEN)] + obj[2:]
         return [clean(v, maxlen) for v in obj]
     return obj
 

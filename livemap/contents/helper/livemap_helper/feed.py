@@ -12,7 +12,7 @@ import urllib.request
 from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, read_layers_str, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, dist_text, speed_text, _http, fetch_json, UA
+    wind_text, dist_text, speed_text, _http, fetch_json, UA, read_layers_list
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -22,6 +22,7 @@ from .power import cpu_busy, gpu_busy
 from .space import SATS, fetch_crews, fetch_launches, fetch_tles
 from .passes import cloud_over, passes_for, PASSES
 from .tsunami import tsunami_cached
+from .maritime import maritime_cached
 
 
 # ----------------------------------------------------------------- facts -----
@@ -216,7 +217,7 @@ def local_pictures(items):
             continue
         e = index.get(url) or {}
         f = e.get("file")
-        if f and (PICTURES / f).exists():
+        if f and (PICTURES / f).exists() and not snapshot_premature(url, e.get("at", 0)):
             it["image"] = (PICTURES / f).as_uri()
             continue
         if e.get("error") and now - e.get("at", 0) < 3600:
@@ -241,6 +242,10 @@ def local_pictures(items):
                 from PIL import Image
                 import io
                 im = Image.open(io.BytesIO(body))
+                if "wvs.earthdata.nasa.gov" in url and mostly_black(im):
+                    # a snapshot whose day is not yet imaged here (near the date line a day's swath arrives last, up to
+                    # a day late), or a placeholder: not kept, asked again after the usual hour
+                    raise ValueError("the satellite's picture of this day is not there yet")
                 if ext != "gif" and im.width > 1200:
                     im = im.convert("RGB")
                     im.thumbnail((1200, 1200 * 4))
@@ -268,6 +273,39 @@ def local_pictures(items):
             pass
 
 
+def mostly_black(im, share=0.35):
+    """True when more than `share` of a picture is (near) black: a Worldview snapshot for a day the satellite has not
+    yet covered here comes back black where the swath is missing - sometimes a strip of real imagery along one
+    edge and nothing else, which the date arithmetic cannot foresee."""
+    try:
+        small = im.convert("L")
+        small.thumbnail((64, 64))
+        px = list(small.getdata())
+        return bool(px) and sum(1 for v in px if v < 8) / len(px) > share
+    except Exception:                                             # noqa: BLE001 - an odd mode: keep the picture
+        return False
+
+
+def snapshot_premature(url, fetched_at):
+    """A Worldview snapshot fetched before its date's afternoon pass was processed is a black tile; it is
+    fetched again once the pass should be there (17:00 solar time of the TIME date at the box's longitude)."""
+    import time
+    if "wvs.earthdata.nasa.gov" not in url:
+        return False
+    m = re.search(r"TIME=(\d{4}-\d{2}-\d{2})", url)
+    b = re.search(r"BBOX=([-\d.]+),([-\d.]+),([-\d.]+),([-\d.]+)", url)
+    if not m or not b:
+        return False
+    try:
+        lon = (float(b.group(2)) + float(b.group(4))) / 2
+        import calendar
+        day0 = calendar.timegm(time.strptime(m.group(1), "%Y-%m-%d"))
+    except (ValueError, OverflowError):
+        return False
+    ready = day0 + 17 * 3600 - lon / 15.0 * 3600                   # 17:00 solar time of that date, as UTC
+    return fetched_at < ready
+
+
 def satellite_snapshot(lat, lon, now=None):
     """A true-colour satellite picture of the area round a point, from NASA Worldview's snapshot service (the
     same GIBS imagery the clouds come from): the latest daytime pass, today's where the afternoon pass has
@@ -278,8 +316,12 @@ def satellite_snapshot(lat, lon, now=None):
         lat, lon = float(lat), float(lon)
     except (TypeError, ValueError):
         return ""
-    solar_hour = (time.gmtime(now).tm_hour + lon / 15.0) % 24
-    day = now if solar_hour >= 17 else now - 86400
+    # The date is the place's own solar date, not the UTC one: late in the evening west of Greenwich the UTC
+    # date has already turned, and asking for "today" then returned a black tile (no pass processed yet) that
+    # the picture cache kept for a fortnight. The afternoon pass is ready from about 17:00 solar time.
+    local = now + lon / 15.0 * 3600
+    solar_hour = time.gmtime(local).tm_hour
+    day = local if solar_hour >= 17 else local - 86400
     date = time.strftime("%Y-%m-%d", time.gmtime(day))
     s, n = max(-85, lat - 5), min(85, lat + 5)
     w, e = lon - 7, lon + 7
@@ -363,6 +405,17 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Earthquake", "M%.1f %s" % (it["mag"], it.get("location") or "") if it.get("mag") else ""],
                 ["Areas", ", ".join(it.get("areas") or [])],
                 _at("Sent", it.get("sent"))]
+    elif kind == "maritime":
+        rows = [["Incident", "%s%s" % (it.get("type") or "", " \u00b7 UKMTO %s" % it["number"] if it.get("number") else "")],
+                ["Area", it.get("place") or ""],
+                ["Vessel", " ".join(x for x in (it.get("vessel_type"), ("\u201c%s\u201d" % it["vessel"]) if it.get("vessel") else "") if x)],
+                ["Pirate control", "yes, vessel taken" if it.get("pirate_control") else ""],
+                ["Crew held", str(it["crew_held"]) if it.get("crew_held") else ""],
+                ["Position", _pos(it.get("lat"), it.get("lon"))],
+                _at("When", it.get("when")),
+                _at("Published", it.get("published")) if it.get("published") and abs(float(it["published"]) - float(it["when"])) > 1800 else ["Published", ""],
+                ["Report", it.get("text") or ""],
+                ["Source", "UKMTO \u00b7 Royal Navy \u00b7 Crown copyright"]]
     elif kind == "alert":
         rows = [["Alert", ", ".join(it.get("types") or ["air raid"]).capitalize()],
                 ["Region", extra.get("region") or ""],
@@ -536,6 +589,22 @@ def cmd_feed(args):
                           "nonew": e["level"] <= 0 and not e.get("ended"), "key": "tsunami:%s:%s" % (e["centre"], e["incident"]), **facts_for("tsunami", e)})
     except Exception as e:
         problems.append("tsunami: %s" % e)
+    # maritime incidents (UKMTO, the wallpaper's cache; fetched when it is more than 15 minutes old)
+    try:
+        mi, _h, _e = maritime_cached(15)
+        if _e and not mi:
+            problems.append("maritime: %s" % _e)
+        days = read_layers_int("maritime_days", 14)
+        for it in (mi or {}).get("incidents", []):
+            if now - it["when"] > max(1, days) * 86400:
+                continue
+            what = it["type"] + (" \u00b7 vessel taken" if it.get("pirate_control") else "")
+            items.append({"kind": "maritime", "when": it["when"], "title": "%s \u00b7 %s" % (what, it.get("place") or "at sea"),
+                          "detail": "%s%s \u00b7 UKMTO %s" % (it.get("vessel_type") or "vessel", " \u00b7 %s pin" % it["pin"].lower() if it.get("pin") else "", it.get("number") or ""),
+                          "url": it["url"], "lat": it["lat"], "lon": it["lon"], "level": it["level"], "nonew": it["level"] <= 1 and it["type"].lower() == "advisory",
+                          "key": "maritime:%s" % it["id"], **facts_for("maritime", it)})
+    except Exception as e:
+        problems.append("maritime: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)
     try:
         fires_now, _h, _e = last_good("fires", fetch_fires)
@@ -553,7 +622,7 @@ def cmd_feed(args):
         for L in fetch_launches():
             if now - 1800 < L["net"] < now + 7 * 86400:
                 items.append({"kind": "launch", "when": L["net"], "title": "%s \u00b7 %s" % (L["rocket"], L["mission"] or L["name"]),
-                              "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": (L.get("videos") or [{}])[0].get("url") or "https://ll.thespacedevs.com/2.2.0/launch/%s/" % L["id"],
+                              "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": L.get("page") or (L.get("videos") or [{}])[0].get("url") or "https://spacelaunchnow.me/launch/upcoming",
                               "lat": L["lat"], "lon": L["lon"], "level": 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": True,
                               "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", ""),
                               "key": "launch:%s" % L["id"], **facts_for("launch", L)})
@@ -633,7 +702,7 @@ def cmd_feed(args):
     # Floods and named fire incidents are long-lived too (a fire's last update can be days old, so by time it
     # sorts behind every quake of the day); they are already filtered to the ones that matter.
     def kept(it):
-        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert", "tsunami") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
+        return it["kind"] in ("storm", "volcano", "launch", "sat", "flood", "alert", "tsunami", "maritime") or str(it.get("key", "")).split(":")[0] in INCIDENT_SOURCES
     # the kept kinds are exempt from the cap, not counted against it: 60 fire incidents must not push out every quake
     keep = [it for it in items if kept(it)]
     rest = [it for it in items if not kept(it)][:max(0, args.limit)]
@@ -643,7 +712,7 @@ def cmd_feed(args):
     except Exception as e:                        # noqa: BLE001 - pictures are a bonus
         problems.append("pictures: %s" % e)
     emit({"items": items, "problems": problems, "version": VERSION, "layers": read_layers(), "ages": data_ages(now), "alert_strip": alert_strip,
-          "saving": read_layers_int("saving", 0), "why": read_layers_str("why")})
+          "saving": read_layers_int("saving", 0), "why": read_layers_str("why"), "pulsing": read_layers_list("pulsing"), "fps": read_layers_int("fps", 0)})
 
 
 HISTORY_MARK = 2                                                  # the seen/updated bookkeeping's version
@@ -660,7 +729,7 @@ def history_mark():
 # the cache file(s) behind each kind of event: "as of" for the widget, so an empty list can say whether the
 # source was reached (the kind's newest cache) or never answered (no cache at all)
 KIND_CACHES = {"quake": ["quakes.json"], "storm": ["last-storms.json"], "volcano": ["last-volcanoes.json"], "fire": ["last-fires.json", "hotspots.csv", "last-nifc.json", "last-cwfis.json", "last-effis.json"],
-               "flood": ["last-floods.json", "last-nws-floods.json"], "tsunami": ["last-tsunami.json"], "alert": ["last-air-alerts.json"],
+               "flood": ["last-floods.json", "last-nws-floods.json"], "tsunami": ["last-tsunami.json"], "alert": ["last-air-alerts.json"], "maritime": ["last-maritime.json"],
                "launch": ["launches.json"], "sat": ["tle.json"]}
 
 
@@ -742,6 +811,8 @@ def chk_power():
                                           "%d %%" % cpu if cpu is not None else "n/a", "%d %%" % gpu if gpu is not None else "n/a",
                                           {"amd": "sysfs", "nvidia": "nvidia-smi", "intel-clock": "Intel clock estimate", "none": "no reading, CPU decides"}[how])
     saving, why = read_layers_int("saving", 0), read_layers_str("why")
+    pulsing, fps = read_layers_list("pulsing"), read_layers_int("fps", 0)
+    detail += "; pulse clock %s" % (("running at %d fps for %s - every tick redraws the whole screen" % (fps, ", ".join(pulsing))) if pulsing else "idle (nothing pulsing; the map redraws only when something changes)")
     if saving:                                    # the wallpaper is holding back: say so here, where the user looks for it
         return "warn", ("live layers off - " if saving == 2 else "animations paused - ") + (why or "power saving") + "; " + detail
     return "ok", detail

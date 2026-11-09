@@ -7,6 +7,7 @@
  * today; hovering a strip opens a bubble with that hour's line.
  */
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.core as PlasmaCore
@@ -26,11 +27,14 @@ ColumnLayout {
     readonly property string problem: doc.problem || ""
     spacing: Kirigami.Units.smallSpacing
 
-    function refresh(force) {
+    // refresh(false): opening the tab - the helper's 20-minute cache decides whether the sources are asked.
+    // refresh(true): the timer - the same, every 20 minutes. refresh(true, true): the Fetch again button - the
+    // sources are asked again now (the helper allows that once a minute), so the ages really do go back to zero.
+    function refresh(force, fresh) {
         if (busy) return;
         if (!force && Date.now() / 1000 - fetchedAt < 600) return;
         busy = true;
-        exec.connectSource(helperShell + "sky # " + Date.now());
+        exec.connectSource(helperShell + "sky" + (fresh ? " --fresh" : "") + " # " + Date.now());
     }
     onActiveChanged: if (active) refresh(false)
     Timer { interval: 20 * 60 * 1000; running: sky.active; repeat: true; onTriggered: sky.refresh(true) }
@@ -68,6 +72,199 @@ ColumnLayout {
         return t < 0.5 ? Qt.tint(cold, Qt.rgba(mid.r, mid.g, mid.b, t * 2)) : Qt.tint(mid, Qt.rgba(warm.r, warm.g, warm.b, (t - 0.5) * 2));
     }
 
+    // ---- the "?" beside a line, and the bubble it opens: what the scale means ----
+    property string infoTopic: ""
+    property var infoAnchor: null
+    component InfoButton: PC3.ToolButton {
+        id: ib
+        property string topic: ""
+        visible: true
+        enabled: topic !== ""
+        opacity: topic === "" ? 0 : (sky.infoTopic === topic ? 1 : 0.5)
+        icon.name: "help-contextual"
+        implicitWidth: Kirigami.Units.iconSizes.small + 6; implicitHeight: implicitWidth
+        // the bubble opens on hover after a moment and closes a moment after the pointer has left both the ? and the
+        // bubble - so a bubble that lands beside the pointer never flickers; a click keeps it until the next click
+        hoverEnabled: true
+        property bool pinned: false
+        Timer { id: openSoon; interval: 350; onTriggered: if (ib.hovered) { sky.infoTopic = ib.topic; sky.infoAnchor = ib; } }
+        Timer { id: closeSoon; interval: 400; onTriggered: if (!ib.pinned && !ib.hovered && !sky.bubbleHovered && sky.infoTopic === ib.topic) { sky.infoTopic = ""; sky.infoAnchor = null; } }
+        onHoveredChanged: { if (hovered) { closeSoon.stop(); openSoon.restart(); } else closeSoon.restart(); }
+        onClicked: { if (pinned) { pinned = false; sky.infoTopic = ""; sky.infoAnchor = null; } else { pinned = true; sky.infoTopic = topic; sky.infoAnchor = ib; } }
+        Connections { target: sky; function onInfoTopicChanged() { if (sky.infoTopic !== ib.topic) ib.pinned = false; } function onBubbleHoveredChanged() { if (!sky.bubbleHovered && sky.infoTopic === ib.topic) closeSoon.restart(); } }
+    }
+    property bool bubbleHovered: false
+    // each topic: a title, a line of context, and rows [range, meaning, colour] where there is a scale
+    readonly property var infoText: ({
+        air: { title: "Air quality index", note: sky.doc.tonight && sky.doc.tonight.air_scale === "eu"
+                   ? "The European AQI (EEA): 0 to 100 and beyond, from the worst of the main pollutants over the hour. Shown with kilometres; miles switch to the US scale."
+                   : "The US AQI (EPA): 0 to 500, from the worst of the main pollutants. Shown with miles; kilometres switch to the European scale.",
+               rows: sky.doc.tonight && sky.doc.tonight.air_scale === "eu"
+                   ? [["0 – 20", "good", "#50f0e6"], ["20 – 40", "fair", "#50ccaa"], ["40 – 60", "moderate", "#f0e641"], ["60 – 80", "poor", "#ff5050"], ["80 – 100", "very poor", "#960032"], ["over 100", "extremely poor", "#7d2181"]]
+                   : [["0 – 50", "good", "#00e400"], ["51 – 100", "moderate", "#ffff00"], ["101 – 150", "unhealthy for sensitive groups", "#ff7e00"], ["151 – 200", "unhealthy", "#ff0000"], ["201 – 300", "very unhealthy", "#8f3f97"], ["301 – 500", "hazardous", "#7e0023"]] },
+        kp: { title: "Kp and the aurora", note: "The planetary K index, 0 to 9, says how disturbed Earth's magnetic field is right now (NOAA, every three hours). The higher it is, the further from the poles the aurora reaches; the latitudes are rough and need a dark, clear northern (or southern) horizon.",
+              rows: [["Kp 0 – 2", "quiet · aurora near the Arctic circle, about 66° and up", "#4caf50"], ["Kp 3 – 4", "unsettled · down to about 55° (Scotland, Alberta)", "#8bc34a"], ["Kp 5", "minor storm (G1) · about 50° (Seattle, Paris)", "#ffeb3b"], ["Kp 6", "moderate storm (G2) · about 45° (Oregon, Milan)", "#ff9800"], ["Kp 7 – 8", "strong to severe (G3 – G4) · about 40° (Denver, Madrid)", "#f44336"], ["Kp 9", "extreme (G5) · the deep south and beyond", "#9c27b0"]] },
+        uv: { title: "UV index", note: "The World Health Organization's scale for the day's peak sunburn strength.",
+              rows: [["0 – 2", "low · no protection needed", "#4caf50"], ["3 – 5", "moderate · hat and sunscreen at midday", "#ffeb3b"], ["6 – 7", "high · cover up, seek shade at midday", "#ff9800"], ["8 – 10", "very high · extra care, burns quickly", "#f44336"], ["11 +", "extreme · stay out of the sun", "#9c27b0"]] },
+        dark: { title: "Dark for satellites", note: "The hours when the sun is more than 6° below the horizon (civil dusk to civil dawn): dark enough to see a sunlit satellite. A visible pass is one in these hours while the station is still in sunlight; the moon and clouds decide the rest.", rows: [] },
+        pressure: { title: "Pressure and its trend", note: "Sea-level pressure now, and whether it has moved more than about a hectopascal in the last three hours. Falling usually means weather is on the way, rising that it is clearing; the rate matters more than the number.",
+                    rows: [["rising", "clearing, drier, often windier", "#4caf50"], ["steady", "no change coming soon", "#9e9e9e"], ["falling", "cloud, rain or wind on the way", "#ff9800"]] },
+        moon: { title: "The moon", note: "The phase and how much of the disc is lit, from a standard approximation (within half a day). A bright moon washes out faint satellites and the aurora; the dark half of the month is best for both.", rows: [] },
+        cloud: { title: "Cloud cover tonight", note: "The forecast's average cloud cover through the dark hours. Under about 25 % is clear enough for satellite spotting; over 85 % there is nothing to see.", rows: [] },
+        sources: { title: "Where this comes from", note: "Forecast and air quality from Open-Meteo, the planetary K index from NOAA's Space Weather Prediction Center; each fetched at most every 20 minutes by the wallpaper's helper and kept, so an outage shows the last answer with its age (the line under the place name). Sunrise, sunset, the moon and the satellite passes are computed on this machine from the home place. Units and the clock follow the wallpaper's Units page.", rows: [] },
+        pass: { title: "Visible passes", note: "When the ISS or Tiangong crosses your sky after dusk or before dawn while still lit by the sun: where it rises, how high it gets (90° is overhead), where it sets and for how long. It looks like a bright, steady, fast star; no blinking.", rows: [] }
+    })
+    // The "?" bubble is its own window beside the ? - on the map, since the ? sits at the popup's right edge - placed
+    // by Plasma (on Wayland a window cannot place itself by screen coordinates). It used to flicker when it landed
+    // under the pointer; now it closes only once the pointer has left both the ? and the bubble, with a grace period.
+    // ---- rain radar: the last hour round the home place as a loop, in a pop-up beside the Radar button ----
+    // The helper fetches RainViewer's tiles (nine per frame) and composes each frame over a dark base map, a file
+    // per frame; the widget only cycles pictures. Asked when the pop-up opens and every ten minutes while it stays open.
+    property bool radarOpen: false
+    property var radar: ({})
+    property bool radarBusy: false
+    property string radarProblem: ""
+    property int radarFrame: 0
+    property bool radarPlaying: true
+    readonly property var radarFrames: radar.frames || []
+    function radarFetch() {
+        if (helperShell === "" || radarBusy) return;
+        radarBusy = true;
+        radarExec.connectSource(helperShell + "radar # " + Date.now());
+    }
+    P5Support.DataSource {
+        id: radarExec
+        engine: "executable"
+        connectedSources: []
+        onNewData: function (source, data) {
+            disconnectSource(source);
+            sky.radarBusy = false;
+            try {
+                var r = JSON.parse(data.stdout);
+                if (r.problem) { sky.radarProblem = r.problem; return; }
+                sky.radarProblem = r.errors && r.errors.length > 0 && (!r.frames || r.frames.length === 0) ? r.errors.join("; ") : "";
+                sky.radar = r;
+                sky.radarFrame = Math.max(0, (r.frames || []).length - 1);
+            } catch (e) { sky.radarProblem = "The helper did not answer properly"; }
+        }
+    }
+    onRadarOpenChanged: if (radarOpen) radarFetch()
+    Timer { interval: 10 * 60 * 1000; running: sky.radarOpen && sky.active; repeat: true; onTriggered: sky.radarFetch() }
+    Timer { interval: 90000; running: sky.radarBusy; onTriggered: { sky.radarBusy = false; sky.radarProblem = sky.radarProblem || "The radar did not answer in time"; } }
+    // the loop: half a second a frame, a longer hold on the newest
+    Timer {
+        interval: sky.radarFrame >= sky.radarFrames.length - 1 ? 1500 : 500
+        running: sky.radarOpen && sky.active && sky.radarPlaying && sky.radarFrames.length > 1
+        repeat: true
+        onTriggered: sky.radarFrame = (sky.radarFrame + 1) % sky.radarFrames.length
+    }
+    function radarTime(f) {
+        if (!f) return "";
+        var d = new Date(f.time * 1000);
+        return Qt.formatTime(d, ((sky.doc.units || [0, 0, 0, 0])[2]) ? "h:mm ap" : "HH:mm") + (f.nowcast ? " · forecast" : "");
+    }
+    PlasmaCore.Dialog {
+        id: radarDialog
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.LeftEdge
+        backgroundHints: PlasmaCore.Dialog.SolidBackground
+        hideOnWindowDeactivate: false
+        visible: sky.radarOpen && sky.active
+        visualParent: radarButton
+        mainItem: ColumnLayout {
+            id: radarColumn
+            width: Kirigami.Units.gridUnit * 26
+            height: implicitHeight
+            spacing: Kirigami.Units.smallSpacing
+            RowLayout {
+                Layout.fillWidth: true
+                PC3.Label { text: "Rain radar · " + (sky.doc.name || "home"); font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+                PC3.Label { text: sky.radarTime(sky.radarFrames[sky.radarFrame]); opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize }
+                PC3.ToolButton { icon.name: sky.radarPlaying ? "media-playback-pause" : "media-playback-start"; onClicked: sky.radarPlaying = !sky.radarPlaying; enabled: sky.radarFrames.length > 1 }
+                PC3.ToolButton {
+                    id: radarRefresh
+                    icon.name: "view-refresh"; enabled: !sky.radarBusy; onClicked: sky.radarFetch(); PC3.ToolTip.text: "Fetch the latest frames"; PC3.ToolTip.visible: hovered
+                    contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                        Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !sky.radarBusy; enabled: radarRefresh.enabled }
+                        PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: sky.radarBusy; running: visible && sky.radarOpen } }
+                }
+                PC3.ToolButton { icon.name: "window-close"; onClicked: sky.radarOpen = false }
+            }
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: width
+                Rectangle { anchors.fill: parent; color: "#0a101a"; radius: 3 }
+                // every frame loaded once and kept, the current one shown: switching one Image's source would blank
+                // between frames while the next loads
+                Repeater {
+                    model: sky.radarFrames
+                    Image {
+                        required property var modelData
+                        required property int index
+                        anchors.fill: parent
+                        visible: index === Math.min(sky.radarFrame, sky.radarFrames.length - 1)
+                        source: modelData.file
+                        fillMode: Image.PreserveAspectFit
+                        cache: true; asynchronous: true; smooth: true
+                    }
+                }
+                PC3.BusyIndicator { anchors.centerIn: parent; visible: sky.radarBusy && sky.radarFrames.length === 0; running: visible }
+                PC3.Label {
+                    anchors.centerIn: parent; width: parent.width * 0.8; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter
+                    visible: !sky.radarBusy && sky.radarFrames.length === 0
+                    text: sky.radarProblem || "No radar pictures yet"
+                }
+            }
+            // the frame scrubber: one tick per frame
+            PC3.Slider {
+                Layout.fillWidth: true
+                visible: sky.radarFrames.length > 1
+                from: 0; to: Math.max(0, sky.radarFrames.length - 1); stepSize: 1
+                value: sky.radarFrame
+                onMoved: { sky.radarPlaying = false; sky.radarFrame = Math.round(value); }
+            }
+            PC3.Label {
+                Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                text: sky.radarFrames.length === 0 ? ""
+                    : (sky.radar.echoes > 0.002 ? "Rain or snow in the box over the last hour." : "Nothing on the radar in the last hour - either dry, or no weather service shares a radar for this area (the oceans, most of Africa and much of Asia have none).")
+                      + " About " + Math.round(1500 * Math.cos((sky.radar.home ? sky.radar.home[0] : 40) * Math.PI / 180) / 0.79) + " km across; the ring is home."
+                      + (sky.radar.errors && sky.radar.errors.length > 0 ? " Some frames could not be fetched: " + sky.radar.errors[0] : "")
+            }
+            PC3.Label { text: "Radar: RainViewer · the national weather services' composites · a frame every 10 min"; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.fillWidth: true; wrapMode: Text.Wrap }
+        }
+    }
+
+    PlasmaCore.Dialog {
+        id: infoDialog
+        type: PlasmaCore.Dialog.Tooltip
+        location: PlasmaCore.Types.LeftEdge        // beside the ? - to its right, which is just outside the popup; Plasma flips it at a screen edge
+        backgroundHints: PlasmaCore.Dialog.SolidBackground
+        hideOnWindowDeactivate: false
+        visible: sky.infoTopic !== "" && sky.infoAnchor !== null && sky.active
+        visualParent: sky.infoAnchor
+        mainItem: ColumnLayout {
+            id: infoColumn
+            width: Kirigami.Units.gridUnit * 24
+            height: implicitHeight
+            spacing: Kirigami.Units.smallSpacing
+            readonly property var info: sky.infoText[sky.infoTopic] || ({ title: "", note: "", rows: [] })
+            HoverHandler { onHoveredChanged: sky.bubbleHovered = hovered }
+            PC3.Label { text: infoColumn.info.title; font.bold: true }
+            PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: infoColumn.info.note; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+            Repeater {
+                model: infoColumn.info.rows
+                RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+                    Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: modelData[2] }
+                    PC3.Label { text: modelData[0]; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.preferredWidth: Kirigami.Units.gridUnit * 4.5 }
+                    PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData[1]; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                }
+            }
+        }
+    }
+
     // ---- placeholder states ----
     PlasmaExtras.PlaceholderMessage {
         visible: !sky.ready
@@ -101,7 +298,22 @@ ColumnLayout {
                 Layout.fillWidth: true
                 PC3.Label { text: parent.parent.d.name || ""; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
                 PC3.Label { text: (parent.parent.now.time || "") + (parent.parent.d.timezone ? " · " + parent.parent.d.timezone.replace(/_/g, " ") : ""); opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
-                PC3.ToolButton { icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true); PC3.ToolTip.text: "Fetch again"; PC3.ToolTip.visible: hovered }
+                PC3.ToolButton {
+                    id: radarButton
+                    icon.name: "weather-showers"; text: "Radar"; display: PC3.AbstractButton.TextBesideIcon
+                    checkable: true; checked: sky.radarOpen
+                    onToggled: sky.radarOpen = checked
+                    PC3.ToolTip.text: "The last hour of weather radar round " + (sky.doc.name || "the home place") + " (RainViewer)"; PC3.ToolTip.visible: hovered && !sky.radarOpen
+                }
+                // the spinner turns on the button itself while the fetch runs, like the Events tab's: nothing in the row moves
+                PC3.ToolButton {
+                    id: skyRefresh
+                    icon.name: "view-refresh"; enabled: !sky.busy; onClicked: sky.refresh(true, true); PC3.ToolTip.text: "Fetch again from the sources (Open-Meteo, SWPC)"; PC3.ToolTip.visible: hovered
+                    contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                        Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !sky.busy; enabled: skyRefresh.enabled }
+                        PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: sky.busy; running: visible && sky.active } }
+                }
+                InfoButton { topic: "sources" }
             }
             Flow {
                 Layout.fillWidth: true
@@ -138,7 +350,17 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignRight
                     PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Wind " + (parent.parent.now.wind || "") }
                     PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Humidity " + (parent.parent.now.humidity || "") + " · cloud " + (parent.parent.now.cloud || "") }
-                    PC3.Label { horizontalAlignment: Text.AlignRight; Layout.fillWidth: true; opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Pressure " + (parent.parent.now.pressure || "") + (parent.parent.now.trend ? ", " + parent.parent.now.trend : "") }
+                    RowLayout {
+                        Layout.alignment: Qt.AlignRight; spacing: 2
+                        PC3.Label { opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Pressure " + (parent.parent.parent.now.pressure || "") + (parent.parent.parent.now.trend ? ", " + parent.parent.parent.now.trend : "") }
+                        InfoButton { topic: "pressure" }
+                    }
+                    RowLayout {                                    // the air is a condition of now, like the wind, not of the night sky
+                        Layout.alignment: Qt.AlignRight; spacing: 2
+                        visible: !!(sky.doc.tonight || ({})).air
+                        PC3.Label { opacity: 0.8; font.pointSize: Kirigami.Theme.smallFont.pointSize; text: "Air " + ((sky.doc.tonight || ({})).air || "") }
+                        InfoButton { topic: "air" }
+                    }
                 }
             }
 
@@ -304,9 +526,14 @@ ColumnLayout {
             PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize
                         text: "Each bar is the day, midnight to midnight: colour is the temperature hour by hour, the dark ends are night, blue hatching is rain (white, snow), the white line is now. Hover for the hour." }
 
-            // sun and moon · tonight's sky
-            GridLayout {
+            // sun and moon · tonight's sky, in an Item so the "?" bubble can be drawn over the block, beside its line
+            Item {
+                id: infoBox
                 Layout.fillWidth: true
+                implicitHeight: infoGrid.implicitHeight
+            GridLayout {
+                id: infoGrid
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                 columns: 2
                 columnSpacing: Kirigami.Units.largeSpacing * 2
                 rowSpacing: 1
@@ -318,7 +545,7 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignTop; Layout.fillWidth: true; spacing: 1
                     readonly property var sun: parent.sun
                     Repeater {
-                        model: [["Sunrise", "sunrise"], ["Sunset", "sunset"], ["Day length", "day_length"], ["Dark for satellites", "dark"], ["Moon", "moon"], ["UV index", "uv"]]
+                        model: [["Sunrise", "sunrise"], ["Sunset", "sunset"], ["Day length", "day_length"], ["Dark for satellites", "dark", "dark"], ["Moon", "moon", "moon"], ["UV index", "uv", "uv"]]
                         RowLayout {
                             required property var modelData
                             visible: !!parent.sun[modelData[1]]
@@ -326,6 +553,7 @@ ColumnLayout {
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.sun[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight }
+                            InfoButton { topic: modelData[2] || "" }
                         }
                     }
                 }
@@ -333,7 +561,7 @@ ColumnLayout {
                     Layout.alignment: Qt.AlignTop; Layout.fillWidth: true; spacing: 1
                     readonly property var tonight: parent.tonight
                     Repeater {
-                        model: [["Cloud cover tonight", "cloud"], ["Next visible pass", "pass"], ["Aurora", "kp"], ["Air quality", "air"]]
+                        model: [["Cloud cover tonight", "cloud", "cloud"], ["Next visible pass", "pass", "pass"], ["Aurora", "kp", "kp"]]
                         RowLayout {
                             required property var modelData
                             visible: !!parent.tonight[modelData[1]]
@@ -341,13 +569,12 @@ ColumnLayout {
                             PC3.Label { text: modelData[0]; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize }
                             Item { Layout.fillWidth: true }
                             PC3.Label { text: parent.parent.tonight[modelData[1]] || ""; font.pointSize: Kirigami.Theme.smallFont.pointSize; horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap; Layout.maximumWidth: Kirigami.Units.gridUnit * 16 }
+                            InfoButton { topic: modelData[2] || "" }
                         }
                     }
                 }
             }
-            PC3.Label { Layout.fillWidth: true; Layout.preferredWidth: scroll.availableWidth; wrapMode: Text.Wrap; opacity: 0.5; font.pointSize: Kirigami.Theme.smallFont.pointSize; Layout.topMargin: Kirigami.Units.smallSpacing
-                        text: "Open-Meteo (forecast, air quality) · NOAA SWPC (Kp) · sun, moon and passes computed here · fetched every 20 minutes" }
+            }
         }
     }
-
 }

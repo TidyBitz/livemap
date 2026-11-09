@@ -20,7 +20,7 @@ jobs:
       - name: static checks
         run: python3 scripts/check.py
       - name: lint the helper (ruff - syntax, undefined names, unused imports)
-        run: pip install -q ruff pytest && ruff check livemap/contents/helper tests
+        run: pip install -q ruff pytest pillow && ruff check livemap/contents/helper tests
       - name: tests (parsers against recorded fixtures; config, status, sources and version consistency)
         run: pytest -q tests
       - name: shell syntax

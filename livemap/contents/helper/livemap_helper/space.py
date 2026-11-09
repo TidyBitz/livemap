@@ -243,11 +243,28 @@ def fetch_crews(max_age_h=4):
     return crews
 
 
+def launch_page(L):
+    """Where a launch's row should take you: the webcast when LL2 lists one, else the provider's own page for the
+    launch (infoURLs), else Space Launch Now's page for it (The Space Devs' own site, which embeds the webcast once
+    there is one) - never the raw API record."""
+    for v in sorted([v for v in (L.get("vidURLs") or []) if isinstance(v, dict) and str(v.get("url", "")).startswith("https://")], key=lambda v: v.get("priority") or 99):
+        return v["url"]
+    for u in sorted([u for u in (L.get("infoURLs") or []) if isinstance(u, dict) and str(u.get("url", "")).startswith("https://")], key=lambda u: u.get("priority") or 99):
+        return u["url"]
+    slug = str(L.get("slug") or "").strip()
+    if slug:
+        return "https://spacelaunchnow.me/launch/%s" % slug
+    return "https://spacelaunchnow.me/launch/upcoming"
+
+
 def fetch_launches(max_age_h=1):
+    """The upcoming launches, cached an hour - a quarter of an hour while one is inside the next two hours, since
+    the webcast link usually appears in LL2 during that last hour (the free tier allows 15 requests an hour)."""
     import time
     try:
         c = json.loads(LAUNCHES.read_text(encoding="utf-8"))
-        if time.time() - c.get("at", 0) < max_age_h * 3600:
+        soon = any(0 < (L.get("net") or 0) - time.time() < 7200 for L in c.get("launches", []))
+        if time.time() - c.get("at", 0) < (0.25 if soon else max_age_h) * 3600:
             return c["launches"]
     except (OSError, ValueError):
         pass
@@ -281,7 +298,8 @@ def fetch_launches(max_age_h=1):
                     "status": ((L.get("status") or {}).get("abbrev") or ""), "net": net,
                     "pad": pad.get("name") or "", "site": ((pad.get("location") or {}).get("name") or ""), "lat": lat, "lon": lon,
                     "status_name": ((L.get("status") or {}).get("name") or ""), "window_end": L.get("window_end") or "",
-                    "image": (L.get("image") if isinstance(L.get("image"), str) else (L.get("image") or {}).get("image_url")) or ""})
+                    "image": (L.get("image") if isinstance(L.get("image"), str) else (L.get("image") or {}).get("image_url")) or "",
+                    "page": launch_page(L)})
     try:
         LAUNCHES.parent.mkdir(parents=True, exist_ok=True)
         LAUNCHES.write_text(json.dumps({"at": time.time(), "launches": out}), encoding="utf-8")

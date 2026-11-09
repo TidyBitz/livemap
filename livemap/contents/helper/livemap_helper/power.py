@@ -72,7 +72,7 @@ def cmd_power(args):
     if getattr(args, "layers", None) is not None:
         write_layers(args.layers, getattr(args, "units", None), getattr(args, "fire_focus", None), getattr(args, "flood_level", None), getattr(args, "nws_each", None), getattr(args, "fire_sources", None), getattr(args, "flood_sources", None), getattr(args, "quake_sources", None),
                      getattr(args, "home", None), getattr(args, "passes", None), getattr(args, "saving", None), getattr(args, "why", None),
-                     getattr(args, "home_name", None))
+                     getattr(args, "home_name", None), getattr(args, "maritime_days", None), getattr(args, "pulsing", None), getattr(args, "fps", None))
     cpu, (gpu, how) = cpu_busy(), gpu_busy()
     emit({"battery": on_battery(), "cpu": cpu, "gpu": gpu, "gpu_how": how, "mode": read_mode()})
 

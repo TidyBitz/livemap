@@ -2,7 +2,9 @@
 import json
 import time
 
-from conftest import fixture
+import pytest
+
+from conftest import FIXTURES, fixture
 
 from livemap_helper import fires, floods, storms, tsunami, volcanoes
 from livemap_helper.common import storm_kind
@@ -572,7 +574,7 @@ def test_sky_document_from_open_meteo(monkeypatch):
     assert wed["chance"] == "70 %" and wed["cells"][15]["p"] == 0.7 and wed["cells"][15]["mm"] == 1.2 and wed["cells"][3]["p"] == 0
     assert "1 PM" in wed["lines"][13] and "Light rain" in wed["lines"][13] and "0.05 in" in wed["lines"][13]
     assert doc["sun"]["sunrise"] == "7:21 AM" and doc["sun"]["sunset"] == "6:03 PM" and doc["sun"]["day_length"] == "10 h 42 min"
-    assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "AQI 34, good"
+    assert "aurora" in doc["tonight"]["kp"] and doc["tonight"]["air"] == "US AQI 34, good"
     assert abs(doc["now_h"] - 11) < 0.01
     # Open-Meteo's daily stamps are the local date as if it were UTC (here: shifted by the offset): nothing may move
     fc["daily"]["time"] = [t - 21600 for t in fc["daily"]["time"]]
@@ -618,3 +620,154 @@ def test_bubble_pictures_fetched_to_files(tmp_path, monkeypatch):
     assert len(calls) == 2
     idx = json.loads((tmp_path / "pictures.json").read_text())
     assert idx["https://bad.example/x.png"]["error"].startswith("<urlopen error") or "timed out" in idx["https://bad.example/x.png"]["error"]
+
+
+def test_gdacs_storm_names_keep_their_hyphen():
+    import re
+    from livemap_helper import storms
+    assert re.sub(r"-\d{1,2}$", "", "IN-FA-25").title() == "In-Fa"
+    assert re.sub(r"-\d{1,2}$", "", "VANCE-25").title() == "Vance"
+    assert re.sub(r"-\d{1,2}$", "", "THREE-25").title() == "Three"
+    assert "re.sub(r\"-\\d{1,2}$\"" in open(storms.__file__, encoding="utf-8").read()
+
+
+def test_storm_twins_and_lenient_names():
+    """Two sources' records of one storm: matched by a lenient name, else by a reach that grows with the age gap;
+    what still does not merge is reported as a possible twin."""
+    from livemap_helper import storms
+    assert storms.same_name_key("IN-FA") == storms.same_name_key("In Fa") == storms.same_name_key("infa")
+    gd = {"name": "In", "source": "GDACS", "lat": 14.0, "lon": 158.0, "hours": 30, "ids": ["gdacs:1"]}
+    jt = {"name": "In-Fa", "source": "JTWC", "lat": 16.5, "lon": 150.5, "hours": 2, "ids": ["jtwc:wp30"]}   # ~900 km on, a day later
+    assert storms.same_storm_reach(gd, jt) > 1200
+    pairs = storms.twins([gd, jt])
+    assert len(pairs) == 1
+    far = {"name": "Other", "source": "JTWC", "lat": -20.0, "lon": 60.0, "hours": 1, "ids": ["jtwc:sh05"]}
+    assert storms.twins([gd, far]) == []
+
+
+# ---- maritime incidents (UKMTO) -----------------------------------------------------------------------------
+def test_ukmto_incidents_parse():
+    from livemap_helper import maritime
+    items = maritime.parse_incidents(json.loads(fixture("ukmto_all.json")))
+    assert len(items) == 41 and items[0]["when"] >= items[-1]["when"]          # newest first
+    by_number = {it["number"]: it for it in items}
+    a = by_number[147]                                                          # a red-pin attack on a tanker
+    assert a["type"] == "Attack" and a["pin"] == "Red" and a["level"] == 3 and a["place"] == "Strait of Hormuz" and a["vessel_type"] == "tanker"
+    assert by_number[144]["level"] == 2 and by_number[143]["level"] == 1 and by_number[184]["level"] == 1   # yellow attack, suspicious activity, advisory
+    assert by_number[143]["vessel"] == "" and by_number[144]["vessel"] == ""   # "vessel" and "." are withheld names, not names
+    assert abs(by_number[143]["lat"] - 26.4333) < 0.001 and abs(by_number[143]["lon"] - 56.4861) < 0.001
+    assert time.gmtime(by_number[143]["when"])[:5] == (2026, 9, 28, 23, 0) and by_number[143]["published"] > by_number[143]["when"]
+    assert "\r" not in by_number[143]["text"] and by_number[143]["text"].count("\n") == 2   # three paragraphs, joined inside
+    assert all(it["kind"] == "maritime" and it["title"] and it["url"].startswith("https://") for it in items)
+
+
+def test_ukmto_levels():
+    from livemap_helper.maritime import maritime_level
+    assert maritime_level("Hijack") == 3 and maritime_level("Kidnap", "Yellow") == 3
+    assert maritime_level("Attack") == 2 and maritime_level("Attack", "Red") == 2 + 1 and maritime_level("Attempted Boarding") == 2
+    assert maritime_level("Suspicious Activity", "Red") == 1 and maritime_level("Advisory") == 1 and maritime_level("Electronic Interference") == 1
+    assert maritime_level("Suspicious Activity", pirate=True) == 3
+    assert maritime_level("Something New") == 1
+
+
+def test_ukmto_fetch_and_cache(no_network, data_dir):
+    from livemap_helper import maritime
+    no_network("api/ukmto/all", fixture("ukmto_all.json"))
+    d = maritime.fetch_maritime()
+    assert len(d["incidents"]) <= 41 and all(time.time() - it["when"] <= maritime.MARITIME_DAYS * 86400 for it in d["incidents"])
+    data, stale, err = maritime.maritime_cached(15)
+    assert err == "" and (data_dir / "last-maritime.json").exists()
+
+
+def test_ukmto_odd_records_are_skipped():
+    from livemap_helper import maritime
+    items = maritime.parse_incidents([{"incidentNumber": 1, "locationLatitude": None, "locationLongitude": 50}, {"incidentNumber": 2, "locationLatitude": 12, "locationLongitude": 45, "utcDateOfIncident": "garbage"},
+                                      {"incidentNumber": 3, "locationLatitude": 12, "locationLongitude": 45, "utcDateOfIncident": "2026-10-01T00:00:00Z", "incidentTypeName": None, "vesselType": None, "otherDetails": None, "crewHeld": "x"},
+                                      "not a record", {"incidentNumber": 4, "locationLatitude": 95, "locationLongitude": 45, "utcDateOfIncident": "2026-10-01T00:00:00Z"}])
+    assert [it["number"] for it in items] == [3] and items[0]["type"] == "Incident" and items[0]["title"] == "Incident · at sea" and items[0]["crew_held"] == 0
+    assert maritime.parse_incidents({"incidents": []}) == [] and maritime.parse_incidents(None) == []
+
+
+def test_satellite_snapshot_uses_the_solar_date():
+    """00:52 UTC on 30 Oct: the Azores (26°W) and Panama (81°W) are still on the evening of 29 Oct, whose afternoon
+    pass is processed; 30 Oct has no imagery yet and came back as a black tile."""
+    from livemap_helper.feed import satellite_snapshot
+    now = time.mktime(time.strptime("2026-10-30 00:52", "%Y-%m-%d %H:%M")) - time.timezone      # as UTC
+    assert "TIME=2026-10-29&" in satellite_snapshot(37.9, -26.3, now)
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, now)
+    assert "TIME=2026-10-29&" in satellite_snapshot(35.0, 139.0, now)       # Japan, 09:52 on the 30th: the 30th's pass not yet
+    noon = now + 15 * 3600                                                   # 15:52 UTC on the 30th
+    assert "TIME=2026-10-30&" in satellite_snapshot(35.0, 139.0, noon)      # Japan, 00:52 on the 31st: the 30th's pass is done
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, noon)       # Panama, 10:30 on the 30th: not yet
+
+
+def test_premature_snapshot_is_fetched_again():
+    from livemap_helper.feed import snapshot_premature, satellite_snapshot
+    now = time.mktime(time.strptime("2026-10-30 00:52", "%Y-%m-%d %H:%M")) - time.timezone
+    url = satellite_snapshot(7.6, -80.6, now).replace("TIME=2026-10-29", "TIME=2026-10-30")   # what the old code asked for
+    assert snapshot_premature(url, now)                                     # fetched before Panama's 30 Oct pass: black
+    assert not snapshot_premature(url, now + 24 * 3600)                    # a day later the pass is there
+    assert not snapshot_premature(satellite_snapshot(7.6, -80.6, now), now)   # the right date, fetched after its pass
+    assert not snapshot_premature("https://earthquake.usgs.gov/x.jpg", 0)
+
+
+def test_launch_page_prefers_the_webcast_then_the_provider_then_space_launch_now():
+    from livemap_helper.space import launch_page
+    L = {"slug": "falcon-9-block-5-starlink-group-15-18", "infoURLs": [{"priority": 10, "url": "https://www.spacex.com/launches/sl-15-18"}],
+         "vidURLs": [{"priority": 10, "url": "https://www.youtube.com/watch?v=OVOVtaf15eY"}]}
+    assert launch_page(L) == "https://www.youtube.com/watch?v=OVOVtaf15eY"
+    L["vidURLs"] = []
+    assert launch_page(L) == "https://www.spacex.com/launches/sl-15-18"
+    L["infoURLs"] = [{"url": "http://insecure.example"}]                       # not https: skipped
+    assert launch_page(L) == "https://spacelaunchnow.me/launch/falcon-9-block-5-starlink-group-15-18"
+    assert launch_page({}) == "https://spacelaunchnow.me/launch/upcoming"
+
+
+def test_mostly_black_snapshot_is_not_kept():
+    from livemap_helper.feed import mostly_black
+    from PIL import Image                                          # pillow is in the test requirements
+    black = Image.new("RGB", (560, 400), (0, 0, 0))
+    strip = black.copy(); strip.paste((40, 90, 160), (0, 340, 560, 400))                 # a strip of sea along the bottom, the rest black
+    land = Image.new("RGB", (560, 400), (60, 110, 60)); land.paste((0, 0, 0), (0, 0, 100, 400))   # a night edge on a real picture
+    assert mostly_black(black) and mostly_black(strip) and not mostly_black(land)
+
+
+# ---- rain radar (RainViewer) -------------------------------------------------------------------------------
+def test_rainviewer_index_and_tiles():
+    from livemap_helper import radar
+    idx = json.loads(fixture("rainviewer_index.json"))
+    frames, cast = radar.frames_of(idx, 7)
+    assert len(frames) == 7 and cast == 0 and frames[-1] == (1793731200, "/v2/radar/94d716ae4fc3")
+    assert frames[0][0] < frames[-1][0] and all(b[0] - a[0] == 600 for a, b in zip(frames, frames[1:]))   # ten-minute steps, oldest first
+    x, y = radar.tile_of(38.637, -90.2419, 6)
+    assert (int(x), int(y)) == (15, 24)                                                             # St. Louis's tile at zoom 6
+    w, s, e, n = radar.tile_bounds(15, 24, 6)
+    assert w < -90.2419 < e and s < 38.637 < n
+
+
+def test_rainviewer_loop_builds_frames(no_network, data_dir):
+    from livemap_helper import radar
+    from livemap_helper.common import BORDERS
+    idx = json.loads(fixture("rainviewer_index.json"))
+    no_network("weather-maps.json", fixture("rainviewer_index.json"))
+    no_network("tilecache.rainviewer.com", (FIXTURES / "rainviewer_tile.png"))
+    BORDERS.mkdir(parents=True, exist_ok=True)                                                     # no border files: a plain dark base
+    r = radar.radar_loop(38.637, -90.2419, now=idx["generated"])
+    assert len(r["frames"]) == 7 and r["errors"] == [] and r["echoes"] > 0.1
+    assert all(f["file"].startswith("file://") for f in r["frames"]) and (data_dir / "radar").exists()
+    assert r["box"][0] < -90.24 < r["box"][2] and r["box"][1] < 38.64 < r["box"][3]
+    again = radar.radar_loop(38.637, -90.2419, now=idx["generated"])                              # the second run fetches nothing: files exist
+    assert [f["file"] for f in again["frames"]] == [f["file"] for f in r["frames"]]
+
+
+def test_sky_fetch_again_asks_the_sources_once_a_minute():
+    from livemap_helper.sky import cached
+    calls = []
+    def fetch():
+        calls.append(1); return {"n": len(calls)}
+    cache = {}
+    assert cached(cache, "x", fetch, 1000)["data"] == {"n": 1}
+    assert cached(cache, "x", fetch, 1300)["data"] == {"n": 1}                      # five minutes on: the cache answers
+    assert cached(cache, "x", fetch, 1300, fresh=True)["data"] == {"n": 2}          # Fetch again: asked
+    assert cached(cache, "x", fetch, 1330, fresh=True)["data"] == {"n": 2}          # thirty seconds later: not again
+    assert cached(cache, "x", fetch, 1370, fresh=True)["data"] == {"n": 3}

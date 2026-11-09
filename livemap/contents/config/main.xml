@@ -70,6 +70,7 @@
     <entry name="ShowFloods" type="Bool"><default>true</default></entry>
     <entry name="ShowTsunami" type="Bool"><default>true</default></entry>
     <entry name="ShowAirAlerts" type="Bool"><default>false</default></entry>   <!-- off until the user opts in -->
+    <entry name="ShowMaritime" type="Bool"><default>true</default></entry>     <!-- maritime security incidents (UKMTO) -->
     <entry name="AirAlertColor" type="Color"><default>#e03a3a</default></entry>        <!-- an alert that has settled in: steady red -->
     <entry name="AirAlertNewColor" type="Color"><default>#ff3b30</default></entry>     <!-- the first minutes of an alert: the brightest red, breathing -->
     <entry name="AirAlertLongColor" type="Color"><default>#d68c28</default></entry>    <!-- long-running (the frontline): ochre, so a fresh alert next to it stands out -->
@@ -156,6 +157,11 @@
     <entry name="SatIss" type="Bool"><default>true</default></entry>
     <entry name="SatHubble" type="Bool"><default>true</default></entry>
     <entry name="SatTiangong" type="Bool"><default>true</default></entry>
+    <entry name="FocusFromWidget" type="Bool"><default>true</default></entry>   <!-- ring on the map the event the widget's list is pointing at (focus.json) -->
+    <entry name="FocusColor" type="String"><default>#ffd23f</default></entry>
+    <entry name="FocusStyle" type="Int"><default>1</default></entry>        <!-- 0 ring, 1 ring and pulse, 2 glow, 3 spotlight, 4 reticle, 5 beacon -->
+    <entry name="FocusStrength" type="Int"><default>100</default></entry>   <!-- size and weight of the mark, % -->
+    <entry name="FocusDim" type="Int"><default>30</default></entry>         <!-- spotlight: how much the rest of the screen darkens, % -->
     <entry name="SatPasses" type="Int"><default>1</default></entry>              <!-- ISS passes over the home place in the widget: 0 off, 1 the visible ones, 2 every pass -->
     <entry name="SatColor" type="Color"><default>#9fe8ff</default></entry>
     <entry name="SatTrack" type="Bool"><default>true</default></entry>
@@ -246,6 +252,19 @@
     <entry name="TsunamiTextFollows" type="Bool"><default>true</default></entry>
     <entry name="TsunamiTextColor" type="Color"><default>#ffb0b0</default></entry>
     <entry name="TsunamiPulse" type="Bool"><default>true</default></entry>
+    <!-- maritime incidents (UKMTO): the window shown, the colours per level, labels -->
+    <entry name="MaritimeDays" type="Int"><default>14</default></entry>        <!-- incidents of the last N days (the source keeps about 30) -->
+    <entry name="MaritimeColor" type="Color"><default>#ff3b3b</default></entry>          <!-- hijack, kidnap, a red-pin attack -->
+    <entry name="MaritimeAttackColor" type="Color"><default>#ff8c00</default></entry>    <!-- attack, boarding -->
+    <entry name="MaritimeInfoColor" type="Color"><default>#ffd23f</default></entry>      <!-- suspicious activity, interference, advisory -->
+    <entry name="MaritimeClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more close together: one label with the count -->
+    <entry name="MaritimeLabels" type="Int"><default>1</default></entry>       <!-- 0 none, 1 attacks and worse, 2 all -->
+    <entry name="MaritimeLabelSize" type="Int"><default>10</default></entry>
+    <entry name="MaritimeLabelPlate" type="Bool"><default>true</default></entry>
+    <entry name="MaritimeTextFollows" type="Bool"><default>true</default></entry>
+    <entry name="MaritimeTextColor" type="Color"><default>#ffd0b0</default></entry>
+    <entry name="MaritimePulse" type="Bool"><default>true</default></entry>     <!-- rings from a newly reported attack (PulseNewHours) -->
+    <entry name="MaritimeFreshHours" type="Int"><default>24</default></entry>  <!-- an incident counts as fresh (full size, pulsing) for this long -->
     <entry name="FloodLabels" type="Int"><default>1</default></entry>      <!-- 0 none, 1 orange and red, 2 all, 3 red only -->
     <entry name="FloodLabelSize" type="Int"><default>10</default></entry>
     <entry name="FloodLabelPlate" type="Bool"><default>true</default></entry>
@@ -314,6 +333,7 @@
     <entry name="InfraLabelHalo" type="Int"><default>100</default></entry>
     <entry name="QuakeLabels" type="Int"><default>2</default></entry>
     <entry name="QuakeLabelMin" type="Int"><default>0</default></entry>
+    <entry name="QuakeClusterLabels" type="Bool"><default>true</default></entry>   <!-- three or more close together: the strongest's label, "+N nearby" -->
     <entry name="QuakeLabelSize" type="Int"><default>10</default></entry>
     <entry name="QuakeLabelPlate" type="Bool"><default>true</default></entry>
     <!-- Volcanoes -->
@@ -339,6 +359,7 @@
     <entry name="FireLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="FloodLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="TsunamiLayerOpacity" type="Int"><default>100</default></entry>
+    <entry name="MaritimeLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="SatLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="LaunchLayerOpacity" type="Int"><default>100</default></entry>
     <entry name="NetLayerOpacity" type="Int"><default>100</default></entry>
@@ -391,6 +412,11 @@
     <entry name="TsunamiLabelSpacing" type="Int"><default>100</default></entry>
     <entry name="TsunamiLabelOpacity" type="Int"><default>100</default></entry>
     <entry name="TsunamiLabelHalo" type="Int"><default>100</default></entry>
+    <entry name="MaritimeLabelBold" type="Bool"><default>false</default></entry>
+    <entry name="MaritimeLabelCaps" type="Bool"><default>false</default></entry>
+    <entry name="MaritimeLabelSpacing" type="Int"><default>100</default></entry>
+    <entry name="MaritimeLabelOpacity" type="Int"><default>100</default></entry>
+    <entry name="MaritimeLabelHalo" type="Int"><default>100</default></entry>
     <entry name="FloodLabelBold" type="Bool"><default>false</default></entry>
     <entry name="FloodLabelCaps" type="Bool"><default>false</default></entry>
     <entry name="FloodLabelSpacing" type="Int"><default>100</default></entry>

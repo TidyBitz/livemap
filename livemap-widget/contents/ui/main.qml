@@ -41,9 +41,9 @@ PlasmoidItem {
     property real lastSeen: 0                     // newest event time the user has looked at
     readonly property string feedName: Plasmoid.configuration.QuakeFeed || "4.5_day"
 
-    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", tsunami: "〰", alert: "⚠", launch: "↑", sat: "◆" })   // text fallbacks
-    function kindIconUrl(kind) { return kind === "fire" || kind === "sat" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
-    readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", tsunami: "Tsunami", alert: "Air raid alert", launch: "Launch", sat: "Satellite" })
+    readonly property var kindIcon: ({ quake: "◎", storm: "☁", volcano: "△", fire: "♦", flood: "≋", tsunami: "〰", alert: "⚠", maritime: "⚓", launch: "↑", sat: "◆" })   // text fallbacks
+    function kindIconUrl(kind) { return kind === "fire" || kind === "sat" || kind === "maritime" ? Qt.resolvedUrl("../icons/" + kind + ".svg") : "" }   // icons/<kind>.svg, drawn as a mask; the rest keep their glyph
+    readonly property var kindName: ({ quake: "Earthquake", storm: "Storm", volcano: "Volcano", fire: "Wildfire", flood: "Flood", tsunami: "Tsunami", alert: "Air raid alert", maritime: "Maritime incident", launch: "Launch", sat: "Satellite" })
     // the Map controls chips: each live layer with the Status names of its sources (the same the wallpaper uses)
     readonly property var layerChips: [
         { layer: "quakes", name: "Earthquakes", sources: ["Earthquake feed (USGS)", "Earthquakes, secondary (EMSC)"] },
@@ -53,6 +53,7 @@ PlasmoidItem {
         { layer: "floods", name: "Floods", sources: ["Floods (GDACS)", "US flood alerts (NWS)", "European warnings (MeteoAlarm)", "Canadian alerts (Environment Canada)", "England flood warnings (Environment Agency)"] },
         { layer: "tsunami", name: "Tsunami", sources: ["Tsunami bulletins (PTWC / NTWC)"] },
         { layer: "alerts", name: "Air raid alerts", sources: ["Air raid alerts (alerts.in.ua)"] },
+        { layer: "maritime", name: "Maritime incidents", sources: ["Maritime incidents (UKMTO)"] },
         { layer: "sats", name: "Satellites", sources: ["Satellite elements (CelesTrak)"] },
         { layer: "launches", name: "Launches", sources: ["Launches (The Space Devs)"] },
         { layer: "network", name: "Network", sources: ["Connections (ss)", "GeoIP database (DB-IP)"] } ]
@@ -69,9 +70,11 @@ PlasmoidItem {
         if (bad > 0) return ok > 0 ? "warn" : "error";
         return warn > 0 ? "warn" : "ok";
     }
-    readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", launch: "launches", sat: "sats" })
+    readonly property var layerOf: ({ quake: "quakes", storm: "storms", volcano: "volcanoes", fire: "fires", flood: "floods", tsunami: "tsunami", alert: "alerts", maritime: "maritime", launch: "launches", sat: "sats" })
     property var layers: null                     // the event layers the wallpaper shows (layers.json via the feed); null until it has said
     property int saving: 0                        // what the wallpaper holds back: 0 nothing, 1 animations paused, 2 live layers off
+    property var pulsing: []                      // the layers keeping the map's pulse clock running (layers.json via the feed)
+    property int mapFps: 0
     property string savingWhy: ""                 // and why: "load guard: CPU 63 %, GPU ?", "on battery", "paused from the widget"
     readonly property string savingText: saving === 0 ? "" : (saving === 2 ? "Live layers off on the map" : "Animations paused on the map") + (savingWhy ? " \u00b7 " + savingWhy : "")
     property var alertStrip: ({ hours: 6, rows: [] })   // the air raid alerts of the last hours, one row per oblast (the strip under the group header)
@@ -80,7 +83,7 @@ PlasmoidItem {
     function wanted(kind) {
         var c = Plasmoid.configuration;
         var own = kind === "quake" ? c.ShowQuakes : kind === "volcano" ? c.ShowVolcanoes : kind === "storm" ? c.ShowStorms
-                : kind === "fire" ? c.ShowFires : kind === "flood" ? c.ShowFloods : kind === "tsunami" ? c.ShowTsunami : kind === "alert" ? c.ShowAlerts : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
+                : kind === "fire" ? c.ShowFires : kind === "flood" ? c.ShowFloods : kind === "tsunami" ? c.ShowTsunami : kind === "alert" ? c.ShowAlerts : kind === "maritime" ? c.ShowMaritime : kind === "launch" ? c.ShowLaunches : kind === "sat" ? c.ShowSats : true;
         if (!own) return false;
         if (c.FollowMap && layers !== null && layerOf[kind]) return layers.indexOf(layerOf[kind]) >= 0;   // only what the map shows
         return true;
@@ -155,7 +158,7 @@ PlasmoidItem {
     // new: first seen by this computer within the window (a quake reported late is news when it arrives)
     function isNew(it) { return !it.pin && !it.future && !it.nonew && root.nowSec - (it.seen || it.when) < root.newSeconds }
     function isSoon(it) { return !!it.future && it.when - root.nowSec < 3600 && it.when - root.nowSec > -1800 }
-    readonly property var kindOrder: ({ tsunami: 0, alert: 1, launch: 2, storm: 3, flood: 4, volcano: 5, quake: 6, fire: 7, sat: 8 })
+    readonly property var kindOrder: ({ tsunami: 0, alert: 1, maritime: 2, launch: 3, storm: 4, flood: 5, volcano: 6, quake: 7, fire: 8, sat: 9 })
     readonly property var shown: (function () {
         var list = (range > 0 ? pastItems : items).filter(function (it) { return wanted(it.kind); });
         var mode = sortMode;
@@ -177,9 +180,9 @@ PlasmoidItem {
     })()
     // ---- groups: one collapsible block per kind, with a count and the one fact that matters ----------------
     readonly property bool grouped: Plasmoid.configuration.Grouped
-    readonly property var kindPlural: ({ tsunami: "Tsunami bulletins", alert: "Air raid alerts", launch: "Launches", storm: "Storms", flood: "Floods", volcano: "Volcanoes", quake: "Earthquakes", fire: "Wildfires", sat: "Satellites" })
+    readonly property var kindPlural: ({ tsunami: "Tsunami bulletins", alert: "Air raid alerts", maritime: "Maritime incidents", launch: "Launches", storm: "Storms", flood: "Floods", volcano: "Volcanoes", quake: "Earthquakes", fire: "Wildfires", sat: "Satellites" })
     property var closed: ({})                     // kinds folded away, by the user; the header stays
-    readonly property var kindList: ["tsunami", "alert", "launch", "storm", "flood", "volcano", "quake", "fire", "sat"]
+    readonly property var kindList: ["tsunami", "alert", "maritime", "launch", "storm", "flood", "volcano", "quake", "fire", "sat"]
     function toggleKind(k) { var c = Object.assign({}, closed); if (c[k]) delete c[k]; else c[k] = true; closed = c; }
     readonly property bool anyOpen: rows.some(function (r) { return r.head && r.open; })
     function toggleAll() {
@@ -192,12 +195,12 @@ PlasmoidItem {
         var src = range > 0 ? pastItems : items, out = {};
         for (var i = 0; i < src.length; i++) {
             var k = src[i].kind, c = Plasmoid.configuration;
-            var own = k === "quake" ? c.ShowQuakes : k === "volcano" ? c.ShowVolcanoes : k === "storm" ? c.ShowStorms : k === "fire" ? c.ShowFires : k === "flood" ? c.ShowFloods : k === "tsunami" ? c.ShowTsunami : k === "alert" ? c.ShowAlerts : k === "launch" ? c.ShowLaunches : k === "sat" ? c.ShowSats : true;
+            var own = k === "quake" ? c.ShowQuakes : k === "volcano" ? c.ShowVolcanoes : k === "storm" ? c.ShowStorms : k === "fire" ? c.ShowFires : k === "flood" ? c.ShowFloods : k === "tsunami" ? c.ShowTsunami : k === "alert" ? c.ShowAlerts : k === "maritime" ? c.ShowMaritime : k === "launch" ? c.ShowLaunches : k === "sat" ? c.ShowSats : true;
             if (own && !wanted(k)) out[k] = (out[k] || 0) + 1;
         }
         return Object.keys(out).map(function (k) { return { kind: k, count: out[k] }; });
     })()
-    readonly property var problemWords: ({ quake: "quakes", storm: "storms", volcano: "volcano", fire: "fire", flood: "flood", tsunami: "tsunami", alert: "air alerts", launch: "launch", sat: "sat" })
+    readonly property var problemWords: ({ quake: "quakes", storm: "storms", volcano: "volcano", fire: "fire", flood: "flood", tsunami: "tsunami", alert: "air alerts", maritime: "maritime", launch: "launch", sat: "sat" })
     function emptyFact(k) {
         var w = problemWords[k] || k, p = problems.find(function (t) { return String(t).toLowerCase().indexOf(w) === 0; });
         return p ? "source not answering" : (k === "flood" ? "none at the map's level" : "none right now") + (ages[k] !== undefined ? " \u00b7 " + asOf(k) : " \u00b7 no data yet");
@@ -211,6 +214,7 @@ PlasmoidItem {
         if (k === "alert") { var sev = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return list.length + " oblast" + (list.length === 1 ? "" : "s") + (sev ? " · " + sev + " beyond air raid" : ""); }
         if (k === "flood") { var red = list.filter(function (it) { return (it.level || 0) >= 3; }).length; return red ? red + " red" : ""; }
         if (k === "tsunami") { var th = list.filter(function (it) { return (it.level || 0) >= 2; }).length; return th ? th + " threat" + (th > 1 ? "s" : "") + " active" : "no threat"; }
+        if (k === "maritime") { var att = list.filter(function (it) { return (it.level || 0) >= 2; }).length, day = list.filter(function (it) { return nowSec - it.when < 86400; }).length; return [att ? att + " attack" + (att > 1 ? "s" : "") : "", day ? day + " in the past day" : ""].filter(function (t) { return t !== ""; }).join(" · ") || "advisories only"; }
         if (k === "sat") return "live on the map";
         return "";
     }
@@ -304,7 +308,7 @@ PlasmoidItem {
                     var r = JSON.parse(data.stdout);
                     root.items = r.items || [];
                     root.layers = r.layers === undefined ? null : r.layers;
-                    root.saving = r.saving || 0; root.savingWhy = r.why || "";
+                    root.saving = r.saving || 0; root.savingWhy = r.why || ""; root.pulsing = r.pulsing || []; root.mapFps = r.fps || 0;
                     root.ages = r.ages || ({});
                     root.alertStrip = r.alert_strip || ({ hours: 6, rows: [] });
                     root.problems = r.problems || [];
@@ -349,6 +353,13 @@ PlasmoidItem {
         busy = true;
         exec.connectSource(helperShell + "feed --feed " + feedName + " # " + Date.now());
     }
+    // A spinner is an animation at the screen's frame rate for as long as it turns, and a flag that never clears
+    // (a helper run cut short by a wallpaper reload or a plasmashell restart answers nothing) kept one turning for
+    // hours - a steady tenth of a core, until the widget was removed and added back. So every "busy" has a watchdog:
+    // past its time the flag drops, the list says the helper did not answer, and the next refresh runs as usual.
+    Timer { interval: 120000; running: root.busy; onTriggered: { root.busy = false; root.problem = root.problem || "The helper did not answer in two minutes; refresh to try again"; } }
+    Timer { interval: 120000; running: root.pastBusy; onTriggered: root.pastBusy = false }
+    Timer { interval: 180000; running: root.statusBusy; onTriggered: { root.statusBusy = false; root.statusProblem = root.statusProblem || "The checks did not finish in three minutes"; } }
     function refreshMode() { exec.connectSource(helperShell + "power # " + Date.now()) }
     function setMode(args) { exec.connectSource(helperShell + "mode " + args + " # " + Date.now()) }
     function checkStatus() {
@@ -362,7 +373,7 @@ PlasmoidItem {
     Component.onCompleted: { refresh(); refreshMode(); }
     Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
-    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); }
+    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); focusItem = null; focusSend.restart(); }
 
     toolTipMainText: "Live World Map"
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
@@ -381,6 +392,29 @@ PlasmoidItem {
     readonly property int previewMode: Plasmoid.configuration.Preview === undefined ? 2 : Plasmoid.configuration.Preview
     property var bubbleItem: ({})
     property Item bubbleRow: null
+    // ---- the event under the pointer, told to the wallpaper: focus.json in the data folder, which the wallpaper's
+    // FocusLayer reads a few times a second while the popup is open and rings the event on the map. Written by a
+    // shell printf (no interpreter to start), at most every 120 ms while the pointer moves down the list.
+    readonly property bool hoverHighlight: Plasmoid.configuration.HoverHighlight === undefined ? true : Plasmoid.configuration.HoverHighlight
+    property var focusItem: null
+    function focusOn(it) { if (!hoverHighlight) return; focusItem = it; focusSend.restart(); }
+    function focusOff(it) { if (focusItem === it || it === null) { focusItem = null; focusSend.restart(); } }
+    function focusWrite() {
+        var it = focusItem;
+        var doc = { open: root.expanded && root.hoverHighlight, at: Math.round(Date.now() / 1000) };
+        if (it && it.lat !== undefined && it.lat !== null && it.lon !== undefined && it.lon !== null) {
+            doc.kind = it.kind; doc.lat = Number(it.lat); doc.lon = Number(it.lon); doc.key = String(it.key || "");
+            doc.title = String(it.title || "").replace(/['\\]/g, "").substring(0, 80);
+        }
+        var json = JSON.stringify(doc).replace(/'/g, "");
+        focusExec.connectSource('d="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"; mkdir -p "$d"; printf \'%s\' \'' + json + '\' > "$d/focus.json.tmp" && mv -f "$d/focus.json.tmp" "$d/focus.json" # ' + Date.now());
+    }
+    Timer { id: focusSend; interval: 120; onTriggered: root.focusWrite() }
+    // the wallpaper treats a focus older than two minutes as gone (a crashed or closed widget must not leave a ring):
+    // while a row stays hovered, the stamp is refreshed every minute
+    Timer { interval: 60000; repeat: true; running: root.focusItem !== null; onTriggered: root.focusWrite() }
+    P5Support.DataSource { id: focusExec; engine: "executable"; connectedSources: []; onNewData: function (source, data) { disconnectSource(source); } }
+    onHoverHighlightChanged: focusSend.restart()
     function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
     function bubbleAway(row) { if (bubbleRow === row) { bubbleTimer.stop(); bubble.visible = false; bubbleRow = null; } }
     Timer { id: bubbleTimer; interval: 550; onTriggered: if (root.bubbleRow) { bubble.visualParent = root.bubbleRow; bubble.visible = true; } }
@@ -419,7 +453,7 @@ PlasmoidItem {
                 asynchronous: true
                 cache: true
                 sourceSize.width: Kirigami.Units.gridUnit * 44
-                PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible }
+                PC3.BusyIndicator { anchors.centerIn: parent; visible: picture.status === Image.Loading; running: visible && bubble.visible }
                 // a picture the helper has not fetched yet (it fetches a few per feed run and hands over files) is loaded from
                 // the source directly; past ten seconds say so, so a spinner is never the whole story
                 Timer { id: slow; interval: 10000; running: picture.status === Image.Loading; onTriggered: slowNote.visible = true }
@@ -556,8 +590,16 @@ PlasmoidItem {
                                      PC3.ToolTip.text: root.grouped ? "In groups by kind (click for one list in the sort order)" : "One list in the sort order (click for groups by kind)"; PC3.ToolTip.visible: hovered }
                     PC3.ToolButton { visible: root.grouped; icon.name: root.anyOpen ? "collapse-all" : "expand-all"; onClicked: root.toggleAll()
                                      PC3.ToolTip.text: root.anyOpen ? "Collapse every group" : "Expand every group"; PC3.ToolTip.visible: hovered }
-                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); } PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered }
-                    PC3.BusyIndicator { running: root.busy || root.pastBusy; visible: running; implicitHeight: Kirigami.Units.gridUnit * 1.2; implicitWidth: implicitHeight }
+                    // the spinner sits on the button itself (its icon hidden meanwhile), so nothing in the row moves while it turns
+                    PC3.ToolButton {
+                        id: refreshButton
+                        icon.name: "view-refresh"; enabled: !root.busy && !root.pastBusy; onClicked: { root.refresh(); root.refreshPast(); }
+                        PC3.ToolTip.text: "Refresh"; PC3.ToolTip.visible: hovered
+                        readonly property bool turning: root.busy || root.pastBusy
+                        contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                            Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !refreshButton.turning; enabled: refreshButton.enabled }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: refreshButton.turning; running: visible && root.expanded } }
+                    }
                 }
                 RowLayout {                                   // custom range
                     visible: root.range === 4
@@ -593,6 +635,11 @@ PlasmoidItem {
                         spacing: 2
                         clip: true
                         onContentYChanged: root.bubbleAway(root.bubbleRow)       // the row under the pointer changed: no stale bubble
+                        // The ring on the map must never outlive the hover. A row's own hoveredChanged is not enough: when the
+                        // list is rebuilt under the pointer (a refresh, a countdown ticking, a sort), the hovered delegate is
+                        // destroyed without saying goodbye, and the ring stayed on the map until another row was hovered.
+                        // So the pointer leaving the whole list clears it, whatever the rows did in between.
+                        HoverHandler { onHoveredChanged: if (!hovered) root.focusOff(null) }
                         delegate: Loader {
                             required property var modelData
                             required property int index
@@ -724,6 +771,7 @@ PlasmoidItem {
                         onHoveredChanged: {
                             if (hovered && root.previewMode > 0) root.bubbleFor(row, modelData);
                             else if (!hovered) root.bubbleAway(row);
+                            if (hovered) root.focusOn(modelData); else root.focusOff(modelData);
                         }
                         contentItem: RowLayout {
                             spacing: Kirigami.Units.smallSpacing
@@ -852,10 +900,22 @@ PlasmoidItem {
                 property string resolving: ""
                 readonly property bool channelLive: /youtube\.com\/(@[\w.-]+|channel\/[\w-]+|c\/[\w-]+|user\/[\w-]+)\/live\/?(\?.*)?$/.test(chosenUrl)
                 function resolve(u, fresh) {
-                    if (!channelLive || (resolved[u] !== undefined && !fresh) || resolving === u) return;
-                    resolving = u;
-                    liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
+                    if (!channelLive || resolving === u) return;
+                    // an earlier empty answer is not final: the next time this stream is chosen it is asked again, fresh, once
+                    if (resolved[u] !== undefined && !fresh) { if (resolved[u] === "" && !retried[u]) { retried[u] = true; fresh = true; } else return; }
+                    // "resolving" is set only once the helper has really been asked: chosenUrl changes while this layout is still
+                    // being built, before liveExec exists, and a throw after setting it left the tab "Looking for the stream" for good
+                    try {
+                        liveExec.connectSource(root.helperShell + "live-url '" + u.replace(/'/g, "") + "'" + (fresh ? " --fresh" : "") + " # " + Date.now());
+                        resolving = u;
+                        resolveWatch.restart();
+                    } catch (e) {
+                        console.warn("livemap widget: live-url could not be asked yet:", e);
+                    }
                 }
+                // no answer within 40 s (two page fetches at most): give up on this ask so Reload comes back
+                Timer { id: resolveWatch; interval: 40000; onTriggered: { if (liveTab.resolving !== "") { liveTab.resolveNote = "The helper did not answer in time"; liveTab.resolving = ""; } } }
+                Component.onCompleted: resolve(chosenUrl)
                 property string resolveNote: ""
                 property var retried: ({})
                 Timer { id: retryTimer; property string url: ""; interval: 4000; onTriggered: if (liveTab.chosenUrl === url) liveTab.resolve(url, true) }
@@ -868,12 +928,14 @@ PlasmoidItem {
                         var r = {}; for (var k in liveTab.resolved) r[k] = liveTab.resolved[k];
                         try {
                             var a = JSON.parse(data.stdout);
+                            console.warn("livemap widget: live-url answered", data.stdout.trim().substring(0, 200), "exit", data["exit code"]);
                             r[a.url] = a.video || "";                       // "" = asked, nothing on now
-                            liveTab.resolveNote = a.error ? "YouTube could not be asked: " + a.error : "";
+                            liveTab.resolveNote = a.error ? "YouTube could not be asked: " + a.error : (!a.video ? "The helper looked (" + (a.how || "?") + (a.cached ? ", from its cache" : "") + ")." : "");
                             // an empty first answer is asked again once, fresh, a few seconds later: YouTube's first reply to
                             // a new session sometimes names nothing (this used to need a Reload after every install)
                             if (!a.video && !a.cached && !liveTab.retried[a.url]) { liveTab.retried[a.url] = true; retryTimer.url = a.url; retryTimer.restart(); }
                         } catch (e) {
+                            console.warn("livemap widget: live-url gave no JSON -", String(data.stderr || data.stdout).trim().substring(0, 300), "exit", data["exit code"]);
                             liveTab.resolveNote = "The helper did not answer: " + String(data.stderr || data.stdout).trim().split("\n").pop();
                         }
                         liveTab.resolved = r; liveTab.resolving = "";
@@ -902,11 +964,75 @@ PlasmoidItem {
                     return list.concat(more);
                 })()
                 readonly property string chosenUrl: (choices[Math.min(chosen, choices.length - 1)] || {}).url || ""
-                PC3.ComboBox {
+                // ---- what each stream is: camera, delay, what to expect - a ? beside the list, like the Sky tab's ----
+                readonly property var streamNotes: [
+                    { match: "@sen", title: "Sen · 4K Earth views", lines: [
+                        "Sen's SpaceTV-1: three 4K cameras on the outside of ESA's Columbus module (flown in 2024). One looks forward along the direction of travel to the horizon, one straight down, one at Harmony's forward docking port; the stream cuts between them.",
+                        "Delay: the picture reaches you some 20 to 60 seconds after the camera saw it - the station's downlink, Sen's processing and YouTube's buffering. At 7.7 km/s that is 150 to 450 km behind the marker on the map, which shows where the station is now. Read the TIME UTC box in the overlay against your clock for the exact figure.",
+                        "The forward camera shows ground hundreds of kilometres ahead of the station, so a coastline in the picture is not under the marker either.",
+                        "Gaps: for a few minutes each orbit the station is out of relay-satellite coverage and the stream shows a notice or a recent replay; the overlay says so."] },
+                    { match: "ROboUHfPUrU", title: "NASA · HD Earth views", lines: [
+                        "NASA's external high-definition camera view, mostly the Earth below; the broadcast id changes now and then, so the list carries NASA's playlist, which follows it.",
+                        "Delay: typically 30 to 60 seconds behind real time. When the station is out of relay coverage the picture goes grey or blue; during crew operations the view may switch to the cabin."] },
+                    { match: "M3HKLzjvKPc", title: "NASA · ISS inside and out", lines: [
+                        "The same NASA feed with the crew's working day: cabin views and air-to-ground audio when the crew is on duty (roughly 06:00 to 19:30 UTC), Earth views otherwise. Delay 30 to 60 seconds."] },
+                    { match: "@NASA/live", title: "NASA TV", lines: [
+                        "NASA's programme channel: launches, spacewalks, dockings and briefings as scheduled, not a continuous Earth view. Between events it shows replays or the Earth feed."] },
+                    { match: "@CGTN", title: "CGTN · Tiangong events", lines: [
+                        "China's state broadcaster's English channel. Tiangong launches, dockings and spacewalks are carried live here; the rest of the time it is a news channel. Tiangong's own orbit is drawn on the map from CelesTrak elements; there is no continuous public camera feed from the station."] } ]
+                function notesFor(url) {
+                    var u = String(url || "");
+                    for (var i = 0; i < streamNotes.length; i++) if (u.indexOf(streamNotes[i].match) >= 0) return streamNotes[i];
+                    return { title: "About this stream", lines: ["A YouTube live stream chosen in the widget's settings. Live video reaches you some 20 to 60 seconds after the camera saw it, so a view from orbit always trails the marker on the map, which shows where the spacecraft is now."] };
+                }
+                property bool infoOpen: false
+                property bool infoPinned: false
+                property bool infoHovered: false
+                RowLayout {
                     Layout.fillWidth: true
-                    model: liveTab.choices.map(function (c) { return c.title })
-                    currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
-                    onActivated: function (i) { liveTab.chosen = i }
+                    spacing: Kirigami.Units.smallSpacing
+                    PC3.ComboBox {
+                        Layout.fillWidth: true
+                        model: liveTab.choices.map(function (c) { return c.title })
+                        currentIndex: Math.min(liveTab.chosen, liveTab.choices.length - 1)
+                        onActivated: function (i) { liveTab.chosen = i }
+                    }
+                    PC3.ToolButton {
+                        id: streamInfo
+                        icon.name: "help-contextual"
+                        opacity: liveTab.infoOpen ? 1 : 0.6
+                        hoverEnabled: true
+                        PC3.ToolTip.text: "About this stream"; PC3.ToolTip.visible: hovered && !liveTab.infoOpen
+                        Timer { id: streamInfoOpen; interval: 350; onTriggered: if (streamInfo.hovered) liveTab.infoOpen = true }
+                        Timer { id: streamInfoClose; interval: 400; onTriggered: if (!liveTab.infoPinned && !streamInfo.hovered && !liveTab.infoHovered) liveTab.infoOpen = false }
+                        onHoveredChanged: { if (hovered) { streamInfoClose.stop(); streamInfoOpen.restart(); } else streamInfoClose.restart(); }
+                        onClicked: { liveTab.infoPinned = !liveTab.infoPinned; liveTab.infoOpen = liveTab.infoPinned; }
+                    }
+                }
+                onInfoHoveredChanged: if (!infoHovered) streamInfoClose.restart()
+                onChosenChanged: { infoPinned = false; infoOpen = false; }
+                PlasmaCore.Dialog {
+                    type: PlasmaCore.Dialog.Tooltip
+                    location: PlasmaCore.Types.LeftEdge
+                    backgroundHints: PlasmaCore.Dialog.SolidBackground
+                    hideOnWindowDeactivate: false
+                    visible: liveTab.infoOpen && liveTab.visible && root.expanded
+                    visualParent: streamInfo
+                    mainItem: ColumnLayout {
+                        id: streamInfoColumn
+                        width: Kirigami.Units.gridUnit * 24
+                        height: implicitHeight
+                        spacing: Kirigami.Units.smallSpacing
+                        readonly property var info: liveTab.notesFor(liveTab.chosenUrl)
+                        HoverHandler { onHoveredChanged: liveTab.infoHovered = hovered }
+                        PC3.Label { text: streamInfoColumn.info.title; font.bold: true }
+                        Repeater {
+                            model: streamInfoColumn.info.lines
+                            PC3.Label { required property string modelData; Layout.fillWidth: true; wrapMode: Text.Wrap; text: modelData; font.pointSize: Kirigami.Theme.smallFont.pointSize; opacity: 0.85 }
+                        }
+                        PC3.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.6; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                                    text: liveTab.chosenUrl ? liveTab.chosenUrl.replace(/^https?:\/\//, "") : "" }
+                    }
                 }
                 Loader {
                     id: liveWeb
@@ -979,6 +1105,13 @@ PlasmoidItem {
                     visible: root.saving > 0
                     type: Kirigami.MessageType.Information
                     text: root.savingText + (root.savingWhy.indexOf("load guard") === 0 ? "  \u2014  Full speed below overrides it for a while; Settings > Performance and power sets the thresholds." : "")
+                }
+                // what keeps the map animating: every tick of the pulse clock redraws the whole screen, so when plasmashell is
+                // busy this line says which layer is asking for it
+                PC3.Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    text: root.pulsing.length > 0 ? "Map animating at " + root.mapFps + " fps for: " + root.pulsing.map(function (l) { var c = root.layerChips.find(function (x) { return x.layer === l; }); return c ? c.name.toLowerCase() : l; }).join(", ") + " (Settings > Ageing and pulses sets how long events pulse)"
+                                                  : "Map still: nothing is pulsing, it redraws only when something changes"
                 }
                 Heading { text: "Quick settings \u00b7 the widget's own" }
                 RowLayout {
@@ -1091,6 +1224,12 @@ PlasmoidItem {
                 }
                 Heading { text: "This widget" }
                 // the widget's own behaviour, the same settings as its configuration page (Plasmoid.configuration writes through)
+                PC3.Switch {
+                    text: "Ring the hovered event on the map"
+                    checked: root.hoverHighlight
+                    onToggled: Plasmoid.configuration.HoverHighlight = checked
+                    PC3.ToolTip.text: "Hover a row and the wallpaper rings its event, with an arrow from the edge when it is off screen (the wallpaper's own switch is on Essentials)"; PC3.ToolTip.visible: hovered
+                }
                 RowLayout {
                     Layout.fillWidth: true
                     PC3.Switch {
@@ -1142,8 +1281,13 @@ PlasmoidItem {
                                + root.checks.filter(function (c) { return c.state === "warn" }).length + " notes"
                                + " \u00b7 checked " + root.ago(root.statusAt) + (root.statusVersion ? " \u00b7 helper " + root.statusVersion : ""))
                     }
-                    PC3.BusyIndicator { visible: root.statusBusy; running: visible; implicitWidth: Kirigami.Units.iconSizes.small; implicitHeight: implicitWidth }
-                    PC3.ToolButton { icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered }
+                    PC3.ToolButton {
+                        id: checkButton
+                        icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered
+                        contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
+                            Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !root.statusBusy; enabled: checkButton.enabled }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: root.statusBusy; running: visible && root.expanded } }
+                    }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }
                 // the list at its full height: the tab scrolls, not the list

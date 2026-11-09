@@ -55,6 +55,8 @@ from .status import cmd_status
 from .storms import cmd_storms
 from .styles import cmd_styles
 from .tsunami import cmd_tsunami
+from .maritime import cmd_maritime
+from .radar import cmd_radar
 from .volcanoes import cmd_volcanoes
 from .widget import cmd_widget
 from .live import cmd_live_url
@@ -83,7 +85,7 @@ def main():
     pw.add_argument("--flood-level", dest="flood_level", type=int); pw.add_argument("--nws-each", dest="nws_each", type=int)
     pw.add_argument("--fire-sources", dest="fire_sources", type=int); pw.add_argument("--flood-sources", dest="flood_sources", type=int); pw.add_argument("--quake-sources", dest="quake_sources", type=int)
     pw.add_argument("--home"); pw.add_argument("--home-name"); pw.add_argument("--passes", type=int)
-    pw.add_argument("--saving", type=int); pw.add_argument("--why")           # what the wallpaper holds back and why, for the widget
+    pw.add_argument("--saving", type=int); pw.add_argument("--why"); pw.add_argument("--maritime-days", dest="maritime_days", type=int); pw.add_argument("--pulsing"); pw.add_argument("--fps", type=int)           # what the wallpaper holds back and why, for the widget
     pw.set_defaults(fn=cmd_power)
     cl = sub.add_parser("clouds"); cl.add_argument("--stitch", action="store_true"); cl.add_argument("--force", action="store_true")
     cl.add_argument("--max-age", type=float, default=2.5); cl.set_defaults(fn=cmd_clouds)
@@ -93,7 +95,7 @@ def main():
     mo.add_argument("--full", choices=["on", "off"]); mo.add_argument("--full-hours", dest="full_hours", type=float)
     mo.set_defaults(fn=cmd_mode)
     wd = sub.add_parser("widget"); wd.add_argument("--add", action="store_true"); wd.add_argument("--configure", action="store_true"); wd.set_defaults(fn=cmd_widget)
-    sk = sub.add_parser("sky"); sk.add_argument("--lat"); sk.add_argument("--lon"); sk.add_argument("--units"); sk.set_defaults(fn=cmd_sky)
+    sk = sub.add_parser("sky"); sk.add_argument("--lat"); sk.add_argument("--lon"); sk.add_argument("--units"); sk.add_argument("--fresh", action="store_true"); sk.set_defaults(fn=cmd_sky)
     lv = sub.add_parser("live-url"); lv.add_argument("url"); lv.add_argument("--fresh", action="store_true"); lv.set_defaults(fn=cmd_live_url)
     fe = sub.add_parser("feed"); fe.add_argument("--feed", default="4.5_day"); fe.add_argument("--limit", type=int, default=60)
     fe.add_argument("--since", type=float); fe.add_argument("--until", type=float); fe.set_defaults(fn=cmd_feed)    # epoch seconds: past events from history.json
@@ -117,6 +119,9 @@ def main():
     cv.set_defaults(fn=cmd_coverage)
     ts = sub.add_parser("tsunami"); ts.add_argument("--table", action="store_true"); ts.add_argument("--stale", type=float, default=2)
     ts.add_argument("--max-age", dest="max_age", type=float, default=5); ts.set_defaults(fn=cmd_tsunami)
+    rd = sub.add_parser("radar"); rd.add_argument("--lat"); rd.add_argument("--lon"); rd.add_argument("--zoom", type=int, default=6); rd.add_argument("--frames", type=int, default=7); rd.set_defaults(fn=cmd_radar)
+    mr = sub.add_parser("maritime"); mr.add_argument("--table", action="store_true"); mr.add_argument("--stale", type=float, default=6)
+    mr.add_argument("--max-age", dest="max_age", type=float, default=15); mr.add_argument("--days", type=float, default=0); mr.set_defaults(fn=cmd_maritime)
     fd = sub.add_parser("floods"); fd.add_argument("--table", action="store_true"); fd.add_argument("--keep", type=float, default=48)
     fd.add_argument("--stale", type=float, default=6); fd.add_argument("--all", action="store_true")      # details and area for green events too
     fd.set_defaults(fn=cmd_floods)

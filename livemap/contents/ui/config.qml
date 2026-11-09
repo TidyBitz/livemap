@@ -237,6 +237,7 @@ RowLayout {
     property alias cfg_InfraLabelHalo: infraStyle.halo
     property alias cfg_QuakeLabels: quakeLabels.currentIndex
     property alias cfg_QuakeLabelMin: quakeLabelMin.currentIndex
+    property alias cfg_QuakeClusterLabels: quakeCluster.checked
     property alias cfg_QuakeLabelSize: quakeLabelSize.value
     property alias cfg_QuakeLabelPlate: quakePlate.checked
     property alias cfg_QuakeTextFollows: quakeFollows.checked
@@ -315,6 +316,26 @@ RowLayout {
     property alias cfg_TsunamiLabelSpacing: tsunamiStyle.letterSpacing
     property alias cfg_TsunamiLabelOpacity: tsunamiStyle.textOpacity
     property alias cfg_TsunamiLabelHalo: tsunamiStyle.halo
+    // maritime incidents (UKMTO)
+    property alias cfg_ShowMaritime: maritime.checked
+    property int cfg_MaritimeLayerOpacity
+    property alias cfg_MaritimeDays: maritimeDays.value
+    property alias cfg_MaritimeFreshHours: maritimeFresh.value
+    property alias cfg_MaritimeColor: maritimeColor.color
+    property alias cfg_MaritimeAttackColor: maritimeAttackColor.color
+    property alias cfg_MaritimeInfoColor: maritimeInfoColor.color
+    property alias cfg_MaritimeLabels: maritimeLabels.currentIndex
+    property alias cfg_MaritimeClusterLabels: maritimeCluster.checked
+    property alias cfg_MaritimeLabelSize: maritimeLabelSize.value
+    property alias cfg_MaritimeLabelPlate: maritimePlate.checked
+    property alias cfg_MaritimeTextFollows: maritimeFollows.checked
+    property alias cfg_MaritimeTextColor: maritimeTextColor.color
+    property alias cfg_MaritimePulse: maritimePulse.checked
+    property alias cfg_MaritimeLabelBold: maritimeStyle.bold
+    property alias cfg_MaritimeLabelCaps: maritimeStyle.caps
+    property alias cfg_MaritimeLabelSpacing: maritimeStyle.letterSpacing
+    property alias cfg_MaritimeLabelOpacity: maritimeStyle.textOpacity
+    property alias cfg_MaritimeLabelHalo: maritimeStyle.halo
     // floods
     property alias cfg_ShowFloods: floods.checked
     property alias cfg_FloodColor: floodColor.color
@@ -359,6 +380,11 @@ RowLayout {
     property alias cfg_SatHubble: satHubble.checked
     property alias cfg_SatTiangong: satTiangong.checked
     property alias cfg_SatPasses: satPasses.currentIndex
+    property alias cfg_FocusFromWidget: focusFromWidget.checked
+    property alias cfg_FocusColor: focusColor.color
+    property alias cfg_FocusStyle: focusStyle.currentIndex
+    property alias cfg_FocusStrength: focusStrength.value
+    property alias cfg_FocusDim: focusDim.value
     property alias cfg_SatColor: satColor.color
     property alias cfg_SatMarkerStyle: satMarkerStyle.currentIndex
     property alias cfg_SatPictureSize: satPictureSize.value
@@ -495,7 +521,7 @@ RowLayout {
     readonly property var groupOrder: ["", "Map", "Natural events", "Civil, space and network", "Shared"]
     // the sidebar's order: by group, and inside a group as listed here (sections are completed in no fixed order)
     readonly property var sideOrder: ["Essentials", "Map", "Day and night", "Clouds", "Countries", "Rivers, lakes and seas", "Time zones", "Tectonic plates",
-        "Oil and gas infrastructure", "Earthquakes", "Volcanoes", "Storms", "Wildfires", "Floods", "Tsunami bulletins", "Air raid alerts (Ukraine)",
+        "Oil and gas infrastructure", "Earthquakes", "Volcanoes", "Storms", "Wildfires", "Floods", "Tsunami bulletins", "Air raid alerts (Ukraine)", "Maritime incidents",
         "Satellites", "Launches", "Network activity", "Units", "Markers and labels", "Ageing and pulses", "Performance and power", "Status", "Coverage"]
     function sideRank(s) { var g = groupOrder.indexOf(s.group), i = sideOrder.indexOf(s.title); return (g < 0 ? 99 : g) * 100 + (i < 0 ? 99 : i); }
     readonly property var sideList: sections.slice().sort(function (a, b) { return form.sideRank(a) - form.sideRank(b); })
@@ -830,7 +856,17 @@ RowLayout {
         connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { form.frameState = JSON.parse(data.stdout) || ({}); } catch (e) {} }
     }
-    Timer { interval: 2500; running: true; repeat: true; triggeredOnStart: true; onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
+    // The Imagery banner follows the helper's frame-state file. Every 2.5 s is right while a build runs or has just
+    // finished (the progress bar moves); the rest of the time, every 15 s - this page lives inside plasmashell, and a
+    // Python start every 2.5 s for as long as the settings stay open was a steady few percent of a core for nothing.
+    Timer { interval: form.frameBuilding || form.frameJustReady || form.frameRecent ? 2500 : 15000; running: true; repeat: true; triggeredOnStart: true
+            onTriggered: frameStateExec.connectSource("python3 '" + form.widgetHelper + "' frame-state # " + Date.now()) }
+    property bool frameRecent: false                 // a lever was just moved or Apply pressed: watch closely for a while
+    Timer { id: frameRecentOff; interval: 40000; onTriggered: form.frameRecent = false }
+    function frameWatchClosely() { frameRecent = true; frameRecentOff.restart(); }
+    // the levers that make the wallpaper build imagery: watch closely once one moves (the build starts after Apply)
+    readonly property string frameLevers: [cfg_MapStyle, cfg_FillMode, cfg_FrameNorth, cfg_FrameSouth, cfg_FrameWest, cfg_FrameEast].join(",")
+    onFrameLeversChanged: if (watchingLevers) frameWatchClosely()
     readonly property bool frameBuilding: frameState.state === "building" && (frameState.age || 0) < 900
     readonly property bool frameJustReady: frameState.state === "ready" && (frameState.age || 0) < 12
     readonly property bool frameFailed: frameState.state === "failed" && (frameState.age || 0) < 3600
@@ -846,7 +882,7 @@ RowLayout {
     }
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
-        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
+        return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", maritime: "Maritime incidents", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
     P5Support.DataSource {
         id: modeExec
         engine: "executable"
@@ -1254,7 +1290,7 @@ RowLayout {
                         onClicked: Qt.openUrlExternally(form.widgetInfo.store || "https://store.kde.org")
                     }
                     QQC2.Label {
-                        visible: form.widgetInfo.placed && form.widgetInfo.placed.length > 0
+                        visible: !!(form.widgetInfo.placed && form.widgetInfo.placed.length > 0)
                         text: "✓ On " + (form.widgetInfo.placed && form.widgetInfo.placed.length > 1 ? form.widgetInfo.placed.length + " desktops" : "this desktop")
                         color: Kirigami.Theme.positiveTextColor
                     }
@@ -1263,6 +1299,23 @@ RowLayout {
                 }
                 QQC2.Label { visible: !!form.widgetInfo.error; text: form.widgetInfo.error || ""; color: Kirigami.Theme.negativeTextColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 QQC2.Label { visible: form.widgetInfo.installed === true && form.widgetInfo.placed === null; text: "Could not ask plasmashell whether it is on a desktop; add it from the desktop's Add Widgets panel if not."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                RowLayout {
+                    QQC2.CheckBox { id: focusFromWidget; text: "Mark on the map the event the widget's list is pointing at" }
+                    KQuickControls.ColorButton { id: focusColor; enabled: focusFromWidget.checked; showAlphaChannel: false; implicitWidth: Kirigami.Units.gridUnit * 2 }
+                }
+                RowLayout {
+                    visible: focusFromWidget.checked
+                    QQC2.Label { text: "Highlight:"; opacity: 0.8 }
+                    QQC2.ComboBox { id: focusStyle; model: ["Ring", "Ring and pulse", "Glow", "Spotlight", "Reticle", "Beacon"] }
+                    QQC2.Label { text: "strength"; opacity: 0.8 }
+                    QQC2.SpinBox { id: focusStrength; from: 25; to: 200; stepSize: 25; textFromValue: function (v) { return v + " %" }; valueFromText: function (t) { return parseInt(t) || 100 } }
+                    QQC2.Label { visible: focusStyle.currentIndex === 3; text: "dim the rest by"; opacity: 0.8 }
+                    QQC2.SpinBox { id: focusDim; visible: focusStyle.currentIndex === 3; from: 10; to: 70; stepSize: 10; textFromValue: function (v) { return v + " %" }; valueFromText: function (t) { return parseInt(t) || 30 } }
+                }
+                QQC2.Label { visible: focusFromWidget.checked; wrapMode: Text.Wrap; Layout.fillWidth: true; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+                             text: ["A steady ring in the colour.", "The ring with a slow pulse running out of it.", "A soft halo that breathes.", "The rest of the screen dims and a clear disc stays bright around the event - no colour needed.",
+                                    "Four ticks slide in and lock on, then hold still: moves once, for people who find a heartbeat distracting.", "A radar sweep turning inside the ring."][focusStyle.currentIndex] || "" }
+                QQC2.Label { visible: focusFromWidget.checked; text: "Hover a row in the widget and its event is ringed here, with an arrow from the edge when it is off screen. The widget's own switch for it is under Map controls > This widget."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true; font.pointSize: Kirigami.Theme.smallFont.pointSize }
             }
         }
         RowLayout {
@@ -1724,6 +1777,7 @@ RowLayout {
             QQC2.ComboBox { id: quakeLabelMin; enabled: quakeLabels.currentIndex > 0; model: ["for every quake", "from magnitude 5", "from magnitude 6"] }
             Px { id: quakeLabelSize; enabled: quakeLabels.currentIndex > 0; from: 4; to: 24 }
         }
+        QQC2.CheckBox { visible: sec6.open; id: quakeCluster; Kirigami.FormData.label: "Swarms:"; enabled: quakes.checked && quakeLabels.currentIndex > 0; text: "Three or more close together: the strongest keeps its label and says '+N nearby'" }
         RowLayout {
             visible: sec6.open
             Kirigami.FormData.label: "Earthquake label text:"
@@ -2253,6 +2307,60 @@ RowLayout {
         }
         LabelStyle { visible: sec9a.open; id: alertStyle; label: "Alert label style:"; enabled: airAlerts.checked && alertLabels.currentIndex > 0; plated: alertPlate.checked }
         Note { visible: sec9a.open; text: "Label: oblast, the alert type, how long it has been on ('Kharkiv · air raid · 23 min'); a partial alert says 'part: Kupiansk'. The Events widget lists the oblasts under alert; an alert that is not an air raid (shelling, fighting) counts as severe for the sound." }
+
+
+        // ====================================================== Maritime incidents
+        SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
+        Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)"] }
+        QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO)" }
+        Amount {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime layer opacity:"
+            enabled: maritime.checked
+            from: 10; to: 100
+            value: form.cfg_MaritimeLayerOpacity
+            onValueChanged: form.cfg_MaritimeLayerOpacity = value
+        }
+        Note { visible: sec9m.open; text: "UKMTO (United Kingdom Maritime Trade Operations) is the Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the Arabian Gulf and the Strait of Hormuz. Every incident it publishes - attacks, boardings, hijacks, kidnaps, suspicious approaches, electronic interference, advisories - is a diamond with an anchor at the reported position: red for a hijack, a kidnap or an attack UKMTO flags red, orange for an attack or a boarding, yellow for the rest. Fresh incidents are full size and a newly reported attack pulses; older ones shrink and fade over the window. Looked at every 15 minutes. The Events widget lists the same incidents with the full report." }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Window:"
+            enabled: maritime.checked
+            QQC2.Label { text: "Incidents of the last"; opacity: 0.8 }
+            QQC2.SpinBox { id: maritimeDays; from: 1; to: 30; textFromValue: function (v) { return v + (v === 1 ? " day" : " days") }; valueFromText: function (t) { return parseInt(t) || 14 } }
+            QQC2.Label { text: "fresh for"; opacity: 0.8 }
+            QQC2.SpinBox { id: maritimeFresh; from: 1; to: 168; stepSize: 6; textFromValue: function (v) { return v + " h" }; valueFromText: function (t) { return parseInt(t) || 24 } }
+        }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime colours:"
+            enabled: maritime.checked
+            QQC2.Label { text: "Hijack, kidnap"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeColor; showAlphaChannel: false; dialogTitle: "Hijack, kidnap, red-pin attack colour" }
+            QQC2.Label { text: "Attack, boarding"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeAttackColor; showAlphaChannel: false; dialogTitle: "Attack and boarding colour" }
+            QQC2.Label { text: "Suspicious, advisory"; opacity: 0.8 }
+            KQuickControls.ColorButton { id: maritimeInfoColor; showAlphaChannel: false; dialogTitle: "Suspicious activity, interference, advisory colour" }
+        }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime labels:"
+            enabled: maritime.checked
+            QQC2.ComboBox { id: maritimeLabels; model: ["None", "Attacks and worse", "All"] }
+            Px { id: maritimeLabelSize; from: 4; to: 24 }
+        }
+        QQC2.CheckBox { visible: sec9m.open; id: maritimeCluster; Kirigami.FormData.label: "Runs:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; text: "Three or more close together: one label with the count ('11 attacks · tanker, tug · Strait of Hormuz · 5–11 d')" }
+        RowLayout {
+            visible: sec9m.open
+            Kirigami.FormData.label: "Maritime label text:"
+            enabled: maritime.checked && maritimeLabels.currentIndex > 0
+            QQC2.CheckBox { id: maritimePlate; text: "Plate" }
+            QQC2.CheckBox { id: maritimeFollows; text: "Text follows the level colour" }
+            KQuickControls.ColorButton { id: maritimeTextColor; enabled: !maritimeFollows.checked; showAlphaChannel: false; dialogTitle: "Maritime label colour" }
+        }
+        LabelStyle { visible: sec9m.open; id: maritimeStyle; label: "Maritime label style:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; plated: maritimePlate.checked }
+        QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from a newly reported attack (the window is Ageing and pulses > Newly reported)" }
+        Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. Nothing covers the Gulf of Guinea or South-East Asia yet - those centres (MDAT-GoG, ReCAAP) are separate sources." }
 
 
         // ============================================================= Satellites

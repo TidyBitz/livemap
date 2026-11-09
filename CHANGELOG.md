@@ -6,6 +6,46 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.48 - unreleased
 
 ### Added
+- Maritime incidents: a new layer and widget kind from UKMTO (United Kingdom Maritime Trade Operations), the
+  Royal Navy's point of contact for merchant shipping in the Indian Ocean, the Red Sea, the Gulf of Aden, the
+  Arabian Gulf and the Strait of Hormuz. ukmto.org holds no data itself: its page reads the Royal Navy's API
+  (`sccd.royalnavy.mod.uk/api/ukmto/all`), which answers plain JSON to anyone, no key or cookie, so the helper
+  reads the same (`maritime.py`, every 15 minutes, last answer kept). Every incident - attack, attempted or
+  illegal boarding, hijack, kidnap, suspicious activity, electronic interference, advisory - is a diamond with
+  an anchor at the reported position, coloured by what happened (red: hijack, kidnap, or an attack UKMTO itself
+  pins red; orange: attack or boarding; yellow: the rest), full size while fresh (24 h) and pulsing while newly reported (the shared window), shrinking
+  and fading over the window shown (Settings > Maritime incidents: 1 to 30 days, 14 by default; colours;
+  labels "Attack · tanker · Strait of Hormuz · 3 h" for attacks and worse, all, or none). The widget lists the
+  same incidents (Events, its own Show box, Map controls chip and Sources row) with the vessel type, UKMTO's
+  number and pin colour, the position, when it happened and was published, and the full report as UKMTO wrote
+  it. The window is shared through layers.json (`maritime_days`), so the list and the map agree. Status:
+  "Maritime incidents (UKMTO)"; sources.json: hazard "Maritime security", Crown copyright. Fixtures from the
+  real API (41 incidents of October 2026, and the filters list) and four tests. The Gulf of Guinea (MDAT-GoG)
+  and South-East Asia (ReCAAP) are not covered yet.
+- Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
+  and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a
+  chosen amount and a clear disc stays around the event), Reticle (four ticks slide in and lock on, then hold
+  still), and Beacon (a radar sweep inside the ring), with a strength
+  setting for size and weight, the colour button for all but Spotlight, and Spotlight's own dim amount (10-70 %). The animated ones keep their own clock, so they breathe on a quiet map too, and
+  stop the moment nothing is highlighted.
+- Cluster labels, one switch per layer (Earthquakes > Swarms, Maritime incidents > Runs; both on by default): three or
+  more earthquakes or maritime incidents within a few label heights of each other get one label instead of a pile - the strongest quake keeps
+  its label and says "+2 nearby"; a run of incidents reads "11 attacks · tanker, tug · Strait of Hormuz · 5–11 d"
+  (mixed types say "incidents"). The marks are all still drawn; `Geo.clusterGroups` and `Geo.spanRange` do it.
+- Widget: the maritime kind's anchor is an icon drawn in the theme's text colour (icons/maritime.svg, like the
+  fire and satellite ones) rather than a glyph the font turned into a coloured emoji.
+- Helper: a facts row named in `common.LONG_FACTS` ("Report") may carry up to 1200 characters and its line
+  breaks, where every other value is cut at 160; line breaks in any value now survive `emit` (they were
+  stripped as non-printable, which flattened the bullet lists of flood areas).
+- Hover a row in the widget and its event is marked on the map: by default a steady ring with a slow pulse
+  running out of it in a colour of your choice (the other styles are below), and when the event is off screen a
+  ring at the nearest edge with an arrow and the event's name, since a wallpaper cannot pan. The widget writes
+  focus.json in the data folder (a shell printf, no interpreter) at most every 120 ms; the wallpaper's FocusLayer
+  reads it through a `cat` on the executable engine (Qt 6 refuses file:// XMLHttpRequests in plasmashell) every
+  400 ms while the popup is open and every two seconds otherwise, so nothing in the event layers is touched and
+  the cost is one small item moving. Two switches: Essentials > Events widget "Mark on the map the event the
+  widget's list is pointing at" (with the colour) on the wallpaper, and Map controls > This widget "Ring the
+  hovered event on the map" in the widget.
 - Widget: a Sky tab, between Live and Map controls, about your sky at the home place from Essentials. Now
   (temperature, conditions, feels-like, today's high and low, wind, humidity, cloud, pressure and its trend); the
   next seven days, one 24-hour strip each - colour for the temperature hour by hour, the night ends darkened,
@@ -18,6 +58,10 @@ release notes written at the time; their dates are the day the version was hande
   for fresh. Sources: Open-Meteo (forecast, air quality) and NOAA SWPC (Kp), each fetched at most every 20 minutes
   by the helper (`sky`) and kept, so an outage shows the last answer with its age; sun, moon and passes are
   computed locally. New Status rows "Weather at home (Open-Meteo)" and "Space weather (NOAA SWPC)" read that cache.
+- Sky tab: a "?" beside Air quality, Aurora, UV index, Dark for satellites, Moon, Cloud cover tonight, Next
+  visible pass and Pressure opens an opaque bubble saying what the scale means - the AQI bands in colour (the US
+  EPA scale with miles, the European EEA scale otherwise, and the line now says which), Kp against the latitude
+  the aurora reaches, the WHO UV bands, what civil dusk is, what a falling pressure means.
 - Units: Temperature (follow the distance unit - miles means °F - or Celsius or Fahrenheit) and the one Clock
   setting (12- or 24-hour), which the Sky tab, the time zone labels and the band all follow; the 12-hour checkbox
   left the Time zones row for it. Rain is in inches with miles, millimetres otherwise; pressure in inches of
@@ -47,93 +91,6 @@ release notes written at the time; their dates are the day the version was hande
   station is still in sunlight, which is physics, not a setting; daytime passes are left out unless you ask for
   every pass. Cloud over your home from the live cloud image is shown as a hint and never hides a pass.
   Helper: `passes --lat --lon [--all] [--table]`.
-
-### Changed
-- Widget, Live tab: Sen's 4K Earth view is the default stream (the best picture); NASA's HD stream, its
-  inside-and-out stream, NASA TV and CGTN follow in the menu. An empty first answer from a channel page is asked
-  again once a few seconds later, and the helper also reads the channel's streams tab, so the tab no longer needs
-  a Reload after every install; "nothing live" is kept only a minute. Map controls > Sources gains "Live streams
-  (YouTube channel pages)" showing what each page resolved to and how.
-- docs/MAINTAINING.md: the map of where every parser lives, what notices a broken source (the daily probe, the
-  scheduled fixer, the Status rows) and the routine for fixing one, so the project survives a pause.
-- Widget: the Status tab is now a Sources section at the foot of Map controls, next to the chips whose health
-  dots come from the same check: one header line with the summary (problems, notes, when checked, refresh),
-  opening to the full list on a click and by itself when a source is failing. The tabs are Events, Live, Sky
-  and Map controls.
-- Air raid alerts redrawn. Edge lights (new default): an oblast under alert has its border glow in the alert
-  colour and the imagery inside it - the city lights, the terrain - stays as it is; a new alert breathes
-  brightest, a settled one holds a steady edge, part of an oblast is dashed, a long-running one a thin dashed
-  edge in its own colour, an ended one a dotted cool edge fading out. Fills remain a choice ("Drawn as"). The
-  palette is turned round: red is the alarm - the newest alert the brightest red (#ff3b30), settled alerts a
-  steady red (#e03a3a), the frontline's long-running ones ochre (#d68c28, their own colour setting) so a fresh
-  alert next to them stands out, all-clear cool blue. A "Default colours" button sets these.
-- Widget: a six-hour strip under the Air raid alerts header - one row per oblast under alert in the last six
-  hours, a bar for every alert, newest on the right: bright red while on (framed when new or renewed), dull red
-  once ended, ochre for the frontline, with how long the current one has been on. The helper keeps a day of
-  alert spans per oblast (air-alerts-history.json) and the feed carries the last six hours.
-- The settings page has a new shape, the one KDE's own System Settings uses: a sidebar on the left lists every
-  layer as one row - its on/off switch, its name and the health of its sources - grouped as Map, Natural events,
-  Civil/space/network and Shared, with "Find a setting" above; the right side shows one page at a time. The
-  first page, Essentials, holds the handful of choices most people make (style, profile, home place, what part
-  of the world is on screen) and says how the data is doing; the layers' own pages are unchanged inside. The
-  old collapsible sections, the Layers checklist and Expand/Collapse all are gone - the sidebar is all three.
-  Essentials is laid out in labelled sub-sections (Look, Profile, Where you are, On screen, Events widget) with a
-  swatch per style to click, and an Events widget card: one button puts the widget on this desktop (through
-  plasmashell's scripting interface; helper `widget --add`), the Store link when it is not installed, a tick
-  when it is already there.
-
-### Fixed
-- The daily source probe found failures on its first two runs but never opened its issue: `gh issue create`
-  refuses a label the repository does not have ("could not add label: 'sources' not found"), and the findings
-  went with it. The label is now created on first use (and the issue opened without one if that is not
-  allowed). The probe also flagged "feed: storm empty" every day: the feed lists storms, volcanoes and GDACS's
-  fires and floods from the events memory the wallpaper's own runs build up (first seen, changed), which a
-  fresh runner never has, so that kind is no longer judged from the feed - the Storms (GDACS) row is.
-- Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
-  fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
-  now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps
-  them under pictures/ for a fortnight and hands the widget a file, a few per feed run. A picture not fetched yet
-  is still loaded directly, and past ten seconds the bubble says so; a failure is named ("could not be loaded from
-  earthquake.usgs.gov"). Map controls > Sources > "Bubble pictures" counts the kept pictures and names the failures.
-  Quakes without a ShakeMap yet are asked again every 20 minutes for a day and a half (a miss used to wait six
-  hours, so a fresh quake stayed pictureless), newest first; one that has none shows the satellite's view of the
-  place, as storms without a chart do.
-- The last notices still drawn in the map's corner - "Live layers off: load guard…", "Animations paused…", "Full
-  speed from the widget" - have moved where the others went: the widget's Map controls tab shows the state and
-  the reason above the quick settings (with the way out: Full speed, or the thresholds in Performance and power),
-  and Settings > Status > Power and load turns amber with the same words. The wallpaper passes the state to the
-  helper with its layers (layers.json: saving, why) and the feed carries it to the widget.
-- Widget, Live tab: NASA ended its ISS broadcast awQzjn72bI0 on 22 October 2026 and restarted it as ROboUHfPUrU,
-  so the tab had shown "Video unavailable" for days. The default now names the new broadcast together with NASA's
-  "Space Station Views" playlist (&list=), so the embedded player moves on by itself the next time NASA rotates
-  the id; a saved copy of the old default is read as the new one. A channel's /live page (youtube.com/@NASA/live,
-  @sen/live) is now embeddable too: the page is read once and its canonical watch link names the broadcast that is
-  on now ("Looking for the stream that is on now…", "Nothing live on that channel right now", Reload asks again).
-  More streams by default: NASA's inside-and-out stream (M3HKLzjvKPc) and Sen's 4K Earth views. The /live page is
-  read by the helper (`live-url`, browser headers, the redirect followed, canonical link or the player's
-  "isLiveNow" read, answers kept ten minutes) - the widget's own request got a consent page and said "Nothing live".
-- The map imagery was rebuilt at every login, with the toast to say so: the view settles in steps as the desktop
-  comes up (the panel appears, the screen scale lands) and each step asked for a frame of its own. A change of
-  view now waits until it has held still for a moment, and the toast only appears for a build that takes
-  longer than three seconds.
-- The same rule for every layer with several sources: one failing among them (EFFIS 502, the Smithsonian 403,
-  USGS alert levels) is shown in Status, and the desktop's corner notice only speaks when none of a layer's
-  sources answers. The corner is for what needs a hand; Status is the full picture.
-- A secondary flood-warning source failing (ECCC answering with something that is not JSON, a MeteoAlarm
-  country down) no longer sits in the desktop's corner notice for days: it is a Status matter - the settings'
-  Status page and the widget's Status tab name the source and the error. The desktop hears of it only when no
-  official source answers at all.
-- Widget: the Map controls tab ends with "This widget" - fade when idle with its opacity, and the preview on
-  hover choice - the same settings as the configuration page, in reach.
-- Environment Canada's alerts never loaded: the request named the WMS layer (ALERTS) where the WFS wants its own
-  type name, ec-msc:Current-Alerts - and the service speaks GML only (every JSON output name is refused). The
-  helper now reads the GML 3.2 answer with the same guarded XML parser as the other feeds.
-- The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
-  keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
-  not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test
-  compares the two.
-
-### Added
 - A new base map or view takes up to a minute to build, and it used to look like nothing happened. Now a banner
   across the top of the settings page (KDE's inline message, with a progress bar) says it is building, how far
   along, and that the map keeps its previous picture meanwhile; it turns green for a moment when the picture
@@ -212,7 +169,7 @@ release notes written at the time; their dates are the day the version was hande
   an evaluation leaves after six. tsunami.gov publishes only each centre's latest message, so the helper
   remembers every bulletin by event. The widget lists tsunami bulletins first; new "Tsunami bulletins" section.
 - Coverage: what covers where, and how fast. One file (`contents/data/sources.json`) lists every source with
-  its hazard, regions or country, lead time, cadence, licence and attribution; the Status tab shows it as a
+  its hazard, regions or country, lead time, cadence, licence and attribution; the Coverage page shows it as a
   matrix (hazards by world region, each cell the best source, green within minutes, amber hours, grey a weekly
   report) with the details on click, and a "Where you are" summary for the home city - which says plainly
   that official flood warnings are US only, fire incidents by name US / Canada / EFFIS, volcano alert levels US
@@ -220,8 +177,65 @@ release notes written at the time; their dates are the day the version was hande
 - The Events widget says how old each kind's data is: an empty kind reads "none right now · as of 3 min ago"
   when the source was reached, "no data yet" when it never was - so nothing happening and a source down are
   told apart.
+- What keeps the map animating is now said where you can see it: Status > Power and load reads "pulse clock
+  running at 30 fps for storms, maritime" (or "idle"), and the widget's Map controls tab has the same line under
+  the power notice. Every tick of that clock redraws the whole screen, so when plasmashell is busy this is the
+  first thing to look at; Ageing and pulses > Newly reported is the knob (layers.json: `pulsing`, `fps`).
+- Sky tab: a Radar button opens the last hour of weather radar round the home place as a loop - RainViewer's
+  composite of the national services' radars (NEXRAD, the European, Japanese, Australian, Canadian services and
+  more; keyless, free for non-commercial use with attribution), seven frames ten minutes apart, nine tiles each
+  composed by the helper over a dark base cut from the Natural Earth files the wallpaper already has, with a ring
+  at home; about 1 500 km across. Play/pause, a scrubber, the frame's time, a refresh; fetched only while the
+  pop-up is open and every ten minutes after, a frame fetched once (its path is a content hash) and kept three
+  hours. The pop-up says plainly when nothing is on the radar, since an empty tile cannot tell dry from
+  uncovered (the oceans, most of Africa and much of Asia have no shared radar). Needs python3-pillow.
+  `livemap-helper radar`, Status "Rain radar (RainViewer)", a sources.json record, fixtures and tests.
+- Live tab: a ? beside the stream list opens a note about the chosen stream - whose camera it is and where it
+  points, how far behind real time the picture runs and what that means against the marker on the map, when it
+  goes dark - for Sen's 4K cameras, NASA's HD and cabin feeds, NASA TV and CGTN, with a general note for any
+  other stream. Same bubble as the Sky tab's: opens on hover, a click keeps it.
+- docs/DEPENDENCIES.md: every library, QML module and program the wallpaper, the widget and the install script
+  use, what each optional one is for and what happens without it, and the supply-chain rules (standard library
+  plus three optional distro packages; no package manager; nothing downloaded is code; QML never fetches).
+- Night mode (Day and night > Night): the terminator as before, the whole map at night always, or at night during
+  your own night - civil dusk to dawn at the home place - so the city lights are the picture through the
+  evening wherever the sun is.
+- Widget: opaque pop-ups. The Sky tab's hour bubble is drawn last over every row with a solid theme colour and
+  the event preview bubble has a solid background; a see-through bubble over the map was hard to read.
 
 ### Changed
+- Widget, Live tab: Sen's 4K Earth view is the default stream (the best picture); NASA's HD stream, its
+  inside-and-out stream, NASA TV and CGTN follow in the menu. An empty first answer from a channel page is asked
+  again once a few seconds later, and the helper also reads the channel's streams tab, so the tab no longer needs
+  a Reload after every install; "nothing live" is kept only a minute. Map controls > Sources gains "Live streams
+  (YouTube channel pages)" showing what each page resolved to and how.
+- docs/MAINTAINING.md: the map of where every parser lives, what notices a broken source (the daily probe, the
+  scheduled fixer, the Status rows) and the routine for fixing one, so the project survives a pause.
+- Widget: the Status tab is now a Sources section at the foot of Map controls, next to the chips whose health
+  dots come from the same check: one header line with the summary (problems, notes, when checked, refresh),
+  opening to the full list on a click and by itself when a source is failing. The tabs are Events, Live, Sky
+  and Map controls.
+- Air raid alerts redrawn. Edge lights (new default): an oblast under alert has its border glow in the alert
+  colour and the imagery inside it - the city lights, the terrain - stays as it is; a new alert breathes
+  brightest, a settled one holds a steady edge, part of an oblast is dashed, a long-running one a thin dashed
+  edge in its own colour, an ended one a dotted cool edge fading out. Fills remain a choice ("Drawn as"). The
+  palette is turned round: red is the alarm - the newest alert the brightest red (#ff3b30), settled alerts a
+  steady red (#e03a3a), the frontline's long-running ones ochre (#d68c28, their own colour setting) so a fresh
+  alert next to them stands out, all-clear cool blue. A "Default colours" button sets these.
+- Widget: a six-hour strip under the Air raid alerts header - one row per oblast under alert in the last six
+  hours, a bar for every alert, newest on the right: bright red while on (framed when new or renewed), dull red
+  once ended, ochre for the frontline, with how long the current one has been on. The helper keeps a day of
+  alert spans per oblast (air-alerts-history.json) and the feed carries the last six hours.
+- The settings page has a new shape, the one KDE's own System Settings uses: a sidebar on the left lists every
+  layer as one row - its on/off switch, its name and the health of its sources - grouped as Map, Natural events,
+  Civil/space/network and Shared, with "Find a setting" above; the right side shows one page at a time. The
+  first page, Essentials, holds the handful of choices most people make (style, profile, home place, what part
+  of the world is on screen) and says how the data is doing; the layers' own pages are unchanged inside. The
+  old collapsible sections, the Layers checklist and Expand/Collapse all are gone - the sidebar is all three.
+  Essentials is laid out in labelled sub-sections (Look, Profile, Where you are, On screen, Events widget) with a
+  swatch per style to click, and an Events widget card: one button puts the widget on this desktop (through
+  plasmashell's scripting interface; helper `widget --add`), the Store link when it is not installed, a tick
+  when it is already there.
 - The helper is a package: `livemap_helper/` with one module per feed and `common.py` for what they share;
   `livemap-helper.py` stays the entry point, so nothing the layers run has changed. Tests (`tests/`, pytest)
   run every parser against recorded responses and check that config keys, settings aliases, status names,
@@ -230,11 +244,118 @@ release notes written at the time; their dates are the day the version was hande
   templates ask for the version and install method.
 - NASA FIRMS hotspots come from VIIRS on NOAA-21 (375 m), NOAA-20 as the fallback and MODIS last: Suomi NPP's
   data delivery ends on 2 November 2026 and MODIS collection in 2027. VIIRS confidence letters are mapped and a
-  VIIRS detection weighs 0.4 so the cell tiers calibrated on MODIS hold; the Status tab warns when only MODIS
+  VIIRS detection weighs 0.4 so the cell tiers calibrated on MODIS hold; Status warns when only MODIS
   could be read. Each file is tried on both FIRMS hosts.
 - Every request carries an identifiable user agent (`livemap-wallpaper/<version> (github.com/TidyBitz/livemap)`),
   as the APIs ask.
 - Wallpaper and widget 0.48.
+
+### Fixed
+- Sky tab: the Fetch again button now asks the sources again (`sky --fresh`), not just the helper's 20-minute cache,
+  so the ages really return to zero; at most once a minute. Opening the tab and the 20-minute timer keep the cache.
+- A launch row with no webcast listed yet opened the raw Launch Library API record (a page of JSON). It now opens
+  the webcast when LL2 lists one, else the provider's own page for the launch (SpaceX's, Rocket Lab's), else
+  Space Launch Now's page for it, which embeds the webcast once there is one. And the launch list is refreshed
+  every quarter of an hour while a launch is inside the next two hours (hourly otherwise), since the webcast
+  link usually appears in the last hour.
+- The Spotlight highlight's canvas - the whole screen, eleven million pixels on a 5K monitor - was a permanent
+  item whatever style was chosen, and repainted itself on every read of the focus file, because with nothing
+  highlighted its centre was not a number and "changed" every time: a hundred milliseconds or more of the GUI
+  thread per read (every second while the widget was open, every ten seconds otherwise) and an error line in
+  the journal each time (`createRadialGradient(): Incorrect arguments`). It now exists only while the spotlight is
+  actually showing, paints off the GUI thread, and never paints without a target.
+- Widget: the refresh spinner turns on the refresh button itself (Events, and the Sources check) instead of appearing
+  beside it and pushing the button sideways while it turns.
+- Blank satellite pictures in the bubbles. The Worldview snapshot's date was chosen from the UTC clock: late in
+  the evening west of Greenwich the UTC date had already turned, "today" had no pass processed yet, and NASA
+  answered a black tile - which the picture cache then kept for a fortnight. The date is now the place's own
+  solar date (the afternoon pass is ready from about 17:00 solar time), and a snapshot that was fetched before
+  its date's pass could exist is fetched again once it can (`snapshot_premature`). And a snapshot that comes
+  back mostly black anyway - near the date line a day's swath arrives last, sometimes a strip of real imagery
+  along one edge and nothing else, which no date arithmetic foresees - is not kept at all (`mostly_black`,
+  with Pillow): it is asked for again after the usual hour. Tests for all three.
+- Widget: a spinner that never stopped. The "busy" flag behind the refresh spinner (and the Status one) cleared
+  only when the helper answered; a run cut short by a wallpaper reload or a plasmashell restart never did, and a
+  spinner is an animation at the screen's frame rate for as long as it turns - a steady tenth of a core, until
+  the widget was removed and added back. Every busy flag now has a watchdog (two minutes for the feed, three
+  for the checks) that drops it and says the helper did not answer; spinners only turn while they can be seen.
+- Focus file: the wallpaper no longer polls focus.json with a `cat` every 400 ms while the popup is open and
+  every 2 s otherwise. A file-system watcher (FocusWatch.qml, Qt.labs.folderlistmodel) says when the widget
+  has written it, and only then is it read; a slow safety read remains (every second while open, every 10 s
+  otherwise), and on a system without the module the old polling stays. An idle desktop spawns nothing.
+- Settings: while the settings window was open, the Imagery banner asked the helper for the frame state every
+  2.5 seconds - a Python start each time, inside plasmashell, a steady few percent of a core for as long as the
+  window stayed open, which made the wallpaper look busier than it is when measured with the settings up. It
+  now asks every 15 s, and every 2.5 s only while a build runs, has just finished, or a frame lever was moved.
+- The maritime layer kept the whole map's pulse clock running around the clock: it pulsed every attack of the
+  last 24 hours, and UKMTO lists an attack most days, so some ring was always running and the screen was
+  redrawn at full rate all day (the other layers pulse only while an event is newly reported, 3 h by default).
+  It now pulses an attack for the shared "Newly reported" window (Ageing and pulses) like every other layer;
+  the 24 h "fresh" window only sets the mark's size.
+- Widget: the ring on the map could stay on an event after the pointer had left the widget. When the list was
+  rebuilt under the pointer (a refresh, a launch countdown ticking over, a sort), the hovered row was destroyed
+  without reporting the hover's end, so the wallpaper kept ringing it until another row was hovered. The
+  pointer leaving the list now clears the focus whatever the rows did, and a row kept under the pointer renews
+  the stamp every minute so a long look does not expire either.
+- Storms: a GDACS name is "IN-FA-25", the name and a two-digit year, and the name was cut at the first hyphen, so
+  Typhoon In-Fa was "In" on the map and in the widget, beside the JTWC record of the same storm as a second
+  system. Only the year comes off now, and the two records merge as they should. Beyond the one case: two
+  sources' names for a storm are compared leniently (hyphens, spaces, case), the distance within which two
+  records count as one storm grows with the time between their fixes (GDACS can be a day behind the centre),
+  and any two records from different sources that still sit within reach of each other are reported as a
+  possible twin - in Status and in the daily probe - instead of silently drawn twice.
+- The daily source probe found failures on its first two runs but never opened its issue: `gh issue create`
+  refuses a label the repository does not have ("could not add label: 'sources' not found"), and the findings
+  went with it. The label is now created on first use (and the issue opened without one if that is not
+  allowed). The probe also flagged "feed: storm empty" every day: the feed lists storms, volcanoes and GDACS's
+  fires and floods from the events memory the wallpaper's own runs build up (first seen, changed), which a
+  fresh runner never has, so that kind is no longer judged from the feed - the Storms (GDACS) row is.
+- Widget bubbles: some ShakeMaps and storm charts never finished loading (a spinner for good). The widget was
+  fetching each picture itself from the source, with no timeout and no word about what went wrong; the helper
+  now fetches them (its user agent, a 12 s timeout, an 8 MB cap, scaled to 1 200 px when pillow is there), keeps
+  them under pictures/ for a fortnight and hands the widget a file, a few per feed run. A picture not fetched yet
+  is still loaded directly, and past ten seconds the bubble says so; a failure is named ("could not be loaded from
+  earthquake.usgs.gov"). Map controls > Sources > "Bubble pictures" counts the kept pictures and names the failures.
+  Quakes without a ShakeMap yet are asked again every 20 minutes for a day and a half (a miss used to wait six
+  hours, so a fresh quake stayed pictureless), newest first; one that has none shows the satellite's view of the
+  place, as storms without a chart do.
+- The last notices still drawn in the map's corner - "Live layers off: load guard…", "Animations paused…", "Full
+  speed from the widget" - have moved where the others went: the widget's Map controls tab shows the state and
+  the reason above the quick settings (with the way out: Full speed, or the thresholds in Performance and power),
+  and Settings > Status > Power and load turns amber with the same words. The wallpaper passes the state to the
+  helper with its layers (layers.json: saving, why) and the feed carries it to the widget.
+- Widget, Live tab: NASA ended its ISS broadcast awQzjn72bI0 on 22 October 2026 and restarted it as ROboUHfPUrU,
+  so the tab had shown "Video unavailable" for days. The default now names the new broadcast together with NASA's
+  "Space Station Views" playlist (&list=), so the embedded player moves on by itself the next time NASA rotates
+  the id; a saved copy of the old default is read as the new one. A channel's /live page (youtube.com/@NASA/live,
+  @sen/live) is now embeddable too: the page is read once and its canonical watch link names the broadcast that is
+  on now ("Looking for the stream that is on now…", "Nothing live on that channel right now", Reload asks again).
+  More streams by default: NASA's inside-and-out stream (M3HKLzjvKPc) and Sen's 4K Earth views. The /live page is
+  read by the helper (`live-url`, browser headers, the redirect followed, canonical link or the player's
+  "isLiveNow" read, answers kept ten minutes) - the widget's own request got a consent page and said "Nothing live".
+- The map imagery was rebuilt at every login, with the toast to say so: the view settles in steps as the desktop
+  comes up (the panel appears, the screen scale lands) and each step asked for a frame of its own. A change of
+  view now waits until it has held still for a moment, and the toast only appears for a build that takes
+  longer than three seconds.
+- The same rule for every layer with several sources: one failing among them (EFFIS 502, the Smithsonian 403,
+  USGS alert levels) is shown in Status, and the desktop's corner notice only speaks when none of a layer's
+  sources answers. The corner is for what needs a hand; Status is the full picture.
+- A secondary flood-warning source failing (ECCC answering with something that is not JSON, a MeteoAlarm
+  country down) no longer sits in the desktop's corner notice for days: it is a Status matter - the settings'
+  Status page and the widget's Map controls > Sources name the source and the error. The desktop hears of it only when no
+  official source answers at all.
+- Widget: the Map controls tab ends with "This widget" - fade when idle with its opacity, and the preview on
+  hover choice - the same settings as the configuration page, in reach.
+- Environment Canada's alerts never loaded: the request named the WMS layer (ALERTS) where the WFS wants its own
+  type name, ec-msc:Current-Alerts - and the service speaks GML only (every JSON output name is refused). The
+  helper now reads the GML 3.2 answer with the same guarded XML parser as the other feeds.
+- The NWS flood alerts, MeteoAlarm and GeoNet readers all failed on the desktop with "_http() got an unexpected
+  keyword argument 'headers'": the sources that send an Accept header or a key passed it to a fetcher that did
+  not take one. The tests had a stand-in fetcher that did, so they passed; the real one takes it now and a test
+  compares the two.
+- Focus highlight: the Beacon style was drawn with a conical gradient that Plasma's shape renderer filled solid,
+  so it showed as an opaque sector; it is built from plain wedges now (a sharp leading line, a fading trail). A
+  Ripples style tried at the same time drew nothing on the same renderer and was dropped.
 
 ## 0.47 - unreleased
 
