@@ -611,11 +611,30 @@ def _http(url, method="GET", timeout=6, limit=MAX_BODY, headers=None):
     h = dict(UA)
     if headers:
         h.update(headers)
-    with urllib.request.urlopen(urllib.request.Request(url, headers=h, method=method), timeout=timeout) as r:
-        body = r.read(limit + 1) if method == "GET" else b""
-        if len(body) > limit:
-            raise ValueError("response larger than %d MB" % (limit // 1048576))
-        return r.status, r.headers, body, time.time() - t0
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=h, method=method), timeout=timeout) as r:
+            body = r.read(limit + 1) if method == "GET" else b""
+            if len(body) > limit:
+                raise ValueError("response larger than %d MB" % (limit // 1048576))
+            return r.status, r.headers, body, time.time() - t0
+    except urllib.error.HTTPError as e:
+        # the same error, with the server's own words when it gave any: an OGC ExceptionReport inside a 502 names
+        # the failing query ("FLTApplyFilterToLayer() failed", EFFIS, October 2026) where "Bad Gateway" named nothing
+        gist = error_gist(e)
+        if gist and gist.lower() not in (str(e.msg).lower(), "%s %s" % (e.code, str(e.msg).lower())):
+
+            raise urllib.error.HTTPError(e.url, e.code, "%s - %s" % (e.msg, gist), e.headers, None) from None
+        raise
+
+
+def error_gist(err):
+    """The first thing an HTTP error's body says: an ows:ExceptionText, else a <title>, else nothing ("")."""
+    try:
+        text = err.read(4000).decode("utf-8", "replace")
+    except Exception:
+        return ""
+    m = re.search(r"<(?:ows:)?ExceptionText>\s*(.*?)\s*</", text, re.S) or re.search(r"<title>\s*(.*?)\s*</title>", text, re.S | re.I)
+    return " ".join(m.group(1).split())[:140] if m else ""
 
 
 def fetch_json(url, timeout=6, limit=MAX_BODY, headers=None, what=""):
