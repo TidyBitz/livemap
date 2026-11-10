@@ -251,6 +251,12 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- A launch that happened while nobody was looking vanished from the list half an hour after T-0 - a Plesetsk
+  launch announced the day before, a night launch - so it looked as if it had never been listed. The helper
+  now also reads Launch Library's last launches (`/launch/previous/`, same hourly fetch) and the widget lists
+  a launch for a day afterwards as "lifted off · success · provider · site" with the outcome in the bubble;
+  the map keeps the rocket on its pad for twelve hours, labelled "lift-off 5 h ago". The upcoming page asks
+  for 50 launches instead of 20, so a busy week does not push the seventh day off the end.
 - Sky tab: the Fetch again button now asks the sources again (`sky --fresh`), not just the helper's 20-minute cache,
   so the ages really return to zero; at most once a minute. Opening the tab and the 20-minute timer keep the cache.
 - A launch row with no webcast listed yet opened the raw Launch Library API record (a page of JSON). It now opens

@@ -429,7 +429,7 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Provider", it.get("provider") or ""],
                 ["Pad", ", ".join(x for x in (it.get("pad"), it.get("site")) if x)],
                 _at("Launch", it.get("net"), " (local time)"),
-                ["Status", it.get("status_name") or it.get("status") or ""],
+                ["Outcome" if it.get("past") else "Status", it.get("status_name") or it.get("status") or ""],
                 ["Webcast", "live now" if it.get("webcast_live") else ""]]
         image = it.get("image") or ""
     return {"facts": [row for row in rows if row[1]], "image": image}
@@ -619,11 +619,21 @@ def cmd_feed(args):
         problems.append("hotspots: %s" % e)
     # launches
     try:
+        seen_launches = set()
         for L in fetch_launches():
-            if now - 1800 < L["net"] < now + 7 * 86400:
-                items.append({"kind": "launch", "when": L["net"], "title": "%s \u00b7 %s" % (L["rocket"], L["mission"] or L["name"]),
-                              "detail": "%s \u00b7 %s" % (L["provider"], L["site"]), "url": L.get("page") or (L.get("videos") or [{}])[0].get("url") or "https://spacelaunchnow.me/launch/upcoming",
-                              "lat": L["lat"], "lon": L["lon"], "level": 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": True,
+            if L["id"] in seen_launches:
+                continue
+            seen_launches.add(L["id"])
+            past = L["net"] <= now - 1800                          # lifted off (or should have): listed a day with the outcome
+            if not (now - 86400 < L["net"] < now + 7 * 86400):
+                continue
+            if past and not L.get("past") and L.get("status") not in ("Success", "Failure", "Partial Failure"):
+                continue                                           # an upcoming record whose time slipped past: not a launch yet
+            outcome = {"Success": "success", "Failure": "failure", "Partial Failure": "partial failure"}.get(L.get("status"), (L.get("status_name") or "").lower())
+            items.append({"kind": "launch", "when": L["net"], "title": "%s \u00b7 %s" % (L["rocket"], L["mission"] or L["name"]),
+                              "detail": ("lifted off \u00b7 %s \u00b7 " % outcome if past else "") + "%s \u00b7 %s" % (L["provider"], L["site"]),
+                              "url": L.get("page") or (L.get("videos") or [{}])[0].get("url") or "https://spacelaunchnow.me/launch/upcoming",
+                              "lat": L["lat"], "lon": L["lon"], "level": 1 if past else 3 if L["net"] - now < 900 else 2 if L["net"] - now < 3600 else 1, "future": not past,
                               "videos": L.get("videos") or [], "webcast_live": L.get("webcast_live", False), "status": L.get("status", ""),
                               "key": "launch:%s" % L["id"], **facts_for("launch", L)})
     except Exception as e:

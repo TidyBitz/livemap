@@ -46,7 +46,7 @@ Item {
     // each other); the earliest launch is the marker and its label says how many more are queued there.
     readonly property var shown: (function () {
         var bySite = {}, out = [];
-        launches.filter(function (L) { return L.net - now > -1800 && L.net - now < windowHours * 3600; })
+        launches.filter(function (L) { return (L.net - now > -1800 || (L.past && L.net - now > -12 * 3600)) && L.net - now < windowHours * 3600; })
             .sort(function (a, b) { return a.net - b.net; })
             .forEach(function (L) {
                 var k = (L.site || "") !== "" ? L.site : L.lat.toFixed(1) + "/" + L.lon.toFixed(1);

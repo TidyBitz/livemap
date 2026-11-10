@@ -152,7 +152,10 @@ def chk_sats():
 
 
 # Launches: The Space Devs' Launch Library 2 (free, no key, 15 requests an hour), cached for an hour.
-LL2 = "https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20&hide_recent_previous=true"
+LL2 = "https://ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=50&hide_recent_previous=true"
+# the last launches too, so one that happened while nobody was looking (a Plesetsk launch announced the day
+# before, a night launch) is on the list for a day with its outcome, instead of vanishing half an hour after T-0
+LL2_PREVIOUS = "https://ll.thespacedevs.com/2.2.0/launch/previous/?limit=12"
 
 
 LAUNCHES = DATA / "launches.json"
@@ -270,8 +273,13 @@ def fetch_launches(max_age_h=1):
         pass
     from datetime import datetime, timezone
     body = fetch_json(LL2)
+    results = [(L, False) for L in body.get("results", [])]
+    try:
+        results += [(L, True) for L in fetch_json(LL2_PREVIOUS).get("results", [])]
+    except Exception:                                             # noqa: BLE001 - the upcoming list is the one that matters
+        pass
     out = []
-    for L in body.get("results", []):
+    for L, past in results:
         pad = L.get("pad") or {}
         try:
             lat, lon = float(pad.get("latitude")), float(pad.get("longitude"))
@@ -299,7 +307,7 @@ def fetch_launches(max_age_h=1):
                     "pad": pad.get("name") or "", "site": ((pad.get("location") or {}).get("name") or ""), "lat": lat, "lon": lon,
                     "status_name": ((L.get("status") or {}).get("name") or ""), "window_end": L.get("window_end") or "",
                     "image": (L.get("image") if isinstance(L.get("image"), str) else (L.get("image") or {}).get("image_url")) or "",
-                    "page": launch_page(L)})
+                    "page": launch_page(L), "past": past})
     try:
         LAUNCHES.parent.mkdir(parents=True, exist_ok=True)
         LAUNCHES.write_text(json.dumps({"at": time.time(), "launches": out}), encoding="utf-8")
