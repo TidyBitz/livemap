@@ -145,6 +145,48 @@ def test_firms_preference_order():
     assert all(h.startswith("https://") for h in fires.FIRMS_HOSTS)
 
 
+def test_effis_upper_case_fields(no_network):
+    """EFFIS's WFS answers FIREDATE / COMMUNE / AREA_HA (upper case) since October 2026; three real records of 10 Nov 2026
+    with their rings trimmed. The filter must ask for FIREDATE too: `firedate` is a 502 (a PostGIS error in an ows:ExceptionReport)."""
+    no_network("maps.effis.emergency.copernicus.eu/effis", FIXTURES / "effis_month.json")
+    url = fires.EFFIS % "2026-10-20"
+    assert "PropertyName%3EFIREDATE%3C" in url and "firedate" not in url and "%3E2026-10-20%3C" in url
+    its = fires.fetch_effis()
+    assert [it["id"] for it in its] == ["effis:854539", "effis:870924", "effis:871052"]
+    kucevo = its[0]
+    assert kucevo["name"] == "Kučevo, Браничевска област" and kucevo["region"] == "RS" and kucevo["area_ha"] == 16
+    assert kucevo["since"] == "2026 Oct 11" and kucevo["days"] > 29 and kucevo["hours"] > 24 * 24
+    assert (kucevo["lat"], kucevo["lon"]) == (44.54, 21.5) and len(kucevo["area"]) == 1 and len(kucevo["area"][0]) == 24          # a flat lon, lat, ... ring of 12 points
+    assert its[2]["name"] == "Uşak"                                                   # COMMUNE "N.A." is not a name
+    assert all(it["source"] == "effis" and it["alert"] == "incident" and it["stage"] == "" and it["contained"] is None for it in its)
+    # the lower-case names the server used before still read
+    old = json.loads(fixture("effis_month.json"))
+    old["features"][0]["properties"] = {k.lower(): v for k, v in old["features"][0]["properties"].items()}
+    no_network("maps.effis.emergency.copernicus.eu/effis", json.dumps(old))
+    assert fires.fetch_effis()[0]["name"] == "Kučevo, Браничевска област"
+
+
+def test_http_error_carries_the_servers_words(monkeypatch):
+    """A 502 that comes with an OGC ExceptionReport names the failing query, not just "Bad Gateway"."""
+    import io
+    import urllib.error
+    import urllib.request
+    from livemap_helper.common import _http
+    xml = (b'<?xml version="1.0"?><ows:ExceptionReport><ows:Exception exceptionCode="NoApplicableCode" locator="mapserv">'
+           b'<ows:ExceptionText>msWFSGetFeature(): WFS server error. FLTApplyFilterToLayer() failed msPostGISLayerWhichShapes(): Query error.'
+           b' Error executing query. Check server logs</ows:ExceptionText></ows:Exception></ows:ExceptionReport>')
+    bodies = {"effis": xml, "plain": b"<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>", "empty": b""}
+
+    def urlopen(req, timeout=0):
+        raise urllib.error.HTTPError(req.full_url, 502, "Bad Gateway", {}, io.BytesIO(bodies[req.full_url.rsplit("/", 1)[1]]))
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    for tail, said in (("effis", "HTTP Error 502: Bad Gateway - msWFSGetFeature(): WFS server error. FLTApplyFilterToLayer() failed"),
+                       ("plain", "HTTP Error 502: Bad Gateway"), ("empty", "HTTP Error 502: Bad Gateway")):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            _http("https://example.org/" + tail)
+        assert str(e.value).startswith(said) and e.value.code == 502 and (tail != "plain" or str(e.value) == said)
+
+
 # ---- volcanoes ------------------------------------------------------------------------------------------------
 def test_volcano_feed_names_coordinates_and_newness():
     rows, _tags = volcanoes.parse_volcano_feed(fixture("gvp_weekly.rss"))

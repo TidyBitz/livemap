@@ -283,6 +283,16 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- European burnt areas (EFFIS) answered HTTP 502 to every probe from 25 October to 10 November 2026. Not an
+  outage: the WFS's field names are upper case now (FIREDATE, LASTUPDATE, COUNTRY, PROVINCE, COMMUNE, AREA_HA -
+  DescribeFeatureType says so), and the filter on the old `firedate` fails inside PostGIS, which the server
+  reports as a 502 carrying an ows:ExceptionReport ("FLTApplyFilterToLayer() failed msPostGISLayerWhichShapes():
+  Query error"). The filter asks for FIREDATE (197 burnt areas of the last three weeks, 1.3 s, on 10 Nov) and the
+  parser reads either case, so a 200 with the old names still parses; a COMMUNE of "N.A." is not a name. Fixture
+  from the real answer (three records of October 2026, rings trimmed) and a test. And an HTTP error that comes
+  with an OGC ExceptionReport or a titled page now carries the server's words in Status ("HTTP Error 502: Bad
+  Gateway - msWFSGetFeature(): ... FLTApplyFilterToLayer() failed"), where "Bad Gateway" alone had the probe
+  down as a passing outage for sixteen days.
 - The daily source probe found failures on its first two runs but never opened its issue: `gh issue create`
   refuses a label the repository does not have ("could not add label: 'sources' not found"), and the findings
   went with it. The label is now created on first use (and the issue opened without one if that is not

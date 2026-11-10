@@ -329,8 +329,12 @@ CWFIS_PERIMS = ("https://cwfis.cfs.nrcan.gc.ca/geoserver/wfs?service=WFS&version
                 "&typeName=public:m3_polygons_current&srsName=EPSG:4326&count=2000&CQL_FILTER=lastdate%%20%%3E%%20%%27%s%%27")
 
 
+# The field names are upper case since October 2026 (FIREDATE, LASTUPDATE, COUNTRY, PROVINCE, COMMUNE, AREA_HA; the
+# WFS DescribeFeatureType says so). A filter on the old `firedate` fails inside PostGIS and the server answers
+# HTTP 502 with an ows:ExceptionReport ("FLTApplyFilterToLayer() failed msPostGISLayerWhichShapes(): Query error"),
+# which is what the daily probe saw from 25 October to 10 November 2026. The parser reads either case.
 EFFIS = ("https://maps.effis.emergency.copernicus.eu/effis?service=WFS&version=1.1.0&request=GetFeature&typename=ms:modis.ba.poly"
-         "&outputformat=geojson&maxfeatures=1500&FILTER=%%3CFilter%%3E%%3CPropertyIsGreaterThanOrEqualTo%%3E%%3CPropertyName%%3Efiredate%%3C%%2FPropertyName%%3E"
+         "&outputformat=geojson&maxfeatures=1500&FILTER=%%3CFilter%%3E%%3CPropertyIsGreaterThanOrEqualTo%%3E%%3CPropertyName%%3EFIREDATE%%3C%%2FPropertyName%%3E"
          "%%3CLiteral%%3E%s%%3C%%2FLiteral%%3E%%3C%%2FPropertyIsGreaterThanOrEqualTo%%3E%%3C%%2FFilter%%3E")
 
 
@@ -447,24 +451,28 @@ def fetch_effis():
     out = []
     for f in geo.get("features", []):
         pr = f.get("properties") or {}
+
+        def field(name):                              # FIREDATE since October 2026, firedate before: either
+            v = pr.get(name.upper(), pr.get(name.lower()))
+            return "" if v is None or str(v).strip() in ("", "N.A.") else v
         rings = flood_area({"features": [f]})
         lat, lon = _poly_centre(rings)
         if lat is None:
             continue
         since, days, hours = "", None, 0
         try:
-            t = datetime.strptime(str(pr.get("firedate"))[:10], "%Y-%m-%d").timestamp()
+            t = datetime.strptime(str(field("firedate"))[:10], "%Y-%m-%d").timestamp()
             since = datetime.utcfromtimestamp(t).strftime("%Y %b %d")
             days = max(0, round((now - t) / 86400, 1))
         except (ValueError, TypeError):
             pass
         try:
-            hours = round((now - datetime.strptime(str(pr.get("lastupdate"))[:19], "%Y-%m-%d %H:%M:%S").timestamp()) / 3600, 1)
+            hours = round((now - datetime.strptime(str(field("lastupdate"))[:19], "%Y-%m-%d %H:%M:%S").timestamp()) / 3600, 1)
         except (ValueError, TypeError):
             pass
-        name = ", ".join(x for x in (pr.get("commune"), pr.get("province")) if x) or str(pr.get("country") or "Fire")
-        out.append(_incident("effis", pr.get("id") or f.get("id"), name, lat, lon, float(pr.get("area_ha") or 0), rings,
-                             since=since, days=days, hours=hours, region=str(pr.get("country") or ""),
+        name = ", ".join(str(x) for x in (field("commune"), field("province")) if x) or str(field("country") or "Fire")
+        out.append(_incident("effis", field("id") or f.get("id"), name, lat, lon, float(field("area_ha") or 0), rings,
+                             since=since, days=days, hours=hours, region=str(field("country")),
                              url="https://forest-fire.emergency.copernicus.eu/apps/effis_current_situation/"))
     return out
 
