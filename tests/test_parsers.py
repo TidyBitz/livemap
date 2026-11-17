@@ -1,5 +1,6 @@
 """The feed parsers against recorded responses: a change in a site's format should fail here, not on a desktop."""
 import json
+import re
 import time
 
 import pytest
@@ -693,12 +694,15 @@ def test_satellite_snapshot_uses_the_solar_date():
     pass is processed; 30 Oct has no imagery yet and came back as a black tile."""
     from livemap_helper.feed import satellite_snapshot
     now = time.mktime(time.strptime("2026-10-30 00:52", "%Y-%m-%d %H:%M")) - time.timezone      # as UTC
-    assert "TIME=2026-10-29&" in satellite_snapshot(37.9, -26.3, now)
-    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, now)
+    assert "TIME=2026-10-29&" in satellite_snapshot(37.9, -26.3, now)                 # the Azores, 23:08 on the 29th
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, now)                  # Panama, 19:30 on the 29th: the 29th's pass is processed by 19:00
     assert "TIME=2026-10-29&" in satellite_snapshot(35.0, 139.0, now)       # Japan, 09:52 on the 30th: the 30th's pass not yet
     noon = now + 15 * 3600                                                   # 15:52 UTC on the 30th
     assert "TIME=2026-10-30&" in satellite_snapshot(35.0, 139.0, noon)      # Japan, 00:52 on the 31st: the 30th's pass is done
     assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, noon)       # Panama, 10:30 on the 30th: not yet
+    evening = now + 22 * 3600                                                # 22:52 UTC: Panama 17:30 - the pass is 4 h old, still processing
+    assert "TIME=2026-10-29&" in satellite_snapshot(7.6, -80.6, evening)
+    assert "TIME=2026-10-30&" in satellite_snapshot(7.6, -80.6, evening + 2 * 3600)   # 19:30: now the 30th
 
 
 def test_premature_snapshot_is_fetched_again():
@@ -728,8 +732,9 @@ def test_mostly_black_snapshot_is_not_kept():
     from PIL import Image                                          # pillow is in the test requirements
     black = Image.new("RGB", (560, 400), (0, 0, 0))
     strip = black.copy(); strip.paste((40, 90, 160), (0, 340, 560, 400))                 # a strip of sea along the bottom, the rest black
-    land = Image.new("RGB", (560, 400), (60, 110, 60)); land.paste((0, 0, 0), (0, 0, 100, 400))   # a night edge on a real picture
-    assert mostly_black(black) and mostly_black(strip) and not mostly_black(land)
+    third = Image.new("RGB", (560, 400), (60, 110, 60)); third.paste((0, 0, 0), (0, 0, 190, 400))   # the western third not imaged yet (Peru)
+    land = Image.new("RGB", (560, 400), (60, 110, 60)); land.paste((0, 0, 0), (0, 0, 40, 400))     # a sliver of nothing at the edge
+    assert mostly_black(black) and mostly_black(strip) and mostly_black(third) and not mostly_black(land)
 
 
 # ---- rain radar (RainViewer) -------------------------------------------------------------------------------
@@ -771,3 +776,12 @@ def test_sky_fetch_again_asks_the_sources_once_a_minute():
     assert cached(cache, "x", fetch, 1300, fresh=True)["data"] == {"n": 2}          # Fetch again: asked
     assert cached(cache, "x", fetch, 1330, fresh=True)["data"] == {"n": 2}          # thirty seconds later: not again
     assert cached(cache, "x", fetch, 1370, fresh=True)["data"] == {"n": 3}
+
+
+def test_snapshot_alternates_try_the_other_satellites_then_the_day_before():
+    from livemap_helper.feed import satellite_snapshot, snapshot_alternates
+    url = satellite_snapshot(-15.0, -75.9, 1794000000)
+    alts = snapshot_alternates(url)
+    assert len(alts) == 3 and "VIIRS_NOAA21" in alts[0] and "VIIRS_SNPP" in alts[1]
+    assert "VIIRS_NOAA20" in alts[2] and re.search(r"TIME=(\S+?)&", alts[2]).group(1) < re.search(r"TIME=(\S+?)&", url).group(1)
+    assert snapshot_alternates("https://earthquake.usgs.gov/x.jpg") == []

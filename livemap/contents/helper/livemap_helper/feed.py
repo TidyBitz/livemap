@@ -227,14 +227,27 @@ def local_pictures(items):
         fetched += 1
         name = hashlib.sha1(url.encode("utf-8")).hexdigest()[:20]
         try:
-            req = urllib.request.Request(url, headers=dict(UA, Accept="image/*,*/*;q=0.8"))
-            with urllib.request.urlopen(req, timeout=12) as r:
-                ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-                body = r.read(PICTURE_LIMIT + 1)
-            if len(body) > PICTURE_LIMIT:
-                raise ValueError("larger than %d MB" % (PICTURE_LIMIT // 1048576))
-            if not ctype.startswith("image/") and not body[:4] in (b"\x89PNG", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"GIF8"):
-                raise ValueError("not an image (%s)" % (ctype or "no content type"))
+            # a satellite snapshot is tried in turn: the day's picture from NOAA-20, then the same day from NOAA-21
+            # and Suomi NPP (a missing granule on one is usually there on another), then the day before - until
+            # one comes back that is not mostly black. Anything else is one fetch.
+            tries = [url] + (snapshot_alternates(url) if "wvs.earthdata.nasa.gov" in url else [])
+            body = ctype = None
+            for attempt in tries:
+                req = urllib.request.Request(attempt, headers=dict(UA, Accept="image/*,*/*;q=0.8"))
+                with urllib.request.urlopen(req, timeout=12) as r:
+                    ctype = (r.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+                    body = r.read(PICTURE_LIMIT + 1)
+                if len(body) > PICTURE_LIMIT:
+                    raise ValueError("larger than %d MB" % (PICTURE_LIMIT // 1048576))
+                if not ctype.startswith("image/") and not body[:4] in (b"\x89PNG", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"GIF8"):
+                    raise ValueError("not an image (%s)" % (ctype or "no content type"))
+                if len(tries) > 1 and snapshot_is_black(body):
+                    body = None
+                    continue
+                break
+            if body is None:
+                # every satellite and the day before are black here: not kept, asked again after the usual hour
+                raise ValueError("the satellite's picture of this area is not there yet")
             ext = "png" if ctype.endswith("png") or body[:4] == b"\x89PNG" else "gif" if ctype.endswith("gif") or body[:4] == b"GIF8" else "jpg"
             PICTURES.mkdir(parents=True, exist_ok=True)
             dest = PICTURES / ("%s.%s" % (name, ext))
@@ -242,10 +255,6 @@ def local_pictures(items):
                 from PIL import Image
                 import io
                 im = Image.open(io.BytesIO(body))
-                if "wvs.earthdata.nasa.gov" in url and mostly_black(im):
-                    # a snapshot whose day is not yet imaged here (near the date line a day's swath arrives last, up to
-                    # a day late), or a placeholder: not kept, asked again after the usual hour
-                    raise ValueError("the satellite's picture of this day is not there yet")
                 if ext != "gif" and im.width > 1200:
                     im = im.convert("RGB")
                     im.thumbnail((1200, 1200 * 4))
@@ -273,10 +282,15 @@ def local_pictures(items):
             pass
 
 
-def mostly_black(im, share=0.35):
-    """True when more than `share` of a picture is (near) black: a Worldview snapshot for a day the satellite has not
-    yet covered here comes back black where the swath is missing - sometimes a strip of real imagery along one
-    edge and nothing else, which the date arithmetic cannot foresee."""
+SNAPSHOT_READY_HOUR = 19                        # solar hour from which a day's snapshot is asked for (pass ~13:30 + processing)
+
+
+def mostly_black(im, share=0.15):
+    """True when more than `share` of a picture is (near) black. A daytime true-colour composite has no night in it,
+    so black means "not imaged yet": a Worldview snapshot for a day the satellite has not yet covered here comes
+    back black where the swath is missing - sometimes a strip of real imagery along one edge, sometimes a third
+    of the box - which the date arithmetic cannot foresee. The bar is low on purpose: a sixth of the box black
+    is already a hole, and a rejected tile only costs a retry an hour later."""
     try:
         small = im.convert("L")
         small.thumbnail((64, 64))
@@ -284,6 +298,36 @@ def mostly_black(im, share=0.35):
         return bool(px) and sum(1 for v in px if v < 8) / len(px) > share
     except Exception:                                             # noqa: BLE001 - an odd mode: keep the picture
         return False
+
+
+def snapshot_is_black(body):
+    """The mostly_black test on raw bytes; False without Pillow or for a picture it cannot read."""
+    try:
+        from PIL import Image
+        import io
+        return mostly_black(Image.open(io.BytesIO(body)))
+    except Exception:                                             # noqa: BLE001
+        return False
+
+
+SNAPSHOT_SATELLITES = ("VIIRS_NOAA20_CorrectedReflectance_TrueColor", "VIIRS_NOAA21_CorrectedReflectance_TrueColor", "VIIRS_SNPP_CorrectedReflectance_TrueColor")
+
+
+def snapshot_alternates(url):
+    """The other ways to get a picture of the same box: the other VIIRS satellites for the same day, then the
+    first satellite for the day before. Each is a day composite from a 13:30 pass; a granule missing from one
+    satellite's composite is usually there on another's."""
+    import calendar
+    m = re.search(r"TIME=(\d{4}-\d{2}-\d{2})", url)
+    if not m:
+        return []
+    out = [url.replace(SNAPSHOT_SATELLITES[0], sat) for sat in SNAPSHOT_SATELLITES[1:] if SNAPSHOT_SATELLITES[0] in url]
+    try:
+        before = time.strftime("%Y-%m-%d", time.gmtime(calendar.timegm(time.strptime(m.group(1), "%Y-%m-%d")) - 86400))
+        out.append(url.replace("TIME=" + m.group(1), "TIME=" + before))
+    except (ValueError, OverflowError):
+        pass
+    return out
 
 
 def snapshot_premature(url, fetched_at):
@@ -302,7 +346,7 @@ def snapshot_premature(url, fetched_at):
         day0 = calendar.timegm(time.strptime(m.group(1), "%Y-%m-%d"))
     except (ValueError, OverflowError):
         return False
-    ready = day0 + 17 * 3600 - lon / 15.0 * 3600                   # 17:00 solar time of that date, as UTC
+    ready = day0 + SNAPSHOT_READY_HOUR * 3600 - lon / 15.0 * 3600  # the date's afternoon pass processed, as UTC
     return fetched_at < ready
 
 
@@ -318,10 +362,12 @@ def satellite_snapshot(lat, lon, now=None):
         return ""
     # The date is the place's own solar date, not the UTC one: late in the evening west of Greenwich the UTC
     # date has already turned, and asking for "today" then returned a black tile (no pass processed yet) that
-    # the picture cache kept for a fortnight. The afternoon pass is ready from about 17:00 solar time.
+    # the picture cache kept for a fortnight. The afternoon pass is over by about 14:00 solar time, and NASA's
+    # near-real-time processing takes three to five hours more, so "today" is safe only from the evening
+    # (SNAPSHOT_READY_HOUR); until then the box may be half imaged - the western half still black, as Peru was.
     local = now + lon / 15.0 * 3600
     solar_hour = time.gmtime(local).tm_hour
-    day = local if solar_hour >= 17 else local - 86400
+    day = local if solar_hour >= SNAPSHOT_READY_HOUR else local - 86400
     date = time.strftime("%Y-%m-%d", time.gmtime(day))
     s, n = max(-85, lat - 5), min(85, lat + 5)
     w, e = lon - 7, lon + 7

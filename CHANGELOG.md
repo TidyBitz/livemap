@@ -251,6 +251,13 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Black satellite pictures, third time: the check that rejects a mostly black snapshot was inside the same
+  try/except as the Pillow downscaling, whose fallback is "keep the bytes as they came" - so the rejection was
+  caught and the black tile kept anyway (Peru, 16 November: the western third of the box not imaged). The check
+  is on its own now, its bar is a sixth of the box rather than a third, and a black tile is no longer the end:
+  the helper tries the same day from NOAA-21 and Suomi NPP (a granule missing from one satellite's composite is
+  usually there on another's), then the day before from NOAA-20, before giving up until the next hour. "Today"
+  is asked for from 19:00 solar time, after the afternoon pass has been processed. Tests for all of it.
 - A launch that happened while nobody was looking vanished from the list half an hour after T-0 - a Plesetsk
   launch announced the day before, a night launch - so it looked as if it had never been listed. The helper
   now also reads Launch Library's last launches (`/launch/previous/`, same hourly fetch) and the widget lists
