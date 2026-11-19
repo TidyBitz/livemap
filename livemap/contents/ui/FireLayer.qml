@@ -239,7 +239,7 @@ Item {
             y: overlay.py(modelData.lat)
             readonly property real grow: 0.7 + 0.25 * Math.max(0, Math.log10(Math.max(1, modelData.area_ha) / 300))
             Rectangle {
-                readonly property real s: Geo.pulse(overlay.clock, 2000 + inc.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: (overlay.pulseMode & 2) && overlay.incidentSignificant(inc.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, 2000 + inc.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: (overlay.pulseMode & 2) && overlay.incidentSignificant(inc.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: overlay.mark * (1.2 + 3 * Math.max(0, s)); height: width; radius: width / 2
@@ -273,7 +273,7 @@ Item {
             y: overlay.py(modelData.lat)
             readonly property real grow: 0.45 + 0.18 * Math.log10(Math.max(1, modelData.frp) / 10)
             Rectangle {
-                readonly property real s: Geo.pulse(overlay.clock, 1000 + hot.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: (overlay.pulseMode & 2) && overlay.hotSignificant(hot.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, 1000 + hot.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: (overlay.pulseMode & 2) && overlay.hotSignificant(hot.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: overlay.mark * (1.2 + 3 * Math.max(0, s)); height: width; radius: width / 2
@@ -315,7 +315,7 @@ Item {
             // flame height: by burned area (1 000 ha small, 100 000 ha about twice that), a step up per alert level
             readonly property real grow: (0.7 + 0.25 * Math.max(0, Math.log10(Math.max(1, modelData.area_ha) / 1000))) * (1 + 0.2 * overlay.levelOf(modelData))
             Rectangle {                                   // ripple: same ring as the other layers
-                readonly property real s: Geo.pulse(overlay.clock, fire.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: overlay.pulses(fire.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, fire.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: overlay.pulses(fire.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: overlay.mark * (1.2 + 3 * Math.max(0, s)); height: width; radius: width / 2

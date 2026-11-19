@@ -149,7 +149,7 @@ Item {
             Rectangle {                                   // expanding ripple, only for fresh or big ones
                 id: ripple
                 // duration and repeat period come from the settings; every quake starts at a different point of the cycle
-                readonly property real s: Geo.pulse(overlay.clock, q.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: q.pulsing && overlay.fps > 0 ? Geo.pulse(overlay.clock, q.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: q.pulsing && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: q.reach * 2 * (1 + 0.9 * Math.max(0, s)); height: width; radius: width / 2   // ripples out to about twice the ring

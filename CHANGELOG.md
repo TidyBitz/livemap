@@ -251,6 +251,11 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- Pulses cost every event on the map, not just the pulsing ones. Each event's ripple ring read the shared clock
+  on every tick whether it was pulsing or not - its bindings re-ran thirty to sixty times a second for hundreds
+  of quakes, warnings and fires that showed nothing, which on a map with Europe's flood warnings up was most of
+  a core on plasmashell's main thread. A ring now reads the clock only while it pulses (a QML binding re-runs
+  only for what it last read), so an idle ring costs nothing per tick; every layer with rings.
 - Black satellite pictures, third time: the check that rejects a mostly black snapshot was inside the same
   try/except as the Pillow downscaling, whose fallback is "keep the bytes as they came" - so the rejection was
   caught and the black tile kept anyway (Peru, 16 November: the western third of the box not imaged). The check

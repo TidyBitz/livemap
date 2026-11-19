@@ -107,7 +107,7 @@ Item {
             x: overlay.px(modelData.lon)
             y: overlay.py(modelData.lat)
             Rectangle {                               // ripple in the last hour before lift-off
-                readonly property real s: Geo.pulse(overlay.clock, 500 + pad.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: overlay.pulseSoon && overlay.soon(pad.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, 500 + pad.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: overlay.pulseSoon && overlay.soon(pad.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 readonly property real boost: overlay.imminent(pad.modelData) ? 1.6 : 1

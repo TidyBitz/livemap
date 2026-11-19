@@ -188,7 +188,7 @@ Item {
             readonly property color tone: Geo.mix(overlay.inkOf(modelData), overlay.agedColor, aged)
             readonly property real grow: 1 + 0.2 * overlay.levelOf(modelData)
             Rectangle {                                   // ripple: same ring as the other layers
-                readonly property real s: Geo.pulse(overlay.clock, flood.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: overlay.pulses(flood.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, flood.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: overlay.pulses(flood.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: overlay.mark * (1.2 + 3 * Math.max(0, s)); height: width; radius: width / 2

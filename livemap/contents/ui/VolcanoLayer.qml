@@ -151,7 +151,7 @@ Item {
             x: (modelData.lon + 180) / 360 * overlay.width
             y: (90 - modelData.lat) / 180 * overlay.height
             Rectangle {                                   // ripple for new activity: the earthquake layer's ring, this layer's colour
-                readonly property real s: Geo.pulse(overlay.clock, peak.index, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: overlay.pulses(peak.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, peak.index, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: overlay.pulses(peak.modelData) && overlay.fps > 0 && s >= 0
                 anchors.centerIn: parent
                 width: overlay.mark * (1.4 + 3.2 * Math.max(0, s)); height: width; radius: width / 2

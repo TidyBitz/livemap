@@ -249,7 +249,7 @@ Item {
                 }
             }
             Rectangle {                                   // ripple while the storm is newly reported (same ring as quakes)
-                readonly property real s: Geo.pulse(overlay.clock, storm.modelData.id || 0, overlay.pulseMs, overlay.periodMs)
+                readonly property real s: overlay.pulses(storm.modelData) && overlay.fps > 0 ? Geo.pulse(overlay.clock, storm.modelData.id || 0, overlay.pulseMs, overlay.periodMs) : -1   // reads the clock only while pulsing: an idle ring costs nothing per tick
                 visible: overlay.pulses(storm.modelData) && overlay.fps > 0 && s >= 0
                 x: overlay.px(storm.modelData.lon) - width / 2; y: overlay.py(storm.modelData.lat) - height / 2
                 width: storm.size * 2 * (1 + 1.6 * Math.max(0, s)); height: width; radius: width / 2
