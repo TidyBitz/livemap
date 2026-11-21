@@ -17,12 +17,23 @@ UKMTO_ALL = "https://sccd.royalnavy.mod.uk/api/ukmto/all"
 UKMTO_FILTERS = "https://sccd.royalnavy.mod.uk/api/ukmto/incident/filters"
 UKMTO_PAGE = "https://www.ukmto.org/indian-ocean/recent-incidents"
 
+# MDAT-GoG (Maritime Domain Awareness for Trade - Gulf of Guinea), the French and Royal Navies' counterpart of
+# UKMTO for West Africa, from Senegal round to Angola. Its public site, SEVERINE (French Ministry of the Armed
+# Forces), is a map fed by a plain JSON API with no key or cookie: a markers list for a date window (id,
+# position, the type's colour and icon), and one record per event (title, start, description, position, the
+# type and its family - Piracy, Armed robbery against ships, Illegal activities, Conflict spillover,
+# Information). Events are few (a dozen a year lately) and never change once published, so each is fetched
+# once and kept. Recorded from a browser in November 2026.
+MDAT_MARKERS = "https://severine-ext.vigie.defense.gouv.fr/api/events/markers?dateStart=%d&dateEnd=%d"
+MDAT_EVENT = "https://severine-ext.vigie.defense.gouv.fr/api/events/%s"
+MDAT_PAGE = "https://severine-ext.vigie.defense.gouv.fr/events/details/%s"
+
 
 # the incident type -> how much it matters: 3 a vessel or crew taken or an attack with a red pin, 2 an attack
 # or a boarding, 1 a suspicious approach, interference, an advisory. The API's own `incidentTypeLevel` is not
 # a severity (Advisory is 3 there, Attack 1), so it is kept in the record but not used for this.
-MARITIME_LEVELS = {"hijack": 3, "kidnap": 3, "attack": 2, "attempted boarding": 2, "illegal boarding": 2, "boarding": 2,
-                   "suspicious activity": 1, "electronic interference": 1, "advisory": 1}
+MARITIME_LEVELS = {"hijack": 3, "kidnap": 3, "kidnapping": 3, "attack": 2, "attempted boarding": 2, "illegal boarding": 2, "boarding": 2,
+                   "sea robbery": 2, "sea theft": 2, "suspicious activity": 1, "electronic interference": 1, "advisory": 1, "other": 1}
 
 
 MARITIME_DAYS = 30                                                         # older incidents leave the list (the site keeps about a month)
@@ -96,14 +107,103 @@ def parse_incidents(data):
     return out
 
 
-def fetch_maritime():
+def parse_mdat_event(d, marker=None):
+    """One SEVERINE event record -> the maritime record shape. The marker (from the list) carries the position
+    when the record has none; the type's family becomes `category`, its label the type."""
+    if not isinstance(d, dict) or not d.get("id"):
+        return None
+    try:
+        lat, lon = float(d.get("lat") if d.get("lat") not in (None, "") else (marker or {}).get("lat")), float(d.get("lon") if d.get("lon") not in (None, "") else (marker or {}).get("lon"))
+    except (TypeError, ValueError):
+        return None
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    try:
+        when = float(d.get("start"))
+    except (TypeError, ValueError):
+        return None
+    ty = d.get("type") or {}
+    type_name = " ".join(str(ty.get("label") or "Incident").split())
+    family = " ".join(str((ty.get("parent") or {}).get("label") or "").split())
+    label = " ".join(str(d.get("label") or "").split())
+    # the place is the label's tail: "Attempted boarding off Soyo, Angola" -> "off Soyo, Angola"
+    place = label
+    prefixes = sorted({type_name, type_name.split(" / ")[0], "Kidnapping", "Sea theft", "Sea robbery", "Suspicious activity", "Attempted boarding", "Illegal boarding"}, key=len, reverse=True)
+    for prefix in prefixes:                                       # longest first, and only a whole word: "Kidnap" must not eat "Kidnapping"
+        if prefix and label.lower().startswith(prefix.lower() + " "):
+            place = label[len(prefix):].strip(" -:,")
+            break
+    pin = str(ty.get("color") or (marker or {}).get("color") or "")
+    return {"kind": "maritime", "id": "mdat:%s" % d["id"], "number": None, "issuer": "MDAT-GoG", "type": type_name.split(" / ")[0].title() if type_name.lower().startswith("illegal boarding") else type_name.capitalize(),
+            "category": family, "type_level": None, "pin": {"#000000": "Black", "#F4C328": "Yellow", "#E5DB2C": "Yellow", "#FFFFCC": "Pale"}.get(pin.upper(), pin),
+            "level": 3 if family.lower() == "conflict spillover" and "attack" in type_name.lower() else maritime_level(type_name.replace(" / ", " / "), "", False),
+            "when": when, "published": when, "lat": lat, "lon": lon, "place": place, "region": "GoG",
+            "vessel_type": "", "vessel": "", "pirate_control": False, "crew_held": 0, "taken": None,
+            "text": _clean(d.get("description"))[:1200], "title": "%s \u00b7 %s" % (type_name.split(" / ")[0].capitalize(), place or "Gulf of Guinea"),
+            "url": MDAT_PAGE % d["id"]}
+
+
+def fetch_mdat(now=None):
+    """The Gulf of Guinea: the markers of the last MARITIME_DAYS (plus a margin), each new one's record fetched once
+    and kept in DATA/mdat-events.json; records never change once published."""
     import time
-    data = fetch_json(UKMTO_ALL, timeout=15, what="UKMTO incidents")
-    incidents = parse_incidents(data)
-    if not incidents and (isinstance(data, list) and data):
-        raise RuntimeError("UKMTO answered %d records in a shape the parser does not know" % len(data))
+    from .common import DATA
+    now = now if now is not None else time.time()
+    markers = fetch_json(MDAT_MARKERS % (int(now - (MARITIME_DAYS + 7) * 86400), int(now + 86400)), timeout=15, what="MDAT-GoG markers")
+    if not isinstance(markers, list):
+        raise RuntimeError("MDAT-GoG answered a shape the parser does not know")
+    store = DATA / "mdat-events.json"
+    try:
+        kept = json.loads(store.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        kept = {}
+    out, fetched = [], 0
+    for m in markers:
+        if not isinstance(m, dict) or not m.get("id"):
+            continue
+        d = kept.get(m["id"])
+        if d is None and fetched < 20:                                  # a burst of new events: the rest next time
+            try:
+                d = fetch_json(MDAT_EVENT % m["id"], timeout=12, what="MDAT-GoG event")
+                fetched += 1
+                if isinstance(d, dict) and d.get("id"):
+                    kept[m["id"]] = d
+            except Exception:                                          # noqa: BLE001 - this one next time
+                d = None
+        rec = parse_mdat_event(d, m) if d else None
+        if rec:
+            out.append(rec)
+    if fetched:
+        try:
+            store.parent.mkdir(parents=True, exist_ok=True)
+            store.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
+    out.sort(key=lambda it: -it["when"])
+    return out
+
+
+def fetch_maritime():
+    """Every centre's incidents in one list; a centre that fails is reported, not fatal, unless both fail."""
+    import time
+    problems, incidents = [], []
+    try:
+        data = fetch_json(UKMTO_ALL, timeout=15, what="UKMTO incidents")
+        got = parse_incidents(data)
+        if not got and (isinstance(data, list) and data):
+            raise RuntimeError("UKMTO answered %d records in a shape the parser does not know" % len(data))
+        incidents += got
+    except Exception as e:                                             # noqa: BLE001
+        problems.append("UKMTO: %s" % e)
+    try:
+        incidents += fetch_mdat()
+    except Exception as e:                                             # noqa: BLE001
+        problems.append("MDAT-GoG: %s" % e)
+    if len(problems) == 2:
+        raise RuntimeError("; ".join(problems))
     cutoff = time.time() - MARITIME_DAYS * 86400
-    return {"incidents": [it for it in incidents if it["when"] >= cutoff], "read": time.time()}
+    incidents.sort(key=lambda it: -it["when"])
+    return {"incidents": [it for it in incidents if it["when"] >= cutoff], "read": time.time(), "problems": problems}
 
 
 def maritime_cached(max_age_min=15):
@@ -136,10 +236,21 @@ def cmd_maritime(args):
         emit({"incidents": items, "note": note})
 
 
+def chk_mdat():
+    import time
+    items = fetch_mdat()
+    week = [it for it in items if time.time() - it["when"] < 7 * 86400]
+    return "ok", "%d events in the Gulf of Guinea in the last %d days, %d this week%s" % (
+        len(items), MARITIME_DAYS + 7, len(week),
+        "; latest %s, %s, %s ago" % (items[0]["type"].lower(), items[0]["place"], _age(int(time.time() - items[0]["when"]))) if items else "")
+
+
 def chk_maritime():
     import time
-    d = fetch_maritime()
-    items = d["incidents"]
+    data = fetch_json(UKMTO_ALL, timeout=15, what="UKMTO incidents")
+    items = parse_incidents(data)
+    cutoff = time.time() - MARITIME_DAYS * 86400
+    items = [it for it in items if it["when"] >= cutoff]
     day = [it for it in items if time.time() - it["when"] < 86400]
     week = [it for it in items if time.time() - it["when"] < 7 * 86400]
     places = {}

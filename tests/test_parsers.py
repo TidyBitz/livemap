@@ -785,3 +785,39 @@ def test_snapshot_alternates_try_the_other_satellites_then_the_day_before():
     assert len(alts) == 3 and "VIIRS_NOAA21" in alts[0] and "VIIRS_SNPP" in alts[1]
     assert "VIIRS_NOAA20" in alts[2] and re.search(r"TIME=(\S+?)&", alts[2]).group(1) < re.search(r"TIME=(\S+?)&", url).group(1)
     assert snapshot_alternates("https://earthquake.usgs.gov/x.jpg") == []
+
+
+# ---- maritime incidents (MDAT-GoG) -------------------------------------------------------------------------
+def test_mdat_events_parse():
+    from livemap_helper import maritime
+    markers = {m["id"]: m for m in json.loads(fixture("mdat_markers.json"))}
+    events = json.loads(fixture("mdat_events.json"))
+    recs = [maritime.parse_mdat_event(d, markers.get(d["id"])) for d in events]
+    assert len(recs) == 8 and all(r["kind"] == "maritime" and r["issuer"] == "MDAT-GoG" and r["region"] == "GoG" for r in recs)
+    by_place = {r["place"]: r for r in recs}
+    soyo = by_place["off Soyo, Angola"]
+    assert soyo["type"] == "Attempted boarding" and soyo["category"] == "Piracy" and soyo["level"] == 2 and soyo["pin"] == "Yellow"
+    assert abs(soyo["lat"] + 6.0678) < 0.001 and abs(soyo["lon"] - 11.3558) < 0.001 and time.gmtime(soyo["when"])[:4] == (2026, 2, 5, 7)
+    assert soyo["title"] == "Attempted boarding · off Soyo, Angola" and soyo["url"].endswith(soyo["id"].split(":", 1)[1])
+    assert "mooring chain" in soyo["text"] and "\r" not in soyo["text"]
+    assert by_place["off Port Gentil, Gabon"]["level"] == 3 and by_place["off Bata, Equatorial Guinea"]["level"] == 3   # kidnaps
+    assert by_place["off Lagos, Nigeria"]["level"] == 1                                                              # suspicious activity
+    assert by_place["off Accra, Ghana"]["type"] == "Illegal Boarding" and by_place["off Accra, Ghana"]["level"] == 2
+    assert maritime.parse_mdat_event({"id": "x"}, {"lat": "1", "lon": "2"}) is None                                 # no start time
+    assert maritime.parse_mdat_event("junk") is None
+
+
+def test_mdat_fetch_keeps_events(no_network, data_dir):
+    from livemap_helper import maritime
+    events = {d["id"]: d for d in json.loads(fixture("mdat_events.json"))}
+    no_network("/api/events/markers", fixture("mdat_markers.json"))
+    for i, d in events.items():
+        no_network("/api/events/" + i, json.dumps(d))
+    now = 1795300000                                                             # 20 Nov 2026
+    maritime.MARITIME_DAYS = 365                                                 # the fixture spans a year
+    try:
+        recs = maritime.fetch_mdat(now)
+        assert len(recs) == 8 and recs[0]["when"] >= recs[-1]["when"]           # the four markers without a recorded detail are skipped
+        assert (data_dir / "mdat-events.json").exists() and len(json.loads((data_dir / "mdat-events.json").read_text())) == 8
+    finally:
+        maritime.MARITIME_DAYS = 30

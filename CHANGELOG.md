@@ -20,8 +20,19 @@ release notes written at the time; their dates are the day the version was hande
   number and pin colour, the position, when it happened and was published, and the full report as UKMTO wrote
   it. The window is shared through layers.json (`maritime_days`), so the list and the map agree. Status:
   "Maritime incidents (UKMTO)"; sources.json: hazard "Maritime security", Crown copyright. Fixtures from the
-  real API (41 incidents of October 2026, and the filters list) and four tests. The Gulf of Guinea (MDAT-GoG)
-  and South-East Asia (ReCAAP) are not covered yet.
+  real API (41 incidents of October 2026, and the filters list) and four tests.
+- Maritime incidents from the Gulf of Guinea too: MDAT-GoG (Maritime Domain Awareness for Trade - Gulf of
+  Guinea, run by the French and Royal Navies) publishes its events on SEVERINE, whose map reads a public API
+  (`severine-ext.vigie.defense.gouv.fr/api/events/markers`, then `/api/events/<id>` for each event's record),
+  no key or cookie. The helper reads the markers of the window plus a week, fetches each new event's record
+  once (at most 20 a run) and keeps them in `mdat-events.json`, since a published record never changes. The
+  same diamond and anchor, with the MDAT type (piracy, kidnapping, sea robbery, sea theft, illegal and attempted
+  boardings, suspicious activity) and its parent category in the label and the widget's "Incident" row, the
+  place after the type ("off Bata, Equatorial Guinea"), MDAT's own pin colour and the event's page on
+  SEVERINE as the link. UKMTO and MDAT-GoG are read together; the layer fails only when both do, and a source
+  down on its own is a feed problem line. Settings and the widget's Show box name both sources; Status:
+  "Maritime incidents (MDAT-GoG)"; sources.json `mdat-gog`. Fixtures from the real API (12 markers, 8
+  records, the type list) and two tests. South-East Asia (ReCAAP) is not covered yet.
 - Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
   and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a
   chosen amount and a clear disc stays around the event), Reticle (four ticks slide in and lock on, then hold

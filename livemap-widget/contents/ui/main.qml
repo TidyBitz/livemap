@@ -53,7 +53,7 @@ PlasmoidItem {
         { layer: "floods", name: "Floods", sources: ["Floods (GDACS)", "US flood alerts (NWS)", "European warnings (MeteoAlarm)", "Canadian alerts (Environment Canada)", "England flood warnings (Environment Agency)"] },
         { layer: "tsunami", name: "Tsunami", sources: ["Tsunami bulletins (PTWC / NTWC)"] },
         { layer: "alerts", name: "Air raid alerts", sources: ["Air raid alerts (alerts.in.ua)"] },
-        { layer: "maritime", name: "Maritime incidents", sources: ["Maritime incidents (UKMTO)"] },
+        { layer: "maritime", name: "Maritime incidents", sources: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)"] },
         { layer: "sats", name: "Satellites", sources: ["Satellite elements (CelesTrak)"] },
         { layer: "launches", name: "Launches", sources: ["Launches (The Space Devs)"] },
         { layer: "network", name: "Network", sources: ["Connections (ss)", "GeoIP database (DB-IP)"] } ]

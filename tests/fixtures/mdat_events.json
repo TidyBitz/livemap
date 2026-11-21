@@ -1,0 +1,202 @@
+[
+ {
+  "id": "896f1875-33f0-404f-9048-f2e90c008b61",
+  "label": "Attempted Boarding off San Pedro, Ivory Coast",
+  "start": 1777255080,
+  "description": "On 27 April morning, at 03:58 UTC, at San Pedro anchorage, Ivory Coast, a vessel reported a security incident involving an attempted unauthorized boarding while awaiting port entry.\n\nUnidentified individuals attempted to climb the anchor chain but abandoned the attempt after the alarm was raised and escaped in a small wooden boat, with no reported injuries or damage.",
+  "overview": "",
+  "lat": "4.51666666666667",
+  "lon": "-6.425",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 483,
+   "label": "Attempted boarding",
+   "color": "#E5DB2C",
+   "icon": "material-symbols:tools-ladder",
+   "parent": {
+    "id": 450,
+    "label": "Armed robbery against ships",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "92140fbf-b7ce-4ff5-a70f-1d8c1fdee1f0",
+  "label": "Sea theft off Takoradi, Ghana",
+  "start": 1769550000,
+  "description": "On 27 January 2026 at 21:40 UTC, the Liberia-flagged bulk carrier was boarded at Takoradi anchorage, Ghana. \n\nThe crew heard voices from the paint store and informed the bridge. The foghorn was sounded and port control was notified. After being alerted by the crew’s response, the perpetrators escaped in a small boat with stolen ship’s stores. Port control dispatched a patrol boat to investigate. No injuries were reported.",
+  "overview": "",
+  "lat": "4.88361111111111",
+  "lon": "-1.65194444444444",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 478,
+   "label": "Illegal boarding / sea theft",
+   "color": "#F4C328",
+   "icon": "material-symbols:domino-mask",
+   "parent": {
+    "id": 450,
+    "label": "Armed robbery against ships",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "8580fed4-2b75-44c3-b9be-a9aa99dd08da",
+  "label": "Sea robbery off Accra, Ghana",
+  "start": 1772017200,
+  "description": "On the night of 25–26 February 2026, seven local fishing boats were attacked off Accra, Ghana.\n\nA black boat carrying an unknown number of armed perpetrators approached the vessels as they were returning to shore and fired warning shots. The perpetrators stole outboard motors and generator sets before escaping, leaving the fishermen stranded at sea. Ghanaian military forces launched a search and rescue operation and rescued 71 fishermen by 26 February. No injuries were reported. The perpetrators’ identity remains unknown.",
+  "overview": "",
+  "lat": "5.4575",
+  "lon": "-0.372777777777778",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 477,
+   "label": "Illegal boarding / sea robbery",
+   "color": "#F4C328",
+   "icon": "material-symbols:domino-mask",
+   "parent": {
+    "id": 450,
+    "label": "Armed robbery against ships",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "9ef0314a-eb29-4dda-869d-82f5c097b7ae",
+  "label": "Suspicious activity off Lagos, Nigeria",
+  "start": 1768903200,
+  "description": "On 20 January 2026 at 10:00 UTC, a Liberia-flagged bulk carrier reported suspicious activity south of Lagos, Nigeria.\n\n The crew observed a black boat with four persons on board closing to approximately 1 NM before altering course away from the vessel. No hostile action, damage, or injuries were reported. Subsequent assessment found no indications that the activity was security-related.",
+  "overview": "",
+  "lat": "5.79638888888889",
+  "lon": "4.06777777777778",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 486,
+   "label": "Suspicious activity / sighting",
+   "color": "#FFFFCC",
+   "icon": "material-symbols:question-mark",
+   "parent": {
+    "id": 449,
+    "label": "Piracy",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "56e98f5b-844e-4b9f-a346-dd6b5f45e4a7",
+  "label": "Sea theft off Lagos anchorage, Nigeria",
+  "start": 1773572400,
+  "description": "On 15 March, at an unknown time, a Hong Kong-flagged bulk carrier was boarded off Eko Terminal, Lagos anchorage, Nigeria.\n\nThe incident involved the unauthorized boarding of a bulk carrier by an unknown number of perpetrators using a ladder. The individuals stole five cans of paint and escaped in a small craft after being discovered. No injuries or further damage were reported.",
+  "overview": "",
+  "lat": "6.41666666666667",
+  "lon": "3.4",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 478,
+   "label": "Illegal boarding / sea theft",
+   "color": "#F4C328",
+   "icon": "material-symbols:domino-mask",
+   "parent": {
+    "id": 450,
+    "label": "Armed robbery against ships",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "f1d15447-8838-4ab7-a822-63a1c7cd187e",
+  "label": "Kidnapping off Bata, Equatorial Guinea",
+  "start": 1764633660,
+  "description": "On 03 December 2025 at 00:01 UTC, the Portugal-flagged LPG tanker was boarded while underway southwest of Bata, Equatorial Guinea. \n\nThe vessel was transiting from Owendo anchorage to Malabo when an unconfirmed number of perpetrators boarded from a speedboat. The perpetrators robbed crew members of personal belongings and abducted nine of the 13 crew. Four crew members remained on board, one of whom sustained an injury during the incident. On 29 December 2025, all nine abducted seafarers were confirmed released and were due to be repatriated after contacting their families.",
+  "overview": "",
+  "lat": "1.72861111111111",
+  "lon": "8.915",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 463,
+   "label": "Kidnap",
+   "color": "#000000",
+   "icon": "material-symbols:skull",
+   "parent": {
+    "id": 449,
+    "label": "Piracy",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "24f31ba3-a00e-4849-9a6c-93022c0473bd",
+  "label": "Kidnap off Port Gentil, Gabon",
+  "start": 1768095300,
+  "description": "On 11 January 2026 at 01:35 UTC, the China-flagged fishing vessel LIANPENGYU 828 was boarded off Port-Gentil, Gabon. \n\nAt least three armed men boarded the vessel while it was operating in territorial waters and kidnapped nine crew members, comprising five Chinese and four Indonesian nationals. The three remaining crew members stayed on board. Following the incident, a Gabonese naval vessel escorted the fishing vessel to Libreville, where it arrived at approximately 12:00UTC.",
+  "overview": "",
+  "lat": "-0.333333333333333",
+  "lon": "9.16666666666667",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 460,
+   "label": "Kidnap",
+   "color": "#000000",
+   "icon": "material-symbols:skull",
+   "parent": {
+    "id": 450,
+    "label": "Armed robbery against ships",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ },
+ {
+  "id": "511887a0-8829-4982-a62f-e27129666cde",
+  "label": "Attempted boarding off Soyo, Angola",
+  "start": 1770274800,
+  "description": "On 05 February 2026 at 07:00 UTC, the Marshall Islands-flagged FPSO ARMADA OLOMBENDO reported an attempted boarding west of Soyo, Angola. \n\nOne person from a local wooden fishing boat carrying approximately five fishermen attempted to board the FPSO by climbing a mooring chain. No weapons were observed. After being sighted by the crew, the individual jumped into the water, swam back to the fishing boat, and departed the area. No injuries or damage were reported",
+  "overview": "",
+  "lat": "-6.06777777777778",
+  "lon": "11.3558333333333",
+  "zone": null,
+  "port": null,
+  "type": {
+   "id": 484,
+   "label": "Attempted boarding",
+   "color": "#E5DB2C",
+   "icon": "material-symbols:tools-ladder",
+   "parent": {
+    "id": 449,
+    "label": "Piracy",
+    "parentid": null,
+    "icon": null,
+    "color": null
+   }
+  },
+  "ispublic": true
+ }
+]

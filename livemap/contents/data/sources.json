@@ -700,6 +700,24 @@
       "note": "The Indian Ocean area: the Red Sea, the Gulf of Aden, the Somali Basin, the Arabian Sea, the Gulf of Oman, the Strait of Hormuz and the Arabian Gulf. The Gulf of Guinea (MDAT-GoG) and South-East Asia (ReCAAP) are not covered yet"
     },
     {
+      "id": "mdat-gog",
+      "name": "MDAT-GoG maritime events (SEVERINE)",
+      "hazard": "maritime",
+      "regions": [
+        "mea",
+        "pol"
+      ],
+      "gives": "piracy, armed robbery, kidnaps, boardings, suspicious sightings and conflict spillover reported to MDAT-GoG in the Gulf of Guinea, with position, type and the report",
+      "lead": "hours",
+      "cadence": "every 15 min",
+      "official": true,
+      "licence": "French Ministry of the Armed Forces, public site (no key); attribution MDAT-GoG",
+      "attribution": "MDAT-GoG / French and Royal Navies",
+      "url": "https://severine-ext.vigie.defense.gouv.fr/",
+      "status": "Maritime incidents (MDAT-GoG)",
+      "note": "West Africa from Senegal to Angola. Events are few lately (a dozen a year) and each is fetched once and kept"
+    },
+    {
       "id": "rainviewer",
       "name": "RainViewer radar composite",
       "hazard": "weather",

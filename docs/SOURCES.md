@@ -373,6 +373,30 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   asks every 15 minutes (30 when saving).
 - **Fixtures:** `tests/fixtures/ukmto_all.json` (41 incidents, 28 Sep - 28 Oct 2026) and `ukmto_filters.json`.
 
+### Maritime incidents - MDAT-GoG, through SEVERINE's API (`maritime.py`)
+- **What:** every event MDAT-GoG (Maritime Domain Awareness for Trade - Gulf of Guinea, the French and Royal
+  Navies' centre at Brest, UKMTO's counterpart for West Africa) publishes: piracy, kidnapping, sea robbery, sea
+  theft, illegal and attempted boardings, suspicious activity, from Senegal to Angola. No key.
+- **Why:** UKMTO covers the Indian Ocean only; the Gulf of Guinea is the other region where crews are kidnapped
+  for ransom, and MDAT-GoG is the centre ships there report to. Its public map, SEVERINE
+  (`severine-ext.vigie.defense.gouv.fr`), is an Angular app whose requests were recorded: the markers of a date
+  range come from `/api/events/markers?dateStart=<unix>&dateEnd=<unix>`, an event's record from
+  `/api/events/<uuid>`, the type list from `/api/event-types`; the public page of an event is
+  `/events/details/<uuid>`. All answered without a cookie (November 2026).
+- **Format:** markers: a JSON list of `{id, lat, lon, color, icon}` (strings; no date or type - just enough to
+  draw the map); a record: `id`, `label` ("Kidnapping off Bata, Equatorial Guinea"), `type` (the type with
+  its parent category), `start` (when), `lat`, `lon`, `zone`, `port`, `overview`, `description` (the report),
+  `ispublic`.
+- **Processing (`parse_mdat_event`, `fetch_mdat`):** the markers of the last `MARITIME_DAYS + 7` days are read
+  every run; each marker whose record is not yet in `DATA/mdat-events.json` is fetched once (at most 20 a run,
+  so a cold start spreads over a few runs) and kept - records never change once published. The place is the
+  label after the type, matched as a whole word, longest first ("Kidnapping off Bata, Equatorial Guinea" ->
+  "off Bata, Equatorial Guinea"). Levels through the same `MARITIME_LEVELS` table (kidnapping 3, piracy and
+  boardings 2, the rest 1); ids are `mdat:<uuid>`, issuer "MDAT-GoG", the link is the SEVERINE event page.
+  `fetch_maritime` joins both sources; one failing is a problem line, both failing is the layer's error.
+- **Fixtures:** `tests/fixtures/mdat_markers.json` (12 markers), `mdat_events.json` (8 records),
+  `mdat_event_types.json`.
+
 ### Launches - The Space Devs, Launch Library 2
 - **What:** `ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20`, free, 15 requests an hour; cached an hour.
 - **Format:** JSON; `net`, `name`, `rocket.configuration.full_name`, `mission.name`, `launch_service_provider`,

@@ -2310,8 +2310,8 @@ RowLayout {
 
 
         // ====================================================== Maritime incidents
-        SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
-        Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)"] }
+        SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
+        Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)"] }
         QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO)" }
         Amount {
             visible: sec9m.open
@@ -2360,7 +2360,7 @@ RowLayout {
         }
         LabelStyle { visible: sec9m.open; id: maritimeStyle; label: "Maritime label style:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; plated: maritimePlate.checked }
         QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from a newly reported attack (the window is Ageing and pulses > Newly reported)" }
-        Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. Nothing covers the Gulf of Guinea or South-East Asia yet - those centres (MDAT-GoG, ReCAAP) are separate sources." }
+        Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. The Gulf of Guinea comes from MDAT-GoG, the French and Royal Navies' centre for West Africa, through its public site; South-East Asia (ReCAAP) is not covered yet." }
 
 
         // ============================================================= Satellites
