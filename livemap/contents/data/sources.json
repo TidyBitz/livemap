@@ -718,6 +718,24 @@
       "note": "West Africa from Senegal to Angola. Events are few lately (a dozen a year) and each is fetched once and kept"
     },
     {
+      "id": "recaap",
+      "name": "ReCAAP ISC interactive incident reports",
+      "hazard": "maritime",
+      "regions": [
+        "sca",
+        "eap"
+      ],
+      "gives": "piracy and armed robbery against ships in Asia reported to ReCAAP ISC, with position, sea area, ship name, flag, type and IMO number, ReCAAP's category (CAT 1 to 4) and the narrative",
+      "lead": "days",
+      "cadence": "every 15 min",
+      "official": true,
+      "licence": "ReCAAP ISC public portal (no key); copyright ReCAAP ISC, attribution",
+      "attribution": "ReCAAP ISC",
+      "url": "https://portal.recaap.org/OpenMap",
+      "status": "Maritime incidents (ReCAAP)",
+      "note": "Bay of Bengal to the Philippines; about one incident a week, most of them theft in the Singapore Strait and at anchorages"
+    },
+    {
       "id": "rainviewer",
       "name": "RainViewer radar composite",
       "hazard": "weather",

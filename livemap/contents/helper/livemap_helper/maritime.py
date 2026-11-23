@@ -1,4 +1,5 @@
-"""Maritime security incidents: UKMTO (United Kingdom Maritime Trade Operations), read from the Royal Navy's API."""
+"""Maritime security incidents: UKMTO (Indian Ocean, the Royal Navy's API), MDAT-GoG (Gulf of Guinea, SEVERINE) and
+ReCAAP ISC (Asia, its interactive incident reports)."""
 import json
 import re
 
@@ -27,6 +28,19 @@ UKMTO_PAGE = "https://www.ukmto.org/indian-ocean/recent-incidents"
 MDAT_MARKERS = "https://severine-ext.vigie.defense.gouv.fr/api/events/markers?dateStart=%d&dateEnd=%d"
 MDAT_EVENT = "https://severine-ext.vigie.defense.gouv.fr/api/events/%s"
 MDAT_PAGE = "https://severine-ext.vigie.defense.gouv.fr/events/details/%s"
+
+# ReCAAP ISC (the Regional Cooperation Agreement on Combating Piracy and Armed Robbery against Ships in Asia,
+# Information Sharing Centre, Singapore): piracy and armed robbery from the Bay of Bengal to the Philippines,
+# most of it petty theft in the Singapore Strait and at anchorages. Its portal's "Interactive Incident Reports"
+# page is public (the dashboard behind it needs an account and is not used); the page reads one JSON list for
+# a date range from the portal's own API, no key or cookie, with the position, the sea area, the ship's name,
+# flag, type and IMO number, ReCAAP's category (CAT 1 most significant .. CAT 4 least; "Attempted") and the
+# narrative. Paging is ignored by the server (size=10 answered the whole year), so one request is the window.
+# Recorded from a browser in November 2026. ReCAAP publishes after its own verification, days to a week late.
+RECAAP_LIST = ("https://portal.recaap.org/recaap-api-be/api/v1/openMap/fetchInteractiveIncidents?incidentNo=&positionSeaName="
+               "&incidentStart=%s&incidentEnd=%s&shipFlag=&shipName=&shipType=&shipImoNumber=&significanceLevel=&page=0&size=500"
+               "&sortBy=timeOfIncident&sortDirection=desc&status=Published")
+RECAAP_PAGE = "https://portal.recaap.org/OpenMap"
 
 
 # the incident type -> how much it matters: 3 a vessel or crew taken or an attack with a red pin, 2 an attack
@@ -143,6 +157,63 @@ def parse_mdat_event(d, marker=None):
             "url": MDAT_PAGE % d["id"]}
 
 
+RECAAP_LEVELS = {"CAT1": 3, "CAT2": 2, "CAT3": 1, "CAT4": 1, "ATTEMPTED": 1}
+
+
+def parse_recaap(data):
+    """The portal's list -> the maritime record shape. The category (CAT 1..4) is ReCAAP's own grading and sets
+    the level: CAT 1 (crew or ship taken) 3, CAT 2 (armed, violent) 2, CAT 3 and 4 and attempts 1; a hijack or
+    kidnap is 3 whatever the category says."""
+    out = []
+    for r in data if isinstance(data, list) else []:
+        if not isinstance(r, dict):
+            continue
+        try:
+            lat, lon = float(r["positionLatitude"]), float(r["positionLongitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        when = _epoch(r.get("timeOfIncident"))
+        if not when:
+            continue
+        type_name = " ".join(str(r.get("incidentType") or "Incident").split())
+        cat = str(r.get("significanceLevelFinal") or "").strip().upper().replace(" ", "")
+        level = RECAAP_LEVELS.get(cat, 1)
+        if type_name.lower() in ("hijack", "kidnap"):
+            level = 3
+        label = ("CAT " + cat[3:]) if cat.startswith("CAT") else cat.capitalize()
+        vessel = " ".join(str(r.get("shipName") or "").split())
+        if len(vessel) < 3 or vessel.lower() in ("vessel", "unknown", "n/a", "-"):
+            vessel = ""
+        number = str(r.get("incidentNo") or "").strip() or None
+        place = " ".join(str(r.get("positionSeaName") or "").split())
+        out.append({"kind": "maritime", "id": "recaap:%s" % (number or r.get("id") or "%s:%s" % (lat, lon)), "number": number,
+                    "issuer": "ReCAAP", "type": type_name, "category": label, "type_level": None, "pin": "",
+                    "level": level, "when": when, "published": when, "lat": lat, "lon": lon, "place": place, "region": "Asia",
+                    "vessel_type": " ".join(str(r.get("shipType") or "").split()).lower(), "vessel": vessel,
+                    "flag": " ".join(str(r.get("shipFlag") or "").split()).title(), "imo": str(r.get("shipImoNumber") or "").strip(),
+                    "pirate_control": type_name.lower() == "hijack", "crew_held": 0, "taken": None,
+                    "text": _clean(r.get("detailsAttackMethod"))[:1200], "title": "%s \u00b7 %s" % (type_name, place or "at sea"), "url": RECAAP_PAGE})
+    out.sort(key=lambda it: -it["when"])
+    return out
+
+
+def fetch_recaap(now=None):
+    import time
+    from datetime import datetime, timezone
+    now = now if now is not None else time.time()
+    start = datetime.fromtimestamp(now - (MARITIME_DAYS + 1) * 86400, timezone.utc).strftime("%Y-%m-%d")
+    end = datetime.fromtimestamp(now + 86400, timezone.utc).strftime("%Y-%m-%d")
+    data = fetch_json(RECAAP_LIST % (start, end), timeout=20, what="ReCAAP incidents")
+    if not isinstance(data, list):
+        raise RuntimeError("ReCAAP answered a shape the parser does not know")
+    got = parse_recaap(data)
+    if not got and data:
+        raise RuntimeError("ReCAAP answered %d records in a shape the parser does not know" % len(data))
+    return got
+
+
 def fetch_mdat(now=None):
     """The Gulf of Guinea: the markers of the last MARITIME_DAYS (plus a margin), each new one's record fetched once
     and kept in DATA/mdat-events.json; records never change once published."""
@@ -199,7 +270,11 @@ def fetch_maritime():
         incidents += fetch_mdat()
     except Exception as e:                                             # noqa: BLE001
         problems.append("MDAT-GoG: %s" % e)
-    if len(problems) == 2:
+    try:
+        incidents += fetch_recaap()
+    except Exception as e:                                             # noqa: BLE001
+        problems.append("ReCAAP: %s" % e)
+    if len(problems) == 3:
         raise RuntimeError("; ".join(problems))
     cutoff = time.time() - MARITIME_DAYS * 86400
     incidents.sort(key=lambda it: -it["when"])
@@ -242,6 +317,20 @@ def chk_mdat():
     week = [it for it in items if time.time() - it["when"] < 7 * 86400]
     return "ok", "%d events in the Gulf of Guinea in the last %d days, %d this week%s" % (
         len(items), MARITIME_DAYS + 7, len(week),
+        "; latest %s, %s, %s ago" % (items[0]["type"].lower(), items[0]["place"], _age(int(time.time() - items[0]["when"]))) if items else "")
+
+
+def chk_recaap():
+    import time
+    items = fetch_recaap()
+    week = [it for it in items if time.time() - it["when"] < 7 * 86400]
+    places = {}
+    for it in items:
+        places[it["place"]] = places.get(it["place"], 0) + 1
+    busiest = sorted(places.items(), key=lambda kv: -kv[1])[:3]
+    return "ok", "%d incidents in Asia in the last %d days, %d this week%s%s" % (
+        len(items), MARITIME_DAYS, len(week),
+        ": " + ", ".join("%s (%d)" % kv for kv in busiest) if busiest else "",
         "; latest %s, %s, %s ago" % (items[0]["type"].lower(), items[0]["place"], _age(int(time.time() - items[0]["when"]))) if items else "")
 
 

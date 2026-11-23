@@ -32,7 +32,21 @@ release notes written at the time; their dates are the day the version was hande
   SEVERINE as the link. UKMTO and MDAT-GoG are read together; the layer fails only when both do, and a source
   down on its own is a feed problem line. Settings and the widget's Show box name both sources; Status:
   "Maritime incidents (MDAT-GoG)"; sources.json `mdat-gog`. Fixtures from the real API (12 markers, 8
-  records, the type list) and two tests. South-East Asia (ReCAAP) is not covered yet.
+  records, the type list) and two tests.
+- Maritime incidents from Asia too: ReCAAP ISC (the Regional Cooperation Agreement on Combating Piracy and
+  Armed Robbery against Ships in Asia, Singapore) publishes its verified incidents on a public "Interactive
+  Incident Reports" page whose table and map read one JSON list for a date range from the portal's own API
+  (`portal.recaap.org/recaap-api-be/api/v1/openMap/fetchInteractiveIncidents`), no key or cookie. The helper
+  asks for the window every run (one request; the server ignores paging). Same diamond and anchor; ReCAAP's
+  grading sets the level (CAT 1, crew or ship taken: red; CAT 2, armed or violent: orange; CAT 3 and 4 and
+  attempts: yellow; a hijack or kidnap is red whatever the category). ReCAAP names the ship, so the label and
+  the widget carry the vessel type and name, flag and IMO number, the sea area as ReCAAP names it ("Straits of
+  Malacca & Singapore", "Philippines (Ports/Anchorages)"), the category and the incident number, and the
+  narrative; the link opens the interactive reports page. Three sources now feed one layer: a source down on
+  its own is a feed problem line, the layer fails only when all three do. Settings, the Show box, Status
+  ("Maritime incidents (ReCAAP)") and sources.json (`recaap`) name it. ReCAAP publishes after verification,
+  so an incident appears days to two weeks after it happened; with a short window the Singapore Strait can
+  look quiet when it is not. Fixture from the real API (56 incidents of 2026) and two tests.
 - Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
   and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a
   chosen amount and a clear disc stays around the event), Reticle (four ticks slide in and lock on, then hold

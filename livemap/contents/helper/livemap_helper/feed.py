@@ -452,16 +452,17 @@ def facts_for(kind, it, extra=None, units=(0, 0)):
                 ["Areas", ", ".join(it.get("areas") or [])],
                 _at("Sent", it.get("sent"))]
     elif kind == "maritime":
-        rows = [["Incident", "%s%s%s" % (it.get("type") or "", " \u00b7 UKMTO %s" % it["number"] if it.get("number") else "", " \u00b7 %s" % it["category"] if it.get("category") else "")],
+        rows = [["Incident", "%s%s%s" % (it.get("type") or "", " \u00b7 %s %s" % (it.get("issuer") or "UKMTO", it["number"]) if it.get("number") else "", " \u00b7 %s" % it["category"] if it.get("category") else "")],
                 ["Area", it.get("place") or ""],
-                ["Vessel", " ".join(x for x in (it.get("vessel_type"), ("\u201c%s\u201d" % it["vessel"]) if it.get("vessel") else "") if x)],
+                ["Vessel", " ".join(x for x in (it.get("vessel_type"), ("\u201c%s\u201d" % it["vessel"]) if it.get("vessel") else "",
+                                                ("(%s)" % it["flag"]) if it.get("flag") else "", ("IMO %s" % it["imo"]) if it.get("imo") else "") if x)],
                 ["Pirate control", "yes, vessel taken" if it.get("pirate_control") else ""],
                 ["Crew held", str(it["crew_held"]) if it.get("crew_held") else ""],
                 ["Position", _pos(it.get("lat"), it.get("lon"))],
                 _at("When", it.get("when")),
                 _at("Published", it.get("published")) if it.get("published") and abs(float(it["published"]) - float(it["when"])) > 1800 else ["Published", ""],
                 ["Report", it.get("text") or ""],
-                ["Source", "MDAT-GoG \u00b7 French and Royal Navies (SEVERINE)" if it.get("issuer") == "MDAT-GoG" else "UKMTO \u00b7 Royal Navy \u00b7 Crown copyright"]]
+                ["Source", {"MDAT-GoG": "MDAT-GoG \u00b7 French and Royal Navies (SEVERINE)", "ReCAAP": "ReCAAP ISC \u00b7 Singapore"}.get(it.get("issuer"), "UKMTO \u00b7 Royal Navy \u00b7 Crown copyright")]]
     elif kind == "alert":
         rows = [["Alert", ", ".join(it.get("types") or ["air raid"]).capitalize()],
                 ["Region", extra.get("region") or ""],
@@ -649,7 +650,8 @@ def cmd_feed(args):
             what = it["type"] + (" \u00b7 vessel taken" if it.get("pirate_control") else "")
             items.append({"kind": "maritime", "when": it["when"], "title": "%s \u00b7 %s" % (what, it.get("place") or "at sea"),
                           "detail": ("%s \u00b7 MDAT-GoG" % (it.get("category") or "Gulf of Guinea")) if it.get("issuer") == "MDAT-GoG"
-                                    else "%s%s \u00b7 UKMTO %s" % (it.get("vessel_type") or "vessel", " \u00b7 %s pin" % it["pin"].lower() if it.get("pin") else "", it.get("number") or ""),
+                                    else "%s%s \u00b7 %s %s" % (it.get("vessel_type") or "vessel", " \u00b7 %s pin" % it["pin"].lower() if it.get("pin") else (" \u00b7 %s" % it["category"] if it.get("category") else ""),
+                                                                it.get("issuer") or "UKMTO", it.get("number") or ""),
                           "url": it["url"], "lat": it["lat"], "lon": it["lon"], "level": it["level"], "nonew": it["level"] <= 1 and it["type"].lower() == "advisory",
                           "key": "maritime:%s" % it["id"], **facts_for("maritime", it)})
     except Exception as e:

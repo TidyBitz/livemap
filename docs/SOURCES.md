@@ -397,6 +397,36 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 - **Fixtures:** `tests/fixtures/mdat_markers.json` (12 markers), `mdat_events.json` (8 records),
   `mdat_event_types.json`.
 
+### Maritime incidents - ReCAAP ISC, through its portal's API (`maritime.py`)
+- **What:** every incident ReCAAP ISC (Regional Cooperation Agreement on Combating Piracy and Armed Robbery
+  against Ships in Asia, Information Sharing Centre, Singapore) publishes: piracy and armed robbery from the
+  Bay of Bengal and the Andaman Sea through the Malacca and Singapore Straits to Indonesia, Vietnam and the
+  Philippines, about one a week, most of them theft from ships underway in the Singapore Strait or at anchor.
+  Copyright ReCAAP ISC; no key.
+- **Why:** UKMTO and MDAT-GoG stop at the Arabian Sea; Asia is where most of the world's armed robbery against
+  ships happens. ReCAAP's dashboard needs an account, but its "Interactive Incident Reports" page
+  (`portal.recaap.org/OpenMap`) is public: a Vue app on an Esri map whose pins and table come from one request
+  to the portal's own API, recorded from a browser (November 2026):
+  `/recaap-api-be/api/v1/openMap/fetchInteractiveIncidents?incidentStart=YYYY-MM-DD&incidentEnd=YYYY-MM-DD&...&status=Published`
+  (the other filters left empty; `page`/`size` are ignored by the server, `size=10` answered the whole year).
+  `/openMap/type/IC_INCIDENT_TYPE`, `IC_LOCATION`, `IR_SHIP_TYPE` and `getDistinctCategory` list the vocabularies.
+- **Format:** a JSON list; per record `id`, `incidentNo` ("IC-2026-059"), `incidentType` (Robbery/Theft,
+  Hijack, Kidnap, Attempted, Lost Contact, Missing, Others), `timeOfIncident` (UTC ISO), `localTime` and
+  `timezone`, `positionSeaName` (ReCAAP's area), `positionLatitude` / `positionLongitude` (decimal; the
+  degree-minute fields are ignored), `shipName`, `shipFlag`, `shipType`, `shipImoNumber`,
+  `significanceLevelFinal` (CAT1..CAT4 or Attempted), `detailsAttackMethod` (the narrative). Some sixty other
+  fields are always null on the public page.
+- **Processing (`parse_recaap`, `fetch_recaap`):** the window asked for is `MARITIME_DAYS + 1` days ago to
+  tomorrow. The level is ReCAAP's category through `RECAAP_LEVELS` (CAT 1: 3, CAT 2: 2, CAT 3, CAT 4 and
+  attempts: 1), a hijack or kidnap always 3; the category is kept as "CAT 3" in `category`, the pin is empty.
+  Ids are `recaap:<incidentNo>`, issuer "ReCAAP", the link is the interactive reports page (there is no page
+  per incident). The ship's name, flag (title case) and IMO number are kept and shown in the widget's Vessel
+  row. `fetch_maritime` joins the three sources; a failing one is a problem line, all three failing is the
+  layer's error. ReCAAP publishes after verification, days to two weeks after the incident, so `published`
+  equals `when` and nothing from ReCAAP pulses as newly reported.
+- **Fixtures:** `tests/fixtures/recaap_incidents.json` (56 incidents, 2 Jan - 9 Nov 2026, the empty fields
+  dropped).
+
 ### Launches - The Space Devs, Launch Library 2
 - **What:** `ll.thespacedevs.com/2.2.0/launch/upcoming/?limit=20`, free, 15 requests an hour; cached an hour.
 - **Format:** JSON; `net`, `name`, `rocket.configuration.full_name`, `mission.name`, `launch_service_provider`,

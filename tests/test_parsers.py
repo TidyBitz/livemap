@@ -821,3 +821,28 @@ def test_mdat_fetch_keeps_events(no_network, data_dir):
         assert (data_dir / "mdat-events.json").exists() and len(json.loads((data_dir / "mdat-events.json").read_text())) == 8
     finally:
         maritime.MARITIME_DAYS = 30
+
+
+def test_recaap_incidents_parse():
+    from livemap_helper import maritime
+    recs = maritime.parse_recaap(json.loads(fixture("recaap_incidents.json")))
+    assert len(recs) == 56 and recs[0]["when"] >= recs[-1]["when"]
+    top = recs[0]
+    assert top["issuer"] == "ReCAAP" and top["number"] == "IC-2026-059" and top["id"] == "recaap:IC-2026-059"
+    assert top["type"] == "Robbery/Theft" and top["category"] == "CAT 3" and top["level"] == 1
+    assert top["place"] == "Straits of Malacca & Singapore" and abs(top["lat"] - 1.1365) < 1e-4 and abs(top["lon"] - 103.4875) < 1e-4
+    assert top["vessel"] == "Salsa" and top["vessel_type"] == "oil tanker" and top["flag"] == "Marshall Islands" and top["imo"] == "9555307"
+    assert top["when"] == 1794249120                                             # 2026-11-09T18:32Z, 02:32 Singapore time
+    assert top["text"].startswith("While underway, six perpetrators") and top["url"] == maritime.RECAAP_PAGE
+    assert top["title"] == "Robbery/Theft · Straits of Malacca & Singapore"
+    levels = {r["category"]: r["level"] for r in recs}
+    assert levels == {"CAT 2": 2, "CAT 3": 1, "CAT 4": 1}
+    assert maritime.parse_recaap([{"incidentType": "Hijack", "significanceLevelFinal": "CAT1", "positionLatitude": 1, "positionLongitude": 104, "timeOfIncident": "2026-01-01T00:00:00Z"}])[0]["level"] == 3
+    assert maritime.parse_recaap("junk") == [] and maritime.parse_recaap([{"positionLatitude": "x"}]) == []
+
+
+def test_recaap_fetch_window(no_network):
+    from livemap_helper import maritime
+    no_network("incidentStart=2026-10-21&incidentEnd=2026-11-22", fixture("recaap_incidents.json"))
+    recs = maritime.fetch_recaap(1795300000)                                     # 20 Nov 2026: the window runs from 31 days ago to tomorrow
+    assert len(recs) == 56
