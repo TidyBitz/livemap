@@ -190,20 +190,23 @@ def quake_pictures(ids):
 
 
 SHIP_PICTURES = DATA / "ship-pictures.json"
-# Wikimedia Commons files ship photographs by hull: a category per IMO number ("Category:IMO 9555307"), kept by
+# Wikimedia Commons files ship photographs by hull: a category per IMO number ("Category:IMO 9811000"), kept by
 # the ship-spotting community, and the number stays with the hull through renames - so it matches the ship ReCAAP
-# names. One keyless query lists the category's files with a thumbnail URL and the licence and author.
-COMMONS_BY_IMO = ("https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&generator=categorymembers"
-                  "&gcmtitle=Category:IMO%%20%s&gcmtype=file&gcmlimit=10&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1000"
-                  "&iiextmetadatafilter=Artist|LicenseShortName")
-
+# names. The IMO category holds no files itself: it holds the ship's own category ("Ever Given (ship, 2018)"),
+# one per name she has carried, and the photographs are in there. Two keyless queries: the IMO category's
+# subcategories, then that category's files with a thumbnail URL and the licence and author (checked November 2026).
+COMMONS_IMO_CAT = ("https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&list=categorymembers"
+                   "&cmtitle=Category:IMO%%20%s&cmtype=subcat|file&cmlimit=20")
+COMMONS_FILES = ("https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&generator=categorymembers"
+                 "&gcmtitle=%s&gcmtype=file&gcmlimit=10&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1000"
+                 "&iiextmetadatafilter=Artist|LicenseShortName")
 
 def _untag(html):
     return " ".join(re.sub(r"<[^>]+>", "", str(html or "")).split())
 
 
 def ship_pictures(ships):
-    """A photograph of each named ship, from Wikimedia Commons' IMO category, for the maritime bubbles. `ships`
+    """A photograph of each named ship, from Wikimedia Commons' category for her hull, for the maritime bubbles. `ships`
     are (imo, name) pairs, newest incident first; at most LOOKUPS_PER_RUN new lookups per feed run. Found: kept
     for good (the picture URL, the file page and a credit line). Not found: asked again after a week. Returns
     imo -> {"image", "credit", "page"} for the ships that have one."""
@@ -227,7 +230,18 @@ def ship_pictures(ships):
         looked += 1
         found = {"image": "", "at": now}
         try:
-            d = fetch_json(COMMONS_BY_IMO % imo, timeout=10, what="Commons ship photo")
+            d = fetch_json(COMMONS_IMO_CAT % imo, timeout=10, what="Commons ship category")
+            members = ((d.get("query") or {}).get("categorymembers") or []) if isinstance(d, dict) else []
+            # the ship's category under her current name first (it has the newest pictures), else the first; a file
+            # sitting directly in the IMO category counts too
+            cats = sorted((m.get("title") or "" for m in members if m.get("ns") == 14),
+                          key=lambda c: (0 if name and name.lower() in c.lower() else 1, c))
+            if cats:
+                d = fetch_json(COMMONS_FILES % urllib.parse.quote(cats[0]), timeout=10, what="Commons ship photo")
+            elif any(m.get("ns") == 6 for m in members):
+                d = fetch_json(COMMONS_FILES % urllib.parse.quote("Category:IMO %s" % imo), timeout=10, what="Commons ship photo")
+            else:
+                d = {}
             pages = ((d.get("query") or {}).get("pages") or []) if isinstance(d, dict) else []
             files = []
             for pg in pages:

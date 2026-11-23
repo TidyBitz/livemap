@@ -850,8 +850,9 @@ def test_recaap_fetch_window(no_network):
 
 def test_ship_pictures_from_commons(no_network, data_dir):
     from livemap_helper import feed
-    no_network("Category:IMO%209634842", fixture("commons_imo.json"))
-    no_network("Category:IMO%209555307", '{"batchcomplete": true}')            # no category: nothing yet, asked again in a week
+    no_network("cmtitle=Category:IMO%209634842", '{"batchcomplete": true, "query": {"categorymembers": [{"pageid": 7, "ns": 14, "title": "Category:Star Calypso (ship, 2012)"}]}}')
+    no_network("gcmtitle=Category%3AStar%20Calypso%20%28ship%2C%202012%29", fixture("commons_imo.json"))
+    no_network("cmtitle=Category:IMO%209555307", '{"batchcomplete": true}')    # no category: nothing yet, asked again in a week
     got = feed.ship_pictures([("9634842", "Star Calypso"), ("9555307", "Salsa"), ("bad", "x")])
     assert list(got) == ["9634842"]
     pic = got["9634842"]
