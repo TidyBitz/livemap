@@ -858,9 +858,12 @@ def test_ship_pictures_from_commons(no_network, data_dir):
     pic = got["9634842"]
     assert pic["image"].endswith("1000px-Star_Calypso_at_Singapore_2021.jpg")        # the file named after her, not the first alphabetically
     assert pic["page"] == "https://commons.wikimedia.org/wiki/File:Star_Calypso_at_Singapore_2021.jpg"
-    assert pic["credit"] == "Photo: Example Spotter, CC BY-SA 4.0, via Wikimedia Commons"
+    assert pic["credit"] == "Photo: Example Spotter, CC BY-SA 4.0, via Wikimedia Commons" and pic["former"] == ""
+    no_network("cmtitle=Category:IMO%209401477", '{"batchcomplete": true, "query": {"categorymembers": [{"pageid": 8, "ns": 14, "title": "Category:Pascha (ship, 2006)"}]}}')
+    no_network("gcmtitle=Category%3APascha%20%28ship%2C%202006%29", fixture("commons_imo.json"))
+    assert feed.ship_pictures([("9401477", "APJ Priti 2")])["9401477"]["former"] == "as Pascha, 2006"   # her name on the photo
     cache = json.loads((data_dir / "ship-pictures.json").read_text())
     assert cache["9634842"]["image"] and cache["9555307"]["image"] == "" and "bad" not in cache
     # the second run asks nothing: the hit is kept for good, the miss for a week
     no_network("Category:IMO", "not json at all")
-    assert list(feed.ship_pictures([("9634842", "Star Calypso"), ("9555307", "Salsa")])) == ["9634842"]
+    assert sorted(feed.ship_pictures([("9634842", "Star Calypso"), ("9555307", "Salsa")])) == ["9401477", "9634842"]

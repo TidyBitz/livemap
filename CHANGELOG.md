@@ -51,7 +51,8 @@ release notes written at the time; their dates are the day the version was hande
   hull in a category per IMO number (kept by the ship-spotting community; the number follows the hull through
   renames). One keyless query per named ship, a few per feed run, hits kept for good, misses retried weekly;
   the thumbnail travels the usual bubble-pictures path. The note under the picture names the ship and the
-  photo's author and licence and links to the file's page on Commons. Nothing for UKMTO and MDAT-GoG, which
+  photo's author and licence and links to the file's page on Commons; when the photo was taken under an earlier
+  name, the note says so ("“Salsa” (as Leopard, 2010)"), since that is the name on the hull. Nothing for UKMTO and MDAT-GoG, which
   withhold names; nothing when Commons has no photo of that hull.
 - Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
   and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a

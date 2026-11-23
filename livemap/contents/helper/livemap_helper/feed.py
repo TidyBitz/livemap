@@ -257,8 +257,13 @@ def ship_pictures(ships):
             if files:
                 files.sort(key=lambda f: (f[0], f[1]))
                 _r, title, url, page, artist, licence = files[0]
+                # the category is "Leopard (ship, 2010)": her name on the photo, and her year, when it is not the name ReCAAP gives
+                m = re.match(r"Category:(.+?)\s*\((?:ship|boat|tug|vessel)[^)]*?(\d{4})?\)\s*$", cats[0] if cats else "")
+                former = ""
+                if m and name and m.group(1).strip().lower() != name.strip().lower():
+                    former = "as %s%s" % (m.group(1).strip(), ", %s" % m.group(2) if m.group(2) else "")
                 found = {"image": url, "page": page or "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_")),
-                         "credit": "Photo: %s, via Wikimedia Commons" % ", ".join(x for x in (artist[:60], licence) if x), "at": now}
+                         "credit": "Photo: %s, via Wikimedia Commons" % ", ".join(x for x in (artist[:60], licence) if x), "former": former, "at": now}
         except Exception:                                      # noqa: BLE001 - no photo this time; asked again next week
             pass
         cache[imo] = found
@@ -736,7 +741,7 @@ def cmd_feed(args):
         for it in shown:
             what = it["type"] + (" \u00b7 vessel taken" if it.get("pirate_control") else "")
             photo = ships.get(re.sub(r"\D", "", str(it.get("imo") or "")))
-            picture = {"image": photo["image"], "picture_note": "%s%s" % (("\u201c%s\u201d \u00b7 " % it["vessel"]) if it.get("vessel") else "", photo.get("credit") or "Wikimedia Commons"),
+            picture = {"image": photo["image"], "picture_note": "%s%s" % (("\u201c%s\u201d%s \u00b7 " % (it["vessel"], " (%s)" % photo["former"] if photo.get("former") else "")) if it.get("vessel") else "", photo.get("credit") or "Wikimedia Commons"),
                        "picture_url": photo.get("page") or ""} if photo else {}
             items.append({"kind": "maritime", "when": it["when"], "title": "%s \u00b7 %s" % (what, it.get("place") or "at sea"),
                           "detail": ("%s \u00b7 MDAT-GoG" % (it.get("category") or "Gulf of Guinea")) if it.get("issuer") == "MDAT-GoG"

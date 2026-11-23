@@ -533,7 +533,10 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   skipped. At most `LOOKUPS_PER_RUN` (4) new lookups per feed run. A hit is kept for good
   in `ship-pictures.json`, a miss asked again after a week and dropped after two months. The thumbnail itself
   goes through `local_pictures` like every other bubble picture. The note under the picture is the credit
-  ("Photo: author, CC BY-SA 4.0, via Wikimedia Commons") and links to the file's page.
+  ("Photo: author, CC BY-SA 4.0, via Wikimedia Commons") and links to the file's page; the ship's category title
+  ("Leopard (ship, 2010)") gives the name she carried in the photo and her year, shown as "(as Leopard, 2010)"
+  when it differs from the name ReCAAP gives. Coverage, November 2026: three of the ten ships on ReCAAP's first
+  page had a category.
 - **Fixture:** `tests/fixtures/commons_imo.json` (three files, one a PDF).
 
 ## Status checks
