@@ -526,3 +526,16 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 `livemap-helper status` runs one check per source (`chk_*`); Settings > Status and the widget's Map controls > Sources
 show them with a dot: green all answering, orange some of a section's sources failing, red none. The Events widget's "source not answering"
 line comes from the same problems list the feeds carry.
+
+### Ship photographs - Wikimedia Commons, by IMO number (`feed.py`)
+- **What:** a photograph of the ship in a ReCAAP incident's bubble (ReCAAP names the ship and gives her IMO
+  number; UKMTO and MDAT-GoG withhold names, so nothing for those). Commons files ship photographs by hull, one
+  category per IMO number (`Category:IMO 9555307`), and the number stays with the hull through renames, so the
+  match is exact. Each photo under its own licence (CC BY, CC BY-SA mostly), credited in the bubble.
+- **How:** one keyless query (`ship_pictures`, `COMMONS_BY_IMO`): the category's files with a 1 000-px thumbnail
+  URL and the Artist and LicenseShortName metadata; a file named after the ship is preferred, else the first;
+  PDFs and non-images skipped. At most `LOOKUPS_PER_RUN` (4) new lookups per feed run. A hit is kept for good
+  in `ship-pictures.json`, a miss asked again after a week and dropped after two months. The thumbnail itself
+  goes through `local_pictures` like every other bubble picture. The note under the picture is the credit
+  ("Photo: author, CC BY-SA 4.0, via Wikimedia Commons") and links to the file's page.
+- **Fixture:** `tests/fixtures/commons_imo.json` (three files, one a PDF).

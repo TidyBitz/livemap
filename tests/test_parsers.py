@@ -846,3 +846,20 @@ def test_recaap_fetch_window(no_network):
     no_network("incidentStart=2026-10-21&incidentEnd=2026-11-22", fixture("recaap_incidents.json"))
     recs = maritime.fetch_recaap(1795300000)                                     # 20 Nov 2026: the window runs from 31 days ago to tomorrow
     assert len(recs) == 56
+
+
+def test_ship_pictures_from_commons(no_network, data_dir):
+    from livemap_helper import feed
+    no_network("Category:IMO%209634842", fixture("commons_imo.json"))
+    no_network("Category:IMO%209555307", '{"batchcomplete": true}')            # no category: nothing yet, asked again in a week
+    got = feed.ship_pictures([("9634842", "Star Calypso"), ("9555307", "Salsa"), ("bad", "x")])
+    assert list(got) == ["9634842"]
+    pic = got["9634842"]
+    assert pic["image"].endswith("1000px-Star_Calypso_at_Singapore_2021.jpg")        # the file named after her, not the first alphabetically
+    assert pic["page"] == "https://commons.wikimedia.org/wiki/File:Star_Calypso_at_Singapore_2021.jpg"
+    assert pic["credit"] == "Photo: Example Spotter, CC BY-SA 4.0, via Wikimedia Commons"
+    cache = json.loads((data_dir / "ship-pictures.json").read_text())
+    assert cache["9634842"]["image"] and cache["9555307"]["image"] == "" and "bad" not in cache
+    # the second run asks nothing: the hit is kept for good, the miss for a week
+    no_network("Category:IMO", "not json at all")
+    assert list(feed.ship_pictures([("9634842", "Star Calypso"), ("9555307", "Salsa")])) == ["9634842"]

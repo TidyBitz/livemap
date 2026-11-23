@@ -189,6 +189,76 @@ def quake_pictures(ids):
     return {k: v.get("image") or "" for k, v in cache.items()}
 
 
+SHIP_PICTURES = DATA / "ship-pictures.json"
+# Wikimedia Commons files ship photographs by hull: a category per IMO number ("Category:IMO 9555307"), kept by
+# the ship-spotting community, and the number stays with the hull through renames - so it matches the ship ReCAAP
+# names. One keyless query lists the category's files with a thumbnail URL and the licence and author.
+COMMONS_BY_IMO = ("https://commons.wikimedia.org/w/api.php?action=query&format=json&formatversion=2&generator=categorymembers"
+                  "&gcmtitle=Category:IMO%%20%s&gcmtype=file&gcmlimit=10&prop=imageinfo&iiprop=url|extmetadata&iiurlwidth=1000"
+                  "&iiextmetadatafilter=Artist|LicenseShortName")
+
+
+def _untag(html):
+    return " ".join(re.sub(r"<[^>]+>", "", str(html or "")).split())
+
+
+def ship_pictures(ships):
+    """A photograph of each named ship, from Wikimedia Commons' IMO category, for the maritime bubbles. `ships`
+    are (imo, name) pairs, newest incident first; at most LOOKUPS_PER_RUN new lookups per feed run. Found: kept
+    for good (the picture URL, the file page and a credit line). Not found: asked again after a week. Returns
+    imo -> {"image", "credit", "page"} for the ships that have one."""
+    import time
+    import urllib.parse
+    now = time.time()
+    try:
+        cache = json.loads(SHIP_PICTURES.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    looked = 0
+    for imo, name in ships:
+        imo = re.sub(r"\D", "", str(imo or ""))
+        if len(imo) != 7:
+            continue
+        c = cache.get(imo)
+        if c and (c.get("image") or now - c.get("at", 0) < 7 * 86400):
+            continue
+        if looked >= LOOKUPS_PER_RUN:
+            break
+        looked += 1
+        found = {"image": "", "at": now}
+        try:
+            d = fetch_json(COMMONS_BY_IMO % imo, timeout=10, what="Commons ship photo")
+            pages = ((d.get("query") or {}).get("pages") or []) if isinstance(d, dict) else []
+            files = []
+            for pg in pages:
+                ii = (pg.get("imageinfo") or [{}])[0]
+                url = ii.get("thumburl") or ii.get("url") or ""
+                if not url.lower().endswith((".jpg", ".jpeg", ".png")) and ".jpg" not in url.lower():
+                    continue
+                meta = ii.get("extmetadata") or {}
+                title = str(pg.get("title") or "")
+                # a file named after the ship first (the category also holds her sister names and details)
+                files.append((0 if name and name.lower() in title.lower() else 1, title, url, ii.get("descriptionurl") or "",
+                              _untag((meta.get("Artist") or {}).get("value")), _untag((meta.get("LicenseShortName") or {}).get("value"))))
+            if files:
+                files.sort(key=lambda f: (f[0], f[1]))
+                _r, title, url, page, artist, licence = files[0]
+                found = {"image": url, "page": page or "https://commons.wikimedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_")),
+                         "credit": "Photo: %s, via Wikimedia Commons" % ", ".join(x for x in (artist[:60], licence) if x), "at": now}
+        except Exception:                                      # noqa: BLE001 - no photo this time; asked again next week
+            pass
+        cache[imo] = found
+    if looked:
+        try:
+            for k in [k for k, v in cache.items() if not v.get("image") and now - v.get("at", 0) > 60 * 86400]:
+                del cache[k]
+            SHIP_PICTURES.parent.mkdir(parents=True, exist_ok=True)
+            SHIP_PICTURES.write_text(json.dumps(cache), encoding="utf-8")
+        except OSError:
+            pass
+    return {k: v for k, v in cache.items() if v.get("image")}
+
+
 PICTURES = DATA / "pictures"                  # the bubbles' pictures, fetched by the helper and handed to the widget as files
 PICTURES_INDEX = DATA / "pictures.json"       # url -> {"file", "at"} or {"error", "at"}
 PICTURE_FETCHES_PER_RUN = 6
@@ -644,16 +714,22 @@ def cmd_feed(args):
         for pr in (mi or {}).get("problems") or []:
             problems.append("maritime: %s" % pr)
         days = read_layers_int("maritime_days", 14)
-        for it in (mi or {}).get("incidents", []):
-            if now - it["when"] > max(1, days) * 86400:
-                continue
+        shown = [it for it in (mi or {}).get("incidents", []) if now - it["when"] <= max(1, days) * 86400]
+        try:                                                   # ReCAAP names the ship: her photograph, when Commons has one
+            ships = ship_pictures([(it.get("imo"), it.get("vessel")) for it in shown if it.get("imo")])
+        except Exception as e:                                 # noqa: BLE001
+            ships, _ = {}, problems.append("ship pictures: %s" % e)
+        for it in shown:
             what = it["type"] + (" \u00b7 vessel taken" if it.get("pirate_control") else "")
+            photo = ships.get(re.sub(r"\D", "", str(it.get("imo") or "")))
+            picture = {"image": photo["image"], "picture_note": "%s%s" % (("\u201c%s\u201d \u00b7 " % it["vessel"]) if it.get("vessel") else "", photo.get("credit") or "Wikimedia Commons"),
+                       "picture_url": photo.get("page") or ""} if photo else {}
             items.append({"kind": "maritime", "when": it["when"], "title": "%s \u00b7 %s" % (what, it.get("place") or "at sea"),
                           "detail": ("%s \u00b7 MDAT-GoG" % (it.get("category") or "Gulf of Guinea")) if it.get("issuer") == "MDAT-GoG"
                                     else "%s%s \u00b7 %s %s" % (it.get("vessel_type") or "vessel", " \u00b7 %s pin" % it["pin"].lower() if it.get("pin") else (" \u00b7 %s" % it["category"] if it.get("category") else ""),
                                                                 it.get("issuer") or "UKMTO", it.get("number") or ""),
                           "url": it["url"], "lat": it["lat"], "lon": it["lon"], "level": it["level"], "nonew": it["level"] <= 1 and it["type"].lower() == "advisory",
-                          "key": "maritime:%s" % it["id"], **facts_for("maritime", it)})
+                          "key": "maritime:%s" % it["id"], **facts_for("maritime", it), **picture})      # the photo after facts_for's empty image
     except Exception as e:
         problems.append("maritime: %s" % e)
     # satellite fire clusters that need attention (the helper's rating; the wallpaper's cache, nothing extra fetched when fresh)

@@ -47,6 +47,12 @@ release notes written at the time; their dates are the day the version was hande
   ("Maritime incidents (ReCAAP)") and sources.json (`recaap`) name it. ReCAAP publishes after verification,
   so an incident appears days to two weeks after it happened; with a short window the Singapore Strait can
   look quiet when it is not. Fixture from the real API (56 incidents of 2026) and two tests.
+- The ship's photograph in a ReCAAP incident's bubble, from Wikimedia Commons, which files ship photographs by
+  hull in a category per IMO number (kept by the ship-spotting community; the number follows the hull through
+  renames). One keyless query per named ship, a few per feed run, hits kept for good, misses retried weekly;
+  the thumbnail travels the usual bubble-pictures path. The note under the picture names the ship and the
+  photo's author and licence and links to the file's page on Commons. Nothing for UKMTO and MDAT-GoG, which
+  withhold names; nothing when Commons has no photo of that hull.
 - Highlight styles for the event the widget points at (Essentials > Events widget > Highlight): Ring, Ring
   and pulse (as before, the default), Glow (a breathing halo), Spotlight (the rest of the screen dims by a
   chosen amount and a clear disc stays around the event), Reticle (four ticks slide in and lock on, then hold

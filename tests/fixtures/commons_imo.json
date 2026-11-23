@@ -1,0 +1,18 @@
+{"batchcomplete": true,
+ "query": {"pages": [
+  {"pageid": 101, "ns": 6, "title": "File:Star Calypso at Singapore 2021.jpg",
+   "imageinfo": [{"url": "https://upload.wikimedia.org/wikipedia/commons/a/a1/Star_Calypso_at_Singapore_2021.jpg",
+                  "descriptionurl": "https://commons.wikimedia.org/wiki/File:Star_Calypso_at_Singapore_2021.jpg",
+                  "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Star_Calypso_at_Singapore_2021.jpg/1000px-Star_Calypso_at_Singapore_2021.jpg",
+                  "extmetadata": {"Artist": {"value": "<a href=\"//commons.wikimedia.org/wiki/User:Example\">Example Spotter</a>", "source": "commons-desc-page"},
+                                  "LicenseShortName": {"value": "CC BY-SA 4.0", "source": "commons-desc-page"}}}]},
+  {"pageid": 102, "ns": 6, "title": "File:IMO 9634842 details.pdf",
+   "imageinfo": [{"url": "https://upload.wikimedia.org/wikipedia/commons/b/b2/IMO_9634842_details.pdf",
+                  "descriptionurl": "https://commons.wikimedia.org/wiki/File:IMO_9634842_details.pdf",
+                  "extmetadata": {}}]},
+  {"pageid": 100, "ns": 6, "title": "File:Bulk carrier leaving Rotterdam.jpg",
+   "imageinfo": [{"url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Bulk_carrier_leaving_Rotterdam.jpg",
+                  "descriptionurl": "https://commons.wikimedia.org/wiki/File:Bulk_carrier_leaving_Rotterdam.jpg",
+                  "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Bulk_carrier_leaving_Rotterdam.jpg/1000px-Bulk_carrier_leaving_Rotterdam.jpg",
+                  "extmetadata": {"Artist": {"value": "Someone Else"}, "LicenseShortName": {"value": "CC BY 2.0"}}}]}
+ ]}}
