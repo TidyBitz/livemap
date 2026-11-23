@@ -521,12 +521,6 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
 
 ---
 
-## Status checks
-
-`livemap-helper status` runs one check per source (`chk_*`); Settings > Status and the widget's Map controls > Sources
-show them with a dot: green all answering, orange some of a section's sources failing, red none. The Events widget's "source not answering"
-line comes from the same problems list the feeds carry.
-
 ### Ship photographs - Wikimedia Commons, by IMO number (`feed.py`)
 - **What:** a photograph of the ship in a ReCAAP incident's bubble (ReCAAP names the ship and gives her IMO
   number; UKMTO and MDAT-GoG withhold names, so nothing for those). Commons files ship photographs by hull, one
@@ -539,3 +533,9 @@ line comes from the same problems list the feeds carry.
   goes through `local_pictures` like every other bubble picture. The note under the picture is the credit
   ("Photo: author, CC BY-SA 4.0, via Wikimedia Commons") and links to the file's page.
 - **Fixture:** `tests/fixtures/commons_imo.json` (three files, one a PDF).
+
+## Status checks
+
+`livemap-helper status` runs one check per source (`chk_*`); Settings > Status and the widget's Map controls > Sources
+show them with a dot: green all answering, orange some of a section's sources failing, red none. The Events widget's "source not answering"
+line comes from the same problems list the feeds carry.
