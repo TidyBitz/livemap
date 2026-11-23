@@ -744,10 +744,10 @@ def test_rainviewer_index_and_tiles():
     frames, cast = radar.frames_of(idx, 7)
     assert len(frames) == 7 and cast == 0 and frames[-1] == (1793731200, "/v2/radar/94d716ae4fc3")
     assert frames[0][0] < frames[-1][0] and all(b[0] - a[0] == 600 for a, b in zip(frames, frames[1:]))   # ten-minute steps, oldest first
-    x, y = radar.tile_of(38.637, -90.2419, 6)
-    assert (int(x), int(y)) == (15, 24)                                                             # St. Louis's tile at zoom 6
-    w, s, e, n = radar.tile_bounds(15, 24, 6)
-    assert w < -90.2419 < e and s < 38.637 < n
+    x, y = radar.tile_of(41.8781, -87.6298, 6)
+    assert (int(x), int(y)) == (16, 23)                                                             # Chicago's tile at zoom 6
+    w, s, e, n = radar.tile_bounds(16, 23, 6)
+    assert w < -87.6298 < e and s < 41.8781 < n
 
 
 def test_rainviewer_loop_builds_frames(no_network, data_dir):
@@ -757,11 +757,11 @@ def test_rainviewer_loop_builds_frames(no_network, data_dir):
     no_network("weather-maps.json", fixture("rainviewer_index.json"))
     no_network("tilecache.rainviewer.com", (FIXTURES / "rainviewer_tile.png"))
     BORDERS.mkdir(parents=True, exist_ok=True)                                                     # no border files: a plain dark base
-    r = radar.radar_loop(38.637, -90.2419, now=idx["generated"])
+    r = radar.radar_loop(41.8781, -87.6298, now=idx["generated"])
     assert len(r["frames"]) == 7 and r["errors"] == [] and r["echoes"] > 0.1
     assert all(f["file"].startswith("file://") for f in r["frames"]) and (data_dir / "radar").exists()
-    assert r["box"][0] < -90.24 < r["box"][2] and r["box"][1] < 38.64 < r["box"][3]
-    again = radar.radar_loop(38.637, -90.2419, now=idx["generated"])                              # the second run fetches nothing: files exist
+    assert r["box"][0] < -87.63 < r["box"][2] and r["box"][1] < 41.88 < r["box"][3]
+    again = radar.radar_loop(41.8781, -87.6298, now=idx["generated"])                              # the second run fetches nothing: files exist
     assert [f["file"] for f in again["frames"]] == [f["file"] for f in r["frames"]]
 
 

@@ -496,7 +496,7 @@ the `FloodWarnSources` mask (2 MeteoAlarm, 4 Environment Canada, 8 Environment A
   `echoes` is the share of radar pixels carrying rain across the frames: the widget says "nothing on the radar"
   when it is near zero, with the caveat that an empty tile cannot tell dry from uncovered.
 - **Fixtures:** `rainviewer_index.json` (13 past frames, no nowcast) and `rainviewer_tile.png` (zoom 6, 15/24,
-  the tile over St. Louis, rain to the north and east).
+  the tile over the central US, rain to the north and east).
 
 ### Live tab - YouTube channel /live pages (`live.py`, `livemap-helper live-url`)
 - **What:** which broadcast a channel is showing now, so the widget can embed it without a hard-coded video id

@@ -64,7 +64,7 @@ scripts/check.py                              "all good": versions, metadata, ge
    the test is what stops the next change from breaking it silently.
 5. `python3 scripts/check.py` must say "all good"; the tests must pass (`python3 -m pytest tests/`).
 6. A line under Unreleased in CHANGELOG.md, commit, push, install:
-   `cd ~/Documents/Projects/livemap && ./livemap.sh install`.
+   `cd ~/path/to/livemap && ./livemap.sh install`.
 
 ## Parsing rules, learned the hard way
 
