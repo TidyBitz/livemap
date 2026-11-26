@@ -236,6 +236,10 @@ release notes written at the time; their dates are the day the version was hande
   the event preview bubble has a solid background; a see-through bubble over the map was hard to read.
 
 ### Changed
+- README as a landing page: the hero picture, one line, badges and a nav line; install in three lines; the map's six
+  areas in a grid; the widget, the styles, "Built to be left alone" and "What it is not"; credits folded. The
+  reference half (the full feature table, the first-run downloads, where things live, the script, the repository
+  layout, troubleshooting) moves to docs/GUIDE.md. The hero is the daylight screenshot until a clip is recorded.
 - Widget, Live tab: Sen's 4K Earth view is the default stream (the best picture); NASA's HD stream, its
   inside-and-out stream, NASA TV and CGTN follow in the menu. An empty first answer from a channel page is asked
   again once a few seconds later, and the helper also reads the channel's streams tab, so the tab no longer needs
