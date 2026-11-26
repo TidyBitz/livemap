@@ -43,44 +43,48 @@ Download `livemap.zip` from the [latest release](https://github.com/TidyBitz/liv
 <tr>
 <td width="33%" valign="top">
 
-**🌋 Earth**
-Earthquakes (USGS + EMSC, swarms clustered to one label), volcanoes with alert levels from four agencies and ash advisories, tsunami bulletins with the threatened coast drawn, floods and official flood warnings on four continents, wildfires with their perimeters and hotspots.
+**🌋 Natural events**
+- **Earthquakes** - USGS and EMSC merged; rings by magnitude, swarms clustered
+- **Volcanoes** - alert levels from four agencies; ash advisories with height and forecast
+- **Tropical storms** - NHC, JTWC and GDACS; intensity-coloured tracks, a forecast cone for every one
+- **Wildfires** - NIFC, CWFIS and EFFIS perimeters; NASA FIRMS hotspots
+- **Floods** - GDACS events; official warnings from the NWS, MeteoAlarm, Environment Canada and the Environment Agency
+- **Tsunami bulletins** - PTWC and NTWC, the threatened coast drawn
 
 </td>
 <td width="33%" valign="top">
-
-**🌀 Weather**
-Live clouds from the geostationary satellites (stitched from five of them when the usual mosaic is down), tropical storms with intensity-coloured tracks and a forecast cone for every one, the day/night line and city lights - or the whole map at night.
-
-</td>
-<td width="33%" valign="top">
-
-**🛰️ Space**
-ISS, Hubble and Tiangong on their orbits with their crews, the next launches counting down on their pads and the last day's with its outcome, passes over your home, the planetary K index.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
 
 **⚓ Security**
-Ukraine's air raid alerts by oblast as edge lights, every minute; attacks, boardings, hijacks and kidnaps at sea from three centres - UKMTO from the Red Sea to the Strait of Hormuz, MDAT-GoG in the Gulf of Guinea, ReCAAP across Asia.
+- **Air raid alerts** - Ukraine, by oblast, every minute, as edge lights
+- **Maritime incidents** - attacks, boardings, hijacks and kidnaps from UKMTO (Red Sea to Hormuz), MDAT-GoG (Gulf of Guinea) and ReCAAP (Asia)
+
+**🛰️ Space**
+- **ISS, Hubble, Tiangong** - on their orbits, with their crews
+- **Launches** - the next week counting down on their pads; the last day with its outcome
+- **Passes** over your home; the planetary K index
+
+**📺 Live video**
+- Earth from the ISS in 4K, NASA's feeds, launch webcasts
 
 </td>
-<td valign="top">
+<td width="33%" valign="top">
 
-**🗺️ Geography**
-Seven map styles, borders, rivers, lakes and seas, time zones, tectonic plates, oil and gas infrastructure - every one its own switch, every colour yours. Off by default and never leaving the machine: your own network connections on the map.
+**🌀 Weather and sky**
+- **Clouds** - live from the geostationary satellites; stitched from five when the mosaic is down
+- **Day and night** - the terminator, city lights, or the whole map at night
+- **Your weather** - conditions, the week ahead, air quality, aurora, sun and moon, tonight's sky
+- **Rain radar** - the last hour round home, as a loop
 
-</td>
-<td valign="top">
-
-**🧭 The widget**
-Newest events with source links, a bubble with the facts, the satellite's view and the ship's photograph, the ISS live stream, your local weather, air quality, aurora and the last hour of rain radar.
+**🗺️ Map**
+- **Seven styles** - seasonal Blue Marble, today's satellite view, relief, Classic, Dark, Matrix
+- Borders, rivers, lakes and seas, time zones, tectonic plates, oil and gas infrastructure
+- **Your own network** on the map - off by default, never leaving the machine
 
 </td>
 </tr>
 </table>
+
+Every layer is its own switch; every colour, size and label is yours. The full table of what each layer shows and where it comes from is in the [guide](docs/GUIDE.md#every-feature-and-where-it-comes-from); every feed's format and handling in [Sources](docs/SOURCES.md).
 
 <table><tr>
 <td width="50%"><img src="docs/screenshots/europe-night-air-raid.webp" alt="Air raid alerts as edge lights over Europe at night"><br><sub><b>Air raid alerts</b> - every oblast's border glows while an alert is on; new ones breathe, the frontline's settle to ochre</sub></td>
