@@ -283,6 +283,8 @@ release notes written at the time; their dates are the day the version was hande
 - Wallpaper and widget 0.48.
 
 ### Fixed
+- A frame rebuilt under the same file name (a new day's picture, a newer classic.jpg) is shown instead of the old one: the
+  frame URL carries a build counter as its fragment, so the image cache treats each rebuild as a new picture.
 - European burnt areas (EFFIS) answered HTTP 502 to every probe from 25 October to 10 November 2026. Not an
   outage: the WFS's field names are upper case now (FIREDATE, LASTUPDATE, COUNTRY, PROVINCE, COMMUNE, AREA_HA -
   DescribeFeatureType says so), and the filter on the old `firedate` fails inside PostGIS, which the server
