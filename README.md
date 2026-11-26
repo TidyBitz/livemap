@@ -46,10 +46,11 @@ Download `livemap.zip` from the [latest release](https://github.com/TidyBitz/liv
 **🌋 Natural events**
 - **Earthquakes** - USGS and EMSC merged; rings by magnitude, swarms clustered
 - **Volcanoes** - alert levels from four agencies; ash advisories with height and forecast
-- **Tropical storms** - NHC, JTWC and GDACS; intensity-coloured tracks, a forecast cone for every one
+- **Tropical storms** - NHC, JTWC and GDACS; intensity-coloured tracks, a forecast cone for every one, the platforms and refineries in it counted on the label
 - **Wildfires** - NIFC, CWFIS and EFFIS perimeters; NASA FIRMS hotspots
 - **Floods** - GDACS events; official warnings from the NWS, MeteoAlarm, Environment Canada and the Environment Agency
 - **Tsunami bulletins** - PTWC and NTWC, the threatened coast drawn
+- **Tectonic plates** - the boundaries the quakes line up on, as fault lines
 
 </td>
 <td width="33%" valign="top">
@@ -77,7 +78,9 @@ Download `livemap.zip` from the [latest release](https://github.com/TidyBitz/liv
 
 **🗺️ Map**
 - **Seven styles** - seasonal Blue Marble, today's satellite view, relief, Classic, Dark, Matrix
-- Borders, rivers, lakes and seas, time zones, tectonic plates, oil and gas infrastructure
+- **Time zones** - every zone with its clock, the offset in force today
+- **Oil and gas infrastructure** - offshore platforms and refineries, the ones in a storm's path lit
+- Borders, state lines, rivers, lakes and seas, capitals and cities
 - **Your own network** on the map - off by default, never leaving the machine
 
 </td>
