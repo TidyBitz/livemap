@@ -9,6 +9,7 @@ A wallpaper and widget for KDE Plasma 6 that shows what the Earth is doing right
 <p align="center">
   <a href="https://github.com/TidyBitz/livemap/releases/latest"><img src="https://img.shields.io/github/v/release/TidyBitz/livemap?style=for-the-badge&color=2b6cb0" alt="release"></a>
   <img src="https://img.shields.io/badge/KDE%20Plasma-6-1d99f3?style=for-the-badge" alt="Plasma 6">
+  <a href="https://github.com/TidyBitz/livemap/releases"><img src="https://img.shields.io/github/downloads/TidyBitz/livemap/total?style=for-the-badge&label=downloads&color=555" alt="downloads"></a>
   <a href="https://github.com/TidyBitz/livemap/actions/workflows/sources.yml"><img src="https://img.shields.io/github/actions/workflow/status/TidyBitz/livemap/sources.yml?style=for-the-badge&label=sources%20answering" alt="sources answering"></a>
   <a href="docs/DEPENDENCIES.md"><img src="https://img.shields.io/badge/keys-none-555?style=for-the-badge" alt="no keys"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/GPL--3.0-green?style=for-the-badge" alt="GPL-3.0"></a>
