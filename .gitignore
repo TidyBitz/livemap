@@ -3,3 +3,4 @@ __pycache__/
 livemap.zip
 *.zip
 .DS_Store
+*.tar.gz

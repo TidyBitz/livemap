@@ -17,5 +17,14 @@ cp livemap.sh CHANGELOG.md LICENSE "$tmp/"
 find "$tmp" -name __pycache__ -prune -exec rm -rf {} +
 rm -f "$out"
 (cd "$tmp" && zip -qr "$out" livemap livemap-widget livemap.sh CHANGELOG.md LICENSE)
+# the KDE Store wants one archive per package, with metadata.json at the archive's root (what "Get New
+# Plugins..." / "Get New Widgets..." hand to kpackagetool6): livemap-wallpaper-<v>.tar.gz and livemap-widget-<v>.tar.gz
+wv="$(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap/metadata.json)"
+ww="$(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap-widget/metadata.json)"
+dir="$(dirname "$out")"
+rm -f "$dir/livemap-wallpaper-$wv.tar.gz" "$dir/livemap-widget-$ww.tar.gz"
+tar -czf "$dir/livemap-wallpaper-$wv.tar.gz" -C "$tmp/livemap" .
+tar -czf "$dir/livemap-widget-$ww.tar.gz" -C "$tmp/livemap-widget" .
 rm -rf "$tmp"
+echo "built $dir/livemap-wallpaper-$wv.tar.gz and $dir/livemap-widget-$ww.tar.gz (the KDE Store uploads)"
 echo "built $out ($(du -h "$out" | cut -f1)) - wallpaper $(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap/metadata.json), widget $(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap-widget/metadata.json)"

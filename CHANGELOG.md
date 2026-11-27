@@ -5,6 +5,12 @@ release notes written at the time; their dates are the day the version was hande
 
 ## 0.49 - unreleased
 
+### Added
+- docs/PUBLISHING.md: the KDE Store routine - account, the two listings with their text, screenshots and tags, the
+  update per release, what a Store install does not do. `scripts/package.sh` also builds the two Store archives
+  (`livemap-wallpaper-<v>.tar.gz`, `livemap-widget-<v>.tar.gz`, metadata.json at the root) and CI attaches them
+  to every release beside livemap.zip.
+
 ### Fixed
 - Maritime cluster labels read "3 robberies" or "3 × suspicious activity", not "3 robbery/theft ×"; the layer's Show box names all
   three sources.

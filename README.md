@@ -146,6 +146,7 @@ It is not real-time tracking of anything that doesn't publish its position: no w
 | [Coverage by region](docs/COVERAGE.md) | which source covers which hazard where, and how fast |
 | [Dependencies](docs/DEPENDENCIES.md) | the standard library, three optional packages, and nothing fetched is code |
 | [Maintaining](docs/MAINTAINING.md) | the map of the code and the routine when a source breaks |
+| [Publishing](docs/PUBLISHING.md) | the KDE Store listings and the routine per release |
 | [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) | |
 
 ## Licence

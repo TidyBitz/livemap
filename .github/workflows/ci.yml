@@ -65,5 +65,8 @@ jobs:
           [ -s notes.md ] || echo "Release $v" > notes.md
       - uses: softprops/action-gh-release@v3
         with:
-          files: livemap.zip
+          files: |
+            livemap.zip
+            livemap-wallpaper-*.tar.gz
+            livemap-widget-*.tar.gz
           body_path: notes.md
