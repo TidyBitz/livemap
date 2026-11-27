@@ -114,6 +114,12 @@ Four tabs: **Events** (newest first, with NEW / SOON / LIVE tags and a link per 
 
 Seasonal Blue Marble, today's satellite view, relief, Classic Blue Marble too - and every colour, size and label is a setting. [More screenshots.](docs/screenshots)
 
+## Every layer is a switch
+
+<p align="center"><img src="docs/screenshots/settings-essentials.webp" width="100%" alt="The settings page: a sidebar with a switch and a health dot for every layer, and the Essentials page with the style swatches, the profile, the home place and the frame of the world"></p>
+
+The settings page is laid out like KDE's own System Settings: a sidebar with one row per layer - its on/off switch, its name and the health of its sources - and a page for each. A layer that is off costs nothing; it is not even loaded. **Essentials** holds the handful of choices most people make; the layers' own pages go as deep as you like, from a storm's cone colour to how long a quake keeps pulsing. [The settings pages.](docs/screenshots#settings)
+
 ## Built to be left alone
 
 Most live wallpapers die the first time a feed changes. This one is built for the weeks after you stop looking at the settings:
