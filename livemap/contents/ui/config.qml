@@ -2312,7 +2312,7 @@ RowLayout {
         // ====================================================== Maritime incidents
         SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)", "Maritime incidents (ReCAAP)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
         Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)", "Maritime incidents (ReCAAP)"] }
-        QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO)" }
+        QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO, MDAT-GoG, ReCAAP)" }
         Amount {
             visible: sec9m.open
             Kirigami.FormData.label: "Maritime layer opacity:"

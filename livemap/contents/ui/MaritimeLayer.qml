@@ -79,7 +79,11 @@ Item {
             if (e.place) places[e.place] = (places[e.place] || 0) + 1;
             lo = Math.min(lo, hoursOf(e)); hi = Math.max(hi, hoursOf(e));
         }
-        var tn = Object.keys(types), what = tn.length === 1 ? (tn[0] === "Attack" ? "attacks" : tn[0] === "Advisory" ? "advisories" : tn[0].toLowerCase() + " \u00d7") : "incidents";
+        // one type: its plural ("11 attacks", "3 robberies"); the ones with no plain plural read "3 × suspicious activity"
+        var plurals = { "Attack": "attacks", "Advisory": "advisories", "Hijack": "hijacks", "Kidnap": "kidnaps", "Kidnapping": "kidnappings",
+                        "Boarding": "boardings", "Attempted Boarding": "attempted boardings", "Illegal Boarding": "illegal boardings",
+                        "Robbery/Theft": "robberies", "Sea robbery": "sea robberies", "Sea theft": "sea thefts", "Piracy": "piracy incidents" };
+        var tn = Object.keys(types), what = tn.length === 1 ? (plurals[tn[0]] || "\u00d7 " + tn[0].toLowerCase()) : "incidents";
         var place = Object.keys(places).sort(function (a, b) { return places[b] - places[a]; })[0] || "";
         return [list.length + " " + what, Object.keys(vessels).sort().join(", "), place, Geo.spanRange(lo, hi)].filter(function (t) { return t !== ""; }).join(" \u00b7 ");
     }
