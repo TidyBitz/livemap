@@ -3,6 +3,12 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.49 - unreleased
+
+### Fixed
+- Maritime cluster labels read "3 robberies" or "3 × suspicious activity", not "3 robbery/theft ×"; the layer's Show box names all
+  three sources.
+
 ## 0.48 - 2026-11-26
 
 The first release since 0.46: everything under 0.47 below (never tagged on its own) ships with it.
