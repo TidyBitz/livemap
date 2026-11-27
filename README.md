@@ -97,6 +97,9 @@ Every layer is its own switch; every colour, size and label is yours. The full t
 
 ## The widget
 
+<p align="center"><img src="docs/screenshots/widget-maritime-bubble.webp" width="100%" alt="The widget's Events tab with the maritime incidents open; a ReCAAP robbery row hovered, its bubble showing the ship's photograph, the facts and the full report; the Singapore Strait cluster lit on the map"></p>
+<p align="center"><sub>Rest the pointer on a row: the event lights up on the map, and the bubble carries the facts, the full report and - for ReCAAP's incidents - the ship herself, from Wikimedia Commons</sub></p>
+
 <table><tr>
 <td width="50%"><img src="docs/screenshots/widget-storm-bubble.webp" alt="The storm bubble"><br><sub>Rest the pointer on a row: the satellite's view, the facts, the source's own picture where it has one</sub></td>
 <td width="50%"><img src="docs/screenshots/widget-iss-crew.webp" alt="The ISS bubble with the crew"><br><sub>The ISS right now, and who is aboard</sub></td>
