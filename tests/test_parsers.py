@@ -584,7 +584,6 @@ def test_live_url_page_reading():
 
 def test_sky_document_from_open_meteo(monkeypatch):
     """The Sky tab's document from a recorded-shape Open-Meteo answer: units, strips, bubble lines, ages."""
-    import time as _t
     from livemap_helper import sky
     now = 1793034000                              # 2026-10-26 ~ 18:20 UTC = 12:20 Denver
     day0 = 1792994400                             # 2026-10-26 00:00 MDT (UTC-6)
@@ -638,7 +637,7 @@ def test_kp_rows_both_shapes(monkeypatch):
 
 def test_bubble_pictures_fetched_to_files(tmp_path, monkeypatch):
     """The helper fetches a bubble's picture once, hands the widget a file URL, and remembers a failure for an hour."""
-    import io, urllib.request
+    import urllib.request
     from livemap_helper import feed
     monkeypatch.setattr(feed, "PICTURES", tmp_path / "pictures")
     monkeypatch.setattr(feed, "PICTURES_INDEX", tmp_path / "pictures.json")

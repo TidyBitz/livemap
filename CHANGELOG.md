@@ -3,7 +3,9 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
-## 0.48 - unreleased
+## 0.48 - 2026-11-26
+
+The first release since 0.46: everything under 0.47 below (never tagged on its own) ships with it.
 
 ### Added
 - Maritime incidents: a new layer and widget kind from UKMTO (United Kingdom Maritime Trade Operations), the
@@ -423,7 +425,7 @@ release notes written at the time; their dates are the day the version was hande
   so it showed as an opaque sector; it is built from plain wedges now (a sharp leading line, a fading trail). A
   Ripples style tried at the same time drew nothing on the same renderer and was dropped.
 
-## 0.47 - unreleased
+## 0.47 - not tagged; released with 0.48
 
 ### Added
 - Storms in the western Pacific, the Indian Ocean and the southern hemisphere get what the Atlantic ones had:
@@ -716,7 +718,7 @@ release notes written at the time; their dates are the day the version was hande
   Storms, Wildfires, Satellites, Launches, Network activity and Time zones, exactly the five choices country
   names had. The country-name controls are the same row now. Defaults keep every label as it was.
 
-## widget 0.47 - unreleased
+## widget 0.47 - not tagged; released with 0.48
 
 ### Added
 - Floods and air raid alerts as kinds of their own (groups, filters, Hide layers), one row per NWS forecast

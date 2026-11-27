@@ -12,7 +12,7 @@ import urllib.request
 from .alerts import alert_history, fetch_air_alerts, ua_regions
 from .common import DATA, EVENTS, PKG, HISTORY, read_layers_str, HISTORY_DAYS, VERSION, _age, area_text, emit, last_good, \
     on_battery, read_fire_focus, read_fire_sources, read_flood_level, read_layers, read_layers_flag, read_layers_int, read_units, \
-    wind_text, dist_text, speed_text, _http, fetch_json, UA, read_layers_list
+    wind_text, dist_text, speed_text, fetch_json, UA, read_layers_list
 from .fires import INCIDENT_SOURCES, cluster_hotspots, fetch_fires, fetch_hotspots, hotspot_source, incidents_cached, \
     rate_hotspots
 from .quakes import quakes_cached
@@ -328,7 +328,7 @@ def local_pictures(items):
                     body = r.read(PICTURE_LIMIT + 1)
                 if len(body) > PICTURE_LIMIT:
                     raise ValueError("larger than %d MB" % (PICTURE_LIMIT // 1048576))
-                if not ctype.startswith("image/") and not body[:4] in (b"\x89PNG", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"GIF8"):
+                if not ctype.startswith("image/") and body[:4] not in (b"\x89PNG", b"\xff\xd8\xff\xe0", b"\xff\xd8\xff\xe1", b"GIF8"):
                     raise ValueError("not an image (%s)" % (ctype or "no content type"))
                 if len(tries) > 1 and snapshot_is_black(body):
                     body = None
