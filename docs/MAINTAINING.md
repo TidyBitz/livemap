@@ -97,7 +97,7 @@ test; a line in docs/SOURCES.md. The consistency test will tell you what you for
   `frames/`; Status › "Map style imagery" lists them; deleting a frame folder forces a rebuild.
 - **The widget and the wallpaper never talk directly**: they share files in the data folder. mode.json (the widget's
   Map controls, read by the wallpaper within 20 s); layers.json (the wallpaper's switches, units, the maritime window,
-  home, passes, and what it is holding back and why - for the feed and the widget); focus.json (the hovered row,
+  home, passes, and what it is holding back and why - for the feed and the widget); focus.ini (the hovered row,
   written by the widget at most every 120 ms, read by the wallpaper's FocusLayer through a `cat` every 400 ms while
   the popup is open and every 2 s otherwise - Qt 6 refuses file:// XMLHttpRequests in plasmashell); pictures/ and
   pictures.json (fetched by the helper, loaded by the widget as files); sky.json and live-urls.json (the helper's

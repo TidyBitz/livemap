@@ -720,7 +720,7 @@ WallpaperItem {
                 console.warn("livemap: network layer failed to load (is plasma5support installed?)")
         }
 
-        // -- the event the widget's list points at, ringed over everything (FocusLayer.qml, focus.json) ----
+        // -- the event the widget's list points at, ringed over everything (FocusLayer.qml, focus.ini) ----
         Loader {
             anchors.fill: parent
             z: 3

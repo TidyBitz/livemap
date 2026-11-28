@@ -2,7 +2,7 @@
  * The event the companion widget is pointing at, marked on the map.
  *
  * The widget and the wallpaper are separate scenes with no way to talk, so they share a file: while the widget's
- * popup is open and a row is hovered, the widget writes focus.json in the data folder (kind, lat, lon, title,
+ * popup is open and a row is hovered, the widget writes focus.ini in the data folder (kind, lat, lon, title,
  * open, at); this layer reads it every 400 ms while the file says the popup is open, every two seconds otherwise.
  * Nothing in the event layers is touched: this is one mark drawn over everything, in the style chosen on
  * Essentials > Events widget (FocusStyle): a steady ring, the ring with a slow pulse, a breathing glow, a
@@ -43,21 +43,22 @@ Item {
     readonly property real cy: Math.max(screen.y + margin, Math.min(screen.y + screen.height - margin, py))
     readonly property real angle: Math.atan2(py - cy, px - cx)
 
-    // Reading the file: an XMLHttpRequest on a file:// URL is refused by Qt 6 unless plasmashell is started with
-    // QML_XHR_ALLOW_FILE_READ, so the file is read by a `cat` through the executable engine - a process, but a
-    // two-millisecond one, every 400 ms while the popup is open and every two seconds otherwise.
-    readonly property string path: String(dataDir).replace(/^file:\/\//, "") + "/focus.json"
+    // Reading the file: through Qt's Settings, no process - a fresh object per read, since QSettings re-reads a
+    // file whose timestamp changed when a new object opens it. The `cat` that did this before was a fork of
+    // plasmashell for every change - the jitter over the Events list.
+    readonly property string path: String(dataDir).replace(/^file:\/\//, "") + "/focus.ini"
     function read() {
-        if (reader.running > 0) return;              // the last one has not come back yet
-        reader.connectSource("cat '" + path.replace(/'/g, "") + "' 2>/dev/null # " + Date.now());
-    }
-    Exec {
-        id: reader
-        onNewData: function (source, data) {
-            disconnectSource(source);
-            try { layer.target = data.stdout ? JSON.parse(data.stdout) : ({}); } catch (e) { layer.target = ({}); }
+        if (readComp.status === Component.Ready) {
+            var s = readComp.createObject(layer, { location: "file://" + path });
+            if (s) {
+                var raw = s.hover; s.destroy();
+                try { layer.target = raw ? JSON.parse(raw) : ({}); } catch (e) { layer.target = ({}); }
+                return;
+            }
         }
+        console.warn("livemap focus: QtCore.Settings not available, the widget's hover cannot reach the map");
     }
+    Component { id: readComp; FocusRead {} }
     // The file is normally read only when it changes: FocusWatch keeps a file-system watcher on the folder (no
     // process at all while nothing happens). The poll stays as the fallback - every 400 ms / 2 s without the
     // watcher, a slow safety read with it - every second while open, every 10 s otherwise (a change the watcher missed, a stale "open" to let expire).

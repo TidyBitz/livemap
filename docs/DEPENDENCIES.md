@@ -59,7 +59,7 @@ own containing a single YouTube iframe with `referrerpolicy=origin`, and has plu
 Without it the Live tab offers "Open in player" and "Open in browser" instead.
 
 Programs the QML side runs through the executable data engine (a `/bin/sh -c`): `python3` with the helper's
-path for every data request; `cat` to read focus.json; `printf` and `mv` to write it. Optional and only on a
+path for every data request; the hover file is written and read through Qt's Settings, no process. Optional and only on a
 click: the player set in the widget's settings (`mpv` by default) for "Open in player"; `pw-play`, `paplay` or
 `aplay` for the notification sound; the system browser through `Qt.openUrlExternally` for every link. Links
 handed to the browser or the player are accepted only when they match `^https?://` with no quotes or
