@@ -151,7 +151,7 @@ PlasmoidItem {
     // a launch slides into its last minutes between two refreshes: look again every minute, no helper call
     Timer { interval: 60000; running: Plasmoid.configuration.SoundLaunch && (Plasmoid.configuration.Sound || "none") !== "none"; repeat: true
             onTriggered: { root.nowSec = Date.now() / 1000; root.alertCheck(); } }
-    Timer { interval: 30000; running: root.shown; repeat: true; onTriggered: {
+    Timer { interval: 30000; running: root.inFront; repeat: true; onTriggered: {
         root.nowSec = Date.now() / 1000;
         if (root.mode.full && root.mode.full_until && root.nowSec >= root.mode.full_until) root.refreshMode();   // the helper drops a timed full-speed override when it is over
     } }
@@ -401,7 +401,7 @@ PlasmoidItem {
     function focusOff(it) { if (focusItem === it || it === null) { focusItem = null; focusSend.restart(); } }
     function focusWrite(force) {
         var it = focusItem;
-        var doc = { open: root.shown && root.hoverHighlight, at: Math.round(Date.now() / 1000) };
+        var doc = { open: root.inFront && root.hoverHighlight, at: Math.round(Date.now() / 1000) };
         if (it && it.lat !== undefined && it.lat !== null && it.lon !== undefined && it.lon !== null) {
             doc.kind = it.kind; doc.lat = Number(it.lat); doc.lon = Number(it.lon); doc.key = String(it.key || "");
             doc.title = String(it.title || "").replace(/['\\]/g, "").substring(0, 80);
@@ -535,7 +535,7 @@ PlasmoidItem {
     // the fade off. In a panel the popup keeps Plasma's own background and is never faded.
     readonly property bool onDesktop: Plasmoid.formFactor === PlasmaCore.Types.Planar
     // on the desktop the full view is always in front of the user, whatever the popup flag says (it is not a popup)
-    readonly property bool shown: onDesktop || root.expanded
+    readonly property bool inFront: onDesktop || root.expanded
     Plasmoid.backgroundHints: onDesktop ? PlasmaCore.Types.NoBackground : PlasmaCore.Types.DefaultBackground
     fullRepresentation: Item {
         id: full
@@ -578,7 +578,7 @@ PlasmoidItem {
                 spacing: Kirigami.Units.smallSpacing
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
+                    PC3.Label { text: root.inFront.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
                     PC3.ComboBox {                            // the groups already sort by kind; "By kind" (2) reads as newest first
                         Layout.fillWidth: true
                         model: ["Newest first", "Most severe first", "Soonest launch first"]
@@ -613,7 +613,7 @@ PlasmoidItem {
                         readonly property bool turning: root.busy || root.pastBusy
                         contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
                             Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !refreshButton.turning; enabled: refreshButton.enabled }
-                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: refreshButton.turning; running: visible && root.shown } }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: refreshButton.turning; running: visible && root.inFront } }
                     }
                 }
                 RowLayout {                                   // custom range
@@ -634,7 +634,7 @@ PlasmoidItem {
                 PC3.Label { visible: root.problem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.problem; color: Kirigami.Theme.negativeTextColor }
                 PC3.Label { visible: root.problems.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; opacity: 0.7; text: root.problems.join("; ") }
                 PlasmaExtras.PlaceholderMessage {
-                    visible: root.shown.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
+                    visible: root.inFront.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
                     Layout.fillWidth: true; Layout.fillHeight: true
                     iconName: root.range > 0 ? "view-history" : "globe"
                     text: root.range > 0 ? "Nothing in this range" : "No events yet"
@@ -643,7 +643,7 @@ PlasmoidItem {
                 }
                 PC3.ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    visible: root.shown.length > 0 || root.hiddenKinds.length > 0
+                    visible: root.inFront.length > 0 || root.hiddenKinds.length > 0
                     ListView {
                         id: list
                         model: root.rows
@@ -959,7 +959,7 @@ PlasmoidItem {
                 readonly property string videoId: idOf(chosenUrl) || (channelLive ? (resolved[chosenUrl] || "") : "")
                 readonly property string playlist: (function () { var m = chosenUrl.match(/[?&]list=([\w-]{10,})/); return m ? m[1] : ""; })()
                 property bool playHere: false              // "Play here" on the placeholder: embed for this popup session
-                readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.shown && visible
+                readonly property bool embed: (Plasmoid.configuration.LiveEmbed || playHere) && root.inFront && visible
                 property int chosen: 0                     // 0 = the ISS stream from the settings; then the launches with a webcast
                 readonly property var extra: String(Plasmoid.configuration.LiveExtra || "").split("\n").map(function (line) {
                     var i = line.indexOf("|");
@@ -1029,7 +1029,7 @@ PlasmoidItem {
                     location: PlasmaCore.Types.LeftEdge
                     backgroundHints: PlasmaCore.Dialog.SolidBackground
                     hideOnWindowDeactivate: false
-                    visible: liveTab.infoOpen && liveTab.visible && root.shown
+                    visible: liveTab.infoOpen && liveTab.visible && root.inFront
                     visualParent: streamInfo
                     mainItem: ColumnLayout {
                         id: streamInfoColumn
@@ -1095,7 +1095,7 @@ PlasmoidItem {
             // ---- Sky: the weather, sun, moon and tonight's sky at the home place (SkyTab.qml) ----
             SkyTab {
                 visible: tabs.currentIndex === 2
-                active: visible && root.shown
+                active: visible && root.inFront
                 helperShell: root.helperShell
                 Layout.fillWidth: true; Layout.fillHeight: true
             }
@@ -1300,7 +1300,7 @@ PlasmoidItem {
                         icon.name: "view-refresh"; enabled: !root.statusBusy; onClicked: root.checkStatus(); PC3.ToolTip.text: "Check again"; PC3.ToolTip.visible: hovered
                         contentItem: Item { implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth
                             Kirigami.Icon { anchors.fill: parent; source: "view-refresh"; visible: !root.statusBusy; enabled: checkButton.enabled }
-                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: root.statusBusy; running: visible && root.shown } }
+                            PC3.BusyIndicator { anchors.centerIn: parent; width: Kirigami.Units.gridUnit * 1.2; height: width; visible: root.statusBusy; running: visible && root.inFront } }
                     }
                 }
                 PC3.Label { visible: mapControls.sourcesOpen && root.statusProblem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.statusProblem; color: Kirigami.Theme.negativeTextColor }

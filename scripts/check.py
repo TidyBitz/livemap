@@ -94,6 +94,11 @@ def check_qml(pkg, label):
         for m in re.finditer(r"\bproperty \w+ (\w+)", s):
             if m.group(1) in RESERVED:
                 problem("%s: property named '%s' shadows an Item property" % (name, m.group(1)))
+        # two properties of one name at the root item's indentation (4 spaces) is a load error, not a warning
+        roots = re.findall(r"^    (?:readonly )?property \w+ (\w+)", s, flags=re.M)
+        for k, n in collections.Counter(roots).items():
+            if n > 1:
+                problem("%s: root property '%s' declared %d times" % (name, k, n))
     print("  ✓ %s: QML brackets, ids and property names" % label)
 
 
