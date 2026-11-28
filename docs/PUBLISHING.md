@@ -83,6 +83,9 @@ THE COMPANION WIDGET
 satellite's view in a bubble, the ISS live stream, your local weather, air quality, aurora and rain radar.
 Get it from Add Widgets or from https://store.kde.org/p/<widget product id>
 
+NOT A WARNING SYSTEM
+Live World Map is for general awareness only. It is not a warning system and no replacement for official alerts: feeds can be delayed, incomplete or unavailable. For anything affecting your safety, rely on your national and local authorities and the original sources.
+
 Full documentation, every source and its licence, and the changelog: https://github.com/TidyBitz/livemap
 ```
 
@@ -108,6 +111,9 @@ using it.
 
 It needs the Live World Map wallpaper, which does the fetching:
 https://store.kde.org/p/<wallpaper product id>  -  or from Plasma: Wallpaper type > Get New Plugins...
+
+For general awareness only: not a warning system and no replacement for official alerts - for anything affecting your
+safety, rely on your national and local authorities and the original sources.
 
 No keys, no accounts, nothing sent anywhere. GPL-3.0. Documentation and sources:
 https://github.com/TidyBitz/livemap

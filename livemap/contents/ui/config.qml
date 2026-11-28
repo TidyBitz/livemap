@@ -1333,6 +1333,7 @@ RowLayout {
             QQC2.Button { text: "Clear the widget's overrides"; icon.name: "edit-clear"; onClicked: { modeExec.connectSource("python3 '" + form.widgetHelper + "' mode --clear # " + Date.now()); } }
         }
         Note { visible: secE.open; text: "A layer's switch on the left is its Show box: a layer that is off costs nothing, it is not even loaded. Each page keeps the same order: Show, Look, Labels, Behaviour." }
+        Note { visible: secE.open; text: "Not a warning system. Live World Map is for general awareness only and no replacement for official alerts: feeds can be delayed, incomplete or unavailable. For anything affecting your safety, rely on your national and local authorities and the original sources." }
 
         // #################################################################### Map base
 

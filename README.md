@@ -135,6 +135,8 @@ Most live wallpapers die the first time a feed changes. This one is built for th
 
 ### What it is not
 
+**It is not a warning system.** It is for general awareness only and no replacement for official alerts: feeds can be delayed, incomplete or unavailable. For anything affecting your safety, rely on your national and local authorities and the original sources.
+
 It is not real-time tracking of anything that doesn't publish its position: no warships, no aircraft, no rocket in flight. It is not a forecast service beyond the week your home's weather tab shows. It will not draw a dot it cannot stand behind - a satellite picture that isn't there yet comes back later rather than black, a stream's picture is labelled as running behind the station, a weekly source is shown with the week on it. Where a free source doesn't exist, the layer doesn't either.
 
 ## Go deeper
