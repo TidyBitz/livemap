@@ -699,7 +699,7 @@ RowLayout {
     component Note: QQC2.Label {
         Layout.fillWidth: true
         Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 30)
-        onWidthChanged: if (visible) console.warn("livemap-room note x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "page", Math.round(pageArea.width), (text || "").slice(0, 20))
+        onWidthChanged: if (false) console.warn("livemap-room note x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "page", Math.round(pageArea.width), (text || "").slice(0, 20))
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         wrapMode: Text.Wrap
         opacity: 0.7
@@ -710,7 +710,7 @@ RowLayout {
         Layout.fillWidth: true
         Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 40)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 40
-        onWidthChanged: if (visible) console.warn("livemap-room check x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "implicit", Math.round(implicitWidth), "label", contentItem ? Math.round(contentItem.width) + "/" + Math.round(contentItem.implicitWidth) : "-", text.slice(0, 20))
+        onWidthChanged: if (false) console.warn("livemap-room check x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "implicit", Math.round(implicitWidth), "label", contentItem ? Math.round(contentItem.width) + "/" + Math.round(contentItem.implicitWidth) : "-", text.slice(0, 20))
         contentItem: QQC2.Label {
             text: wc.text
             wrapMode: Text.Wrap
@@ -1055,7 +1055,17 @@ RowLayout {
         Layout.fillWidth: true
         implicitHeight: pageForm.implicitHeight
         clip: true
-        onWidthChanged: console.warn("livemap-room page", Math.round(width), "form", Math.round(pageForm.width), "implicit", Math.round(pageForm.implicitWidth), "root", Math.round(form.width))
+        onWidthChanged: dump.restart()
+        Timer { id: dump; interval: 1500; onTriggered: {
+            console.warn("livemap-room page", Math.round(pageArea.width), "form", Math.round(pageForm.width), "implicit", Math.round(pageForm.implicitWidth), "root", Math.round(form.width));
+            var cs = pageForm.children;
+            for (var i = 0; i < cs.length; i++) {
+                var c = cs[i];
+                if (!c.visible || c.width === undefined) continue;
+                var L = c.Layout, t = (c.text !== undefined ? String(c.text) : c.title !== undefined ? String(c.title) : "").slice(0, 24);
+                console.warn("livemap-room row", String(c).split("(")[0].split("_QMLTYPE")[0], "x", Math.round(c.x), "w", Math.round(c.width), "impl", Math.round(c.implicitWidth), "pref", L ? Math.round(L.preferredWidth) : "-", "min", L ? Math.round(L.minimumWidth) : "-", "max", L ? Math.round(L.maximumWidth) : "-", "fill", L ? L.fillWidth : "-", "label", c.Kirigami && c.Kirigami.FormData ? String(c.Kirigami.FormData.label).slice(0, 16) : "", t);
+            }
+        } }
         Kirigami.FormLayout {
         id: pageForm
         anchors.left: parent.left
