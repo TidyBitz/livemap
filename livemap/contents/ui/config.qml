@@ -1251,7 +1251,7 @@ RowLayout {
         FramePicker {
             visible: secE.open
             Kirigami.FormData.label: "Frame:"
-            Layout.preferredWidth: form.fieldRoom(x, parent, implicitWidth); Layout.preferredHeight: Math.round(Layout.preferredWidth / 2)
+            Layout.preferredWidth: form.fieldRoom(x, parent, implicitWidth); Layout.preferredHeight: Math.round(form.fieldRoom(x, parent, implicitWidth) / 2); Layout.maximumHeight: Layout.preferredHeight
             Layout.maximumWidth: implicitWidth
             north: frameNorth.value; south: frameSouth.value; west: frameWest.value; east: frameEast.value
             fitMode: fillMode.currentIndex
