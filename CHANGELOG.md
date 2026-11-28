@@ -6,6 +6,10 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.50 - unreleased
 
 ### Fixed
+- The wallpaper's settings page fits a narrow window: notes, long check boxes, the style swatches, the frame
+  picker, the wide combo boxes and the label-style row now size themselves to the room the page has, so a
+  laptop's Desktop Settings gets a narrower page instead of one cut at the right edge. (Kirigami lays a wide-mode
+  form out at its content width, never narrower, so the content has to ask for less itself.)
 - The widget's settings page scrolls: it is a KCM page now (the way Plasma 6 applets lay out their settings), with the
   form inside, so the wheel moves it and a scroll bar appears when the page is taller than the dialog.
 - The Live tab plays on the desktop: the embedded player, the Sky tab's fetching, the hover ring and the 30 s
