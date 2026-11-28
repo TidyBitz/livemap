@@ -6,6 +6,9 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.49 - unreleased
 
 ### Added
+- On the KDE Store: the wallpaper (store.kde.org/p/2382950) and the widget (p/2382952), so both install from inside
+  Plasma. The README's install section leads with that route and a KDE Store badge; docs/PUBLISHING.md carries the
+  links and the Store's category names.
 - "Not a warning system": the README's "What it is not", both Store listings and the foot of the Essentials page say
   that the map is for general awareness only and no replacement for official alerts.
 - docs/PUBLISHING.md: the KDE Store routine - account, the two listings with their text, screenshots and tags, the

@@ -11,6 +11,7 @@ A wallpaper and widget for KDE Plasma 6 that shows what the Earth is doing right
   <img src="https://img.shields.io/badge/KDE%20Plasma-6-1d99f3?style=for-the-badge" alt="Plasma 6">
   <a href="https://github.com/TidyBitz/livemap/releases"><img src="https://img.shields.io/github/downloads/TidyBitz/livemap/total?style=for-the-badge&label=downloads&color=555" alt="downloads"></a>
   <a href="https://github.com/TidyBitz/livemap/actions/workflows/sources.yml"><img src="https://img.shields.io/github/actions/workflow/status/TidyBitz/livemap/sources.yml?style=for-the-badge&label=sources%20answering" alt="sources answering"></a>
+  <a href="https://store.kde.org/p/2382950/"><img src="https://img.shields.io/badge/KDE%20Store-wallpaper%20%C2%B7%20widget-54a3d8?style=for-the-badge" alt="KDE Store"></a>
   <a href="docs/DEPENDENCIES.md"><img src="https://img.shields.io/badge/keys-none-555?style=for-the-badge" alt="no keys"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/GPL--3.0-green?style=for-the-badge" alt="GPL-3.0"></a>
 </p>
@@ -29,6 +30,10 @@ A wallpaper and widget for KDE Plasma 6 that shows what the Earth is doing right
 ---
 
 ## Install in a minute
+
+**From inside Plasma** - no download: *Wallpaper type* › *Get New Plugins...* › search "Live World Map" › *Install*, then *Add Widgets* › *Get New Widgets...* › "Live World Map Events". The same two packages on the KDE Store: [wallpaper](https://store.kde.org/p/2382950/) · [widget](https://store.kde.org/p/2382952/).
+
+**From the release**, with the script that checks what is missing and restarts the shell for you:
 
 ```bash
 bash livemap.sh doctor          # what is missing, if anything - with the package names for your distro
