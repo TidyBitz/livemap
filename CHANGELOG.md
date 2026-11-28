@@ -3,7 +3,9 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
-## 0.49 - unreleased
+## 0.49 - 2026-11-27
+
+The release to take if your desktop slowed down a day or two after 0.48: see the first entry under Fixed.
 
 ### Added
 - On the KDE Store: the wallpaper (store.kde.org/p/2382950) and the widget (p/2382952), so both install from inside
