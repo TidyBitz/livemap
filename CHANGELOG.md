@@ -8,6 +8,9 @@ release notes written at the time; their dates are the day the version was hande
 ### Fixed
 - The widget's settings page scrolls: it is a KCM page now (the way Plasma 6 applets lay out their settings), with the
   form inside, so the wheel moves it and a scroll bar appears when the page is taller than the dialog.
+- The widget's settings page no longer runs off the right edge of the dialog: three check boxes carried
+  sentence-length labels, and a check box neither wraps nor shrinks, so the widest set the form's minimum width.
+  Their labels are short now and the explanations live in the wrapping notes beneath.
 - The Live tab plays on the desktop: the embedded player, the Sky tab's fetching, the hover ring and the 30 s
   refresh were all gated on the popup being open, a flag a desktop widget never sets - so "Play here" did nothing
   there. The desktop counts as shown now. The placeholder says "Player not started" on the desktop, and its

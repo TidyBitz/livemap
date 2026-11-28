@@ -61,7 +61,14 @@ KCM.SimpleKCM {
             valueFromText: function (t) { return parseInt(t) || 5 }
         }
         QQC2.CheckBox { id: grouped; Kirigami.FormData.label: "Events listed:"; text: "In groups by kind, each with a header that folds" }
-        QQC2.CheckBox { id: followMap; text: "Only the kinds the wallpaper shows (also the On the map / Every kind choice on the Events tab)" }
+        QQC2.CheckBox { id: followMap; text: "Only the kinds the wallpaper shows" }
+        QQC2.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
+            opacity: 0.7
+            text: "The same as the On the map / Every kind choice on the Events tab."
+        }
         QQC2.CheckBox { id: showQuakes; Kirigami.FormData.label: "Show:"; text: "Earthquakes" }
         QQC2.CheckBox { id: showVolcanoes; text: "Volcanoes" }
         QQC2.CheckBox { id: showStorms; text: "Storms" }
@@ -136,7 +143,7 @@ KCM.SimpleKCM {
             }
         }
         QQC2.TextField { id: soundFile; Kirigami.FormData.label: "Sound file:"; Layout.fillWidth: true; visible: sound.currentIndex === 4; placeholderText: "/home/me/Music/alert.ogg - anything pw-play or paplay can play (wav, ogg, flac, mp3)" }
-        QQC2.CheckBox { id: soundSevere; Kirigami.FormData.label: "Play for:"; enabled: sound.currentIndex > 0; text: "A severe event arriving: a magnitude 6+ quake, a category 3+ storm, a red alert" }
+        QQC2.CheckBox { id: soundSevere; Kirigami.FormData.label: "Play for:"; enabled: sound.currentIndex > 0; text: "A severe event arriving" }
         RowLayout {
             enabled: sound.currentIndex > 0
             QQC2.CheckBox { id: soundLaunch; text: "A launch about to happen, within" }
@@ -147,7 +154,7 @@ KCM.SimpleKCM {
             wrapMode: Text.Wrap
             Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
             opacity: 0.7
-            text: "One sound per refresh however many events arrive at once; nothing plays for what was already on the list when the widget started. Played with pw-play, paplay or aplay, whichever is installed."
+            text: "Severe means a magnitude 6+ quake, a category 3+ storm or a red alert. One sound per refresh however many events arrive at once; nothing plays for what was already on the list when the widget started. Played with pw-play, paplay or aplay, whichever is installed."
         }
         Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Live" }
         QQC2.TextField { id: liveUrl; Kirigami.FormData.label: "Live stream:"; Layout.fillWidth: true; placeholderText: "YouTube URL of the stream" }
@@ -161,14 +168,14 @@ KCM.SimpleKCM {
             placeholderText: "one per line:  Title | URL"
             wrapMode: TextEdit.WrapAnywhere; Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         }
-        QQC2.CheckBox { id: liveEmbed; Kirigami.FormData.label: "Live tab:"; text: "Always play the stream inside the widget (needs QtWebEngine; unticked, the Live tab offers Play here each time)" }
+        QQC2.CheckBox { id: liveEmbed; Kirigami.FormData.label: "Live tab:"; text: "Always play the stream inside the widget" }
         QQC2.TextField { id: livePlayer; Kirigami.FormData.label: "External player:"; Layout.fillWidth: true; placeholderText: "command; the URL is appended" }
         QQC2.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
             opacity: 0.7
-            text: "The Live tab shows the stream. Embedded playback runs a browser engine inside plasmashell (a few hundred MB, GPU time while the popup is open); the external player (mpv with yt-dlp, by default) is much lighter and opens a small always-on-top window. 'Open in browser' always works."
+            text: "The Live tab shows the stream. Playing inside the widget needs QtWebEngine; with Always unticked, the Live tab offers Play here each time instead. Embedded playback runs a browser engine inside plasmashell (a few hundred MB, GPU time while the popup is open); the external player (mpv with yt-dlp, by default) is much lighter and opens a small always-on-top window. 'Open in browser' always works."
         }
         QQC2.Label {
             Layout.fillWidth: true
