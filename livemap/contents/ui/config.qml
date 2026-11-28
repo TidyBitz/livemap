@@ -689,14 +689,16 @@ RowLayout {
     // less itself), capped at what the field wants, never under 12 grid units. Wide things - notes, wrapping
     // check boxes, the style swatches, the frame picker - size themselves with it, so a narrow window (a laptop's
     // Desktop Settings) gets a narrower page instead of a cut one.
-    function fieldRoom(item, cap) {
-        var x = item.x + (item.parent === pageForm || !item.parent ? 0 : item.parent.x);
-        return Math.max(Kirigami.Units.gridUnit * 12, Math.min(cap, pageArea.width - x - Kirigami.Units.largeSpacing));
+    // Called as form.fieldRoom(x, parent, cap) from a binding, where x and parent are the item's own (`this` in a
+    // binding on an attached Layout property is the attachment, not the item).
+    function fieldRoom(x, parent, cap) {
+        var off = x + (parent === pageForm || !parent ? 0 : parent.x);
+        return Math.max(Kirigami.Units.gridUnit * 12, Math.min(cap, pageArea.width - off - Kirigami.Units.largeSpacing));
     }
     // A greyed explanation that wraps instead of widening the window.
     component Note: QQC2.Label {
         Layout.fillWidth: true
-        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 30)
+        Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 30)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         wrapMode: Text.Wrap
         opacity: 0.7
@@ -705,7 +707,7 @@ RowLayout {
     component WrapCheck: QQC2.CheckBox {
         id: wc
         Layout.fillWidth: true
-        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 40)
+        Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 40)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         contentItem: QQC2.Label {
             text: wc.text
@@ -731,7 +733,7 @@ RowLayout {
     component LabelStyle: Flow {
         id: style
         Layout.fillWidth: true
-        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 40)
+        Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 40)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         spacing: Kirigami.Units.largeSpacing
         property alias bold: boldBox.checked
@@ -1088,7 +1090,7 @@ RowLayout {
             visible: secE.open
             Kirigami.FormData.label: "Style:"
             Layout.fillWidth: true
-            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
+            Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.smallSpacing
             Repeater {
@@ -1249,7 +1251,7 @@ RowLayout {
         FramePicker {
             visible: secE.open
             Kirigami.FormData.label: "Frame:"
-            Layout.preferredWidth: form.fieldRoom(this, implicitWidth); Layout.preferredHeight: Math.round(Layout.preferredWidth / 2)
+            Layout.preferredWidth: form.fieldRoom(x, parent, implicitWidth); Layout.preferredHeight: Math.round(Layout.preferredWidth / 2)
             Layout.maximumWidth: implicitWidth
             north: frameNorth.value; south: frameSouth.value; west: frameWest.value; east: frameEast.value
             fitMode: fillMode.currentIndex
@@ -1285,7 +1287,7 @@ RowLayout {
             visible: secE.open
             Kirigami.FormData.label: "Events widget:"
             Layout.fillWidth: true
-            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
+            Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.largeSpacing
             Kirigami.Icon { source: "view-list-details"; implicitWidth: Kirigami.Units.iconSizes.large; implicitHeight: implicitWidth; Layout.alignment: Qt.AlignTop }
@@ -1341,7 +1343,7 @@ RowLayout {
         RowLayout {
             visible: secE.open && (form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain)
             Layout.fillWidth: true
-            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
+            Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
             QQC2.Label {
@@ -1445,7 +1447,7 @@ RowLayout {
             id: nightMode
             Kirigami.FormData.label: "Night:"
             enabled: dayNight.checked
-            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 22)
+            Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 22)
             model: ["Where the sun has set (the terminator moves across the map)", "Everywhere, all the time", "Everywhere during your own night, the terminator by day"]
         }
         Note { visible: sec2.open; text: ["The night side follows the sun: a dusk band sweeps round the world once a day, and the city lights come on behind it.",
@@ -1709,7 +1711,7 @@ RowLayout {
             visible: sec5.open
             Kirigami.FormData.label: "Time zone style:"
             enabled: timeZones.checked
-            QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 24); model: form.zoneStyles.map(function (z) { return z.name }) }
+            QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 24); model: form.zoneStyles.map(function (z) { return z.name }) }
             QQC2.SpinBox {
                 id: zoneRowLat; enabled: form.zoneStyles[zoneLook.currentIndex].placement >= 1; from: -80; to: 80; stepSize: 5
                 textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
@@ -2409,7 +2411,7 @@ RowLayout {
             id: satPasses
             Kirigami.FormData.label: "Passes over you:"
             enabled: sats.checked
-            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 20)
+            Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 20)
             model: ["Not listed", "The ones you can see, in the widget", "Every pass, seen or not"]
         }
         Note { visible: sec10.open; text: "Experimental. When the ISS or Tiangong will cross the sky over your home place (Essentials), from the same orbital elements: rise, highest point and set with compass directions, in the widget's Satellites group an hour ahead and in the station's bubble. A pass can be seen only when your sky is dark and the station is still in sunlight - the first hours after dusk and before dawn - so the daytime passes are left out unless you ask for every pass. Cloud over your home from the live cloud image is shown beside it as a hint; it never hides a pass." + (homeLat.text === "" || homeLon.text === "" ? " No home place is set yet." : "") }
