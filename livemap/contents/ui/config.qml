@@ -684,13 +684,36 @@ RowLayout {
             }
         }
     }
+    // The room a field has: the page's width less the label column it sits beside (its own x in the form - in
+    // wide mode Kirigami lays the grid out at its content width, never narrower, so the content must ask for
+    // less itself), capped at what the field wants, never under 12 grid units. Wide things - notes, wrapping
+    // check boxes, the style swatches, the frame picker - size themselves with it, so a narrow window (a laptop's
+    // Desktop Settings) gets a narrower page instead of a cut one.
+    function fieldRoom(item, cap) {
+        var x = item.x + (item.parent === pageForm || !item.parent ? 0 : item.parent.x);
+        return Math.max(Kirigami.Units.gridUnit * 12, Math.min(cap, pageArea.width - x - Kirigami.Units.largeSpacing));
+    }
     // A greyed explanation that wraps instead of widening the window.
     component Note: QQC2.Label {
         Layout.fillWidth: true
-        Layout.preferredWidth: Kirigami.Units.gridUnit * 24
+        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 30)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         wrapMode: Text.Wrap
         opacity: 0.7
+    }
+    // A check box whose sentence wraps instead of widening the page (a plain check box neither wraps nor shrinks).
+    component WrapCheck: QQC2.CheckBox {
+        id: wc
+        Layout.fillWidth: true
+        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 40)
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 40
+        contentItem: QQC2.Label {
+            text: wc.text
+            wrapMode: Text.Wrap
+            leftPadding: wc.indicator ? wc.indicator.width + wc.spacing : 0
+            verticalAlignment: Text.AlignVCenter
+            enabled: wc.enabled
+        }
     }
     component Hours: QQC2.SpinBox {
         textFromValue: function (v) { return v + " h" }
@@ -705,8 +728,12 @@ RowLayout {
         valueFromText: function (t) { return parseInt(t) || 0 }
         QQC2.ToolTip.text: label; QQC2.ToolTip.visible: hovered
     }
-    component LabelStyle: RowLayout {
+    component LabelStyle: Flow {
         id: style
+        Layout.fillWidth: true
+        Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 40)
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 40
+        spacing: Kirigami.Units.largeSpacing
         property alias bold: boldBox.checked
         property alias caps: capsBox.checked
         property alias letterSpacing: spacingBox.value
@@ -715,14 +742,15 @@ RowLayout {
         property bool plated: false                  // the outline only shows without a plate
         property string label: "Label style:"
         Kirigami.FormData.label: label
-        QQC2.CheckBox { id: boldBox; text: "Bold" }
-        QQC2.CheckBox { id: capsBox; text: "Capitals" }
-        QQC2.Label { text: "Spacing"; opacity: 0.8; enabled: capsBox.checked }
-        Pct { id: spacingBox; enabled: capsBox.checked; label: "Letter spacing, with capitals (100 % = normal)" }
-        QQC2.Label { text: "Opacity"; opacity: 0.8 }
-        Pct { id: opacityBox; from: 20; to: 100; label: "Text opacity" }
-        QQC2.Label { text: "Outline"; opacity: 0.8; enabled: !style.plated }
-        Pct { id: haloBox; to: 300; enabled: !style.plated; label: "Dark outline around the text (0 % = none); not drawn with a plate" }
+        RowLayout { spacing: Kirigami.Units.largeSpacing
+            QQC2.CheckBox { id: boldBox; text: "Bold" }
+            QQC2.CheckBox { id: capsBox; text: "Capitals" } }
+        RowLayout { QQC2.Label { text: "Spacing"; opacity: 0.8; enabled: capsBox.checked }
+            Pct { id: spacingBox; enabled: capsBox.checked; label: "Letter spacing, with capitals (100 % = normal)" } }
+        RowLayout { QQC2.Label { text: "Opacity"; opacity: 0.8 }
+            Pct { id: opacityBox; from: 20; to: 100; label: "Text opacity" } }
+        RowLayout { QQC2.Label { text: "Outline"; opacity: 0.8; enabled: !style.plated }
+            Pct { id: haloBox; to: 300; enabled: !style.plated; label: "Dark outline around the text (0 % = none); not drawn with a plate" } }
     }
     component Px: QQC2.SpinBox {
         from: 4; to: 28
@@ -1019,13 +1047,14 @@ RowLayout {
             value: Math.max(0, form.frameFraction)
         }
     Item {
+        id: pageArea
         Layout.fillWidth: true
         implicitHeight: pageForm.implicitHeight
         clip: true
         Kirigami.FormLayout {
         id: pageForm
         anchors.left: parent.left
-        width: Math.max(implicitWidth, Kirigami.Units.gridUnit * 44)
+        width: Math.max(implicitWidth, Math.min(pageArea.width, Kirigami.Units.gridUnit * 44))
         wideMode: true
 
         // ================================================================= Essentials
@@ -1059,7 +1088,7 @@ RowLayout {
             visible: secE.open
             Kirigami.FormData.label: "Style:"
             Layout.fillWidth: true
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
+            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.smallSpacing
             Repeater {
@@ -1220,7 +1249,7 @@ RowLayout {
         FramePicker {
             visible: secE.open
             Kirigami.FormData.label: "Frame:"
-            Layout.preferredWidth: implicitWidth; Layout.preferredHeight: implicitHeight
+            Layout.preferredWidth: form.fieldRoom(this, implicitWidth); Layout.preferredHeight: Math.round(Layout.preferredWidth / 2)
             Layout.maximumWidth: implicitWidth
             north: frameNorth.value; south: frameSouth.value; west: frameWest.value; east: frameEast.value
             fitMode: fillMode.currentIndex
@@ -1230,7 +1259,7 @@ RowLayout {
                 framePreset.currentIndex = form.framePresetIndex();
             }
         }
-        QQC2.CheckBox { id: lockShape; visible: secE.open; text: "Keep the box in this screen's shape - nothing trimmed, nothing stretched; resizing zooms" }
+        WrapCheck { id: lockShape; visible: secE.open; text: "Keep the box in this screen's shape - nothing trimmed, nothing stretched; resizing zooms" }
         Note { visible: secE.open; text: "The dashed outline is what this screen really shows of the box once Fit to screen has had its say (a second outline for each other screen); the box itself is the setting, whole degrees, at least 10° wide and 5° tall, not across the date line. A region fills the screen with that part of the world, so there is room for more: smaller quakes, every state name, cities down to 100 000. Imagery is built for exactly what is on screen by the wallpaper itself when the box or the style changes (the 5 400 px maps go soft past about 2x: the hi-res set on the Map page keeps regions sharp); Status > Map style imagery lists what has been built." }
         QQC2.ComboBox {
             visible: secE.open
@@ -1256,7 +1285,7 @@ RowLayout {
             visible: secE.open
             Kirigami.FormData.label: "Events widget:"
             Layout.fillWidth: true
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
+            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             spacing: Kirigami.Units.largeSpacing
             Kirigami.Icon { source: "view-list-details"; implicitWidth: Kirigami.Units.iconSizes.large; implicitHeight: implicitWidth; Layout.alignment: Qt.AlignTop }
@@ -1291,7 +1320,7 @@ RowLayout {
                 QQC2.Label { visible: !!form.widgetInfo.error; text: form.widgetInfo.error || ""; color: Kirigami.Theme.negativeTextColor; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 QQC2.Label { visible: form.widgetInfo.installed === true && form.widgetInfo.placed === null; text: "Could not ask plasmashell whether it is on a desktop; add it from the desktop's Add Widgets panel if not."; opacity: 0.7; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 RowLayout {
-                    QQC2.CheckBox { id: focusFromWidget; text: "Mark on the map the event the widget's list is pointing at" }
+                    WrapCheck { id: focusFromWidget; text: "Mark on the map the event the widget's list is pointing at" }
                     KQuickControls.ColorButton { id: focusColor; enabled: focusFromWidget.checked; showAlphaChannel: false; implicitWidth: Kirigami.Units.gridUnit * 2 }
                 }
                 RowLayout {
@@ -1312,7 +1341,7 @@ RowLayout {
         RowLayout {
             visible: secE.open && (form.widgetHidden.length > 0 || !!form.widgetMode.pause || !!form.widgetMode.plain)
             Layout.fillWidth: true
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 34
+            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 34)
             Layout.maximumWidth: Kirigami.Units.gridUnit * 34
             Kirigami.Icon { source: "dialog-warning"; implicitWidth: Kirigami.Units.iconSizes.smallMedium; implicitHeight: implicitWidth }
             QQC2.Label {
@@ -1371,7 +1400,7 @@ RowLayout {
             text: "Follow the seasons (NASA monthly images)"
         }
         QQC2.CheckBox { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalBlend; enabled: seasonal.checked; text: "Cross-fade between months day by day" }
-        QQC2.CheckBox { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalHires; enabled: seasonal.checked; text: "Cut every view from the hi-res maps once they are downloaded (unticked: the 5 400 px maps, cut only for a region)" }
+        WrapCheck { visible: sec1.open && mapStyle.currentIndex === 0; id: seasonalHires; enabled: seasonal.checked; text: "Cut every view from the hi-res maps once they are downloaded (unticked: the 5 400 px maps, cut only for a region)" }
         RowLayout {
             visible: sec1.open
             Kirigami.FormData.label: seasonal.checked ? "Fallback image:" : "Image:"
@@ -1416,7 +1445,7 @@ RowLayout {
             id: nightMode
             Kirigami.FormData.label: "Night:"
             enabled: dayNight.checked
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 22)
             model: ["Where the sun has set (the terminator moves across the map)", "Everywhere, all the time", "Everywhere during your own night, the terminator by day"]
         }
         Note { visible: sec2.open; text: ["The night side follows the sun: a dusk band sweeps round the world once a day, and the city lights come on behind it.",
@@ -1600,7 +1629,7 @@ RowLayout {
             onValueChanged: form.cfg_RiverWidth = value
         }
         Note { visible: sec4.open; text: "Drawn under the coastlines at the Countries detail level; part of the border download. With the detailed rivers over the plain Countries level, each river mouth is carried on to the coast." }
-        QQC2.CheckBox { visible: sec4.open; id: lakes; Kirigami.FormData.label: "Lakes:"; text: "Lake outlines, in the river colour, at the river detail level" }
+        WrapCheck { visible: sec4.open; id: lakes; Kirigami.FormData.label: "Lakes:"; text: "Lake outlines, in the river colour, at the river detail level" }
         Amount {
             visible: sec4.open
             Kirigami.FormData.label: "Lake fill:"
@@ -1680,7 +1709,7 @@ RowLayout {
             visible: sec5.open
             Kirigami.FormData.label: "Time zone style:"
             enabled: timeZones.checked
-            QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: Kirigami.Units.gridUnit * 24; model: form.zoneStyles.map(function (z) { return z.name }) }
+            QQC2.ComboBox { id: zoneLook; Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 24); model: form.zoneStyles.map(function (z) { return z.name }) }
             QQC2.SpinBox {
                 id: zoneRowLat; enabled: form.zoneStyles[zoneLook.currentIndex].placement >= 1; from: -80; to: 80; stepSize: 5
                 textFromValue: function (v) { return (v < 0 ? -v + "° S" : v > 0 ? v + "° N" : "0°") }
@@ -1769,7 +1798,7 @@ RowLayout {
             QQC2.ComboBox { id: quakeLabelMin; enabled: quakeLabels.currentIndex > 0; model: ["for every quake", "from magnitude 5", "from magnitude 6"] }
             Px { id: quakeLabelSize; enabled: quakeLabels.currentIndex > 0; from: 4; to: 24 }
         }
-        QQC2.CheckBox { visible: sec6.open; id: quakeCluster; Kirigami.FormData.label: "Swarms:"; enabled: quakes.checked && quakeLabels.currentIndex > 0; text: "Three or more close together: the strongest keeps its label and says '+N nearby'" }
+        WrapCheck { visible: sec6.open; id: quakeCluster; Kirigami.FormData.label: "Swarms:"; enabled: quakes.checked && quakeLabels.currentIndex > 0; text: "Three or more close together: the strongest keeps its label and says '+N nearby'" }
         RowLayout {
             visible: sec6.open
             Kirigami.FormData.label: "Earthquake label text:"
@@ -1863,7 +1892,7 @@ RowLayout {
             QQC2.ComboBox { id: infraLabels; model: ["None", "Refineries", "Refineries and named platforms"] }
             Px { id: infraLabelSize; enabled: infraLabels.currentIndex > 0 || infraNameThreatened.checked; from: 5; to: 20 }
         }
-        QQC2.CheckBox { visible: sec20.open; id: infraNameThreatened; Kirigami.FormData.label: "Infrastructure threatened:"; enabled: infra.checked; text: "Named on the map with their storm (the widget lists them under the storm either way)" }
+        WrapCheck { visible: sec20.open; id: infraNameThreatened; Kirigami.FormData.label: "Infrastructure threatened:"; enabled: infra.checked; text: "Named on the map with their storm (the widget lists them under the storm either way)" }
         LabelStyle { visible: sec20.open; id: infraStyle; label: "Infrastructure label style:"; enabled: infra.checked && (infraLabels.currentIndex > 0 || infraNameThreatened.checked); plated: false }
         Note { visible: sec20.open; text: "Fixed structures only: every platform on the US Gulf of Mexico shelf from BSEE (public domain, updated monthly) and offshore platforms elsewhere plus refineries from OpenStreetMap (ODbL, (c) OpenStreetMap contributors). Mobile drilling rigs are in no free feed. Still marks under the events; the download takes a minute or two because OpenStreetMap's Overpass service is slow." }
 
@@ -1943,8 +1972,8 @@ RowLayout {
         Note { visible: sec8.open; text: "The scale used on storm-tracking sites: not tropical (disturbance, remnant low) purple, depression blue, tropical storm green, then category 1 to 5 yellow, orange, red, pink, magenta. Untick for the one colour above." }
         QQC2.CheckBox { visible: sec8.open; id: stormTrackColors; enabled: storms.checked && stormIntensityColors.checked; text: "Track and forecast in the intensity at each fix" }
         Note { visible: sec8.open; text: "Each piece of the track takes the colour of the wind the storm had reached there, so its history reads at a glance: a fix every 6 hours from NHC's best track in the Atlantic and eastern Pacific, and elsewhere the positions this wallpaper has itself seen since it first met the storm. Forecast points use the forecast wind." }
-        QQC2.CheckBox { visible: sec8.open; id: stormOriginMark; enabled: storms.checked; text: "Mark where the storm was first fixed, with how long ago" }
-        QQC2.CheckBox { visible: sec8.open; id: stormCone; enabled: storms.checked; text: "Forecast cone (the centre's where it publishes one; built from JTWC's mean track errors where it does not)" }
+        WrapCheck { visible: sec8.open; id: stormOriginMark; enabled: storms.checked; text: "Mark where the storm was first fixed, with how long ago" }
+        WrapCheck { visible: sec8.open; id: stormCone; enabled: storms.checked; text: "Forecast cone (the centre's where it publishes one; built from JTWC's mean track errors where it does not)" }
         RowLayout {
             visible: sec8.open
             Kirigami.FormData.label: "Storm labels:"
@@ -2013,7 +2042,7 @@ RowLayout {
             Kirigami.FormData.label: "Incident filter:"
             enabled: fires.checked && (form.cfg_FireSources & 28) !== 0
             QQC2.ComboBox { id: fireIncidentMin; model: ["Any size", "100 ha (250 ac) and up", "1 000 ha and up", "10 000 ha and up"] }
-            QQC2.CheckBox { id: fireIncidentActive; text: "Only fires still burning (out of control, being held, under 90 % contained, or mapped this week)" }
+            WrapCheck { id: fireIncidentActive; text: "Only fires still burning (out of control, being held, under 90 % contained, or mapped this week)" }
         }
         RowLayout {
             visible: sec9.open
@@ -2102,7 +2131,7 @@ RowLayout {
             enabled: floods.checked
             model: ["All levels (GDACS green, NWS watches and advisories too)", "Orange and red (GDACS) · warnings (NWS)", "Red only (GDACS) · flash flood warnings (NWS)"]
         }
-        QQC2.CheckBox { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
+        WrapCheck { visible: sec9f.open; id: floodNws; Kirigami.FormData.label: "US alerts:"; enabled: floods.checked; text: "National Weather Service flood alerts (api.weather.gov, every 10 minutes)" }
         RowLayout {
             visible: sec9f.open
             Kirigami.FormData.label: "Official warnings:"
@@ -2117,7 +2146,7 @@ RowLayout {
                 }
             }
         }
-        QQC2.CheckBox { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && (floodNws.checked || form.cfg_FloodWarnSources > 0); text: "Every alert on its own (unticked: one mark per forecast office or country and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
+        WrapCheck { visible: sec9f.open; id: floodNwsEach; enabled: floods.checked && (floodNws.checked || form.cfg_FloodWarnSources > 0); text: "Every alert on its own (unticked: one mark per forecast office or country and alert type, e.g. 'Flood Warning · 9 counties · Greenville-Spartanburg')" }
         Note { visible: sec9f.open; text: "The NWS alerts arrive minutes after issue: flash flood warnings (red), flood warnings (orange), watches and advisories (green), with the counties covered, when the alert ends, and the warning's own polygon or its forecast zones as the area (zones are fetched once and kept). A wet week has an office issue a flood warning per river gauge, so by default an office's warnings of one type are one mark, one label and one area; 'Red only' under labels keeps the text to flash floods. US only; untick outside the US to save the request. The official warnings elsewhere join the same list: MeteoAlarm's flood, rain and coastal warnings for the 38 European services (yellow counts as the watch tier, orange and red as warnings; placed on the named regions, every 30 minutes), Environment Canada's rainfall and flood alerts with their polygons (every 15 minutes), and the Environment Agency's flood alerts and warnings for England with each flood area's outline (every 15 minutes)." }
         Note { visible: sec9f.open; text: "GDACS lists a flood per river basin or region and rates it on the people exposed: green is a basin's seasonal high water (there are always a dozen), orange and red are the ones with people evacuated, displaced or killed. Updated a few times a day; looked at hourly. The Events widget follows this filter." }
         RowLayout {
@@ -2129,7 +2158,7 @@ RowLayout {
         }
         Note { visible: sec9f.open; text: "The area GDACS reports as affected (the flooded districts), as a faint fill in the flood's colour under the mark. Fetched with the event's figures for the orange and red floods, a few KB each; with 'All levels' for the green ones too." }
         KQuickControls.ColorButton { visible: sec9f.open; id: floodColor; Kirigami.FormData.label: "Flood colour:"; enabled: floods.checked; showAlphaChannel: false; dialogTitle: "Flood colour" }
-        QQC2.CheckBox { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "Orange and red floods in GDACS's alert colours (green ones keep the flood colour)" }
+        WrapCheck { visible: sec9f.open; id: floodAlertColors; enabled: floods.checked; text: "Orange and red floods in GDACS's alert colours (green ones keep the flood colour)" }
         RowLayout {
             visible: sec9f.open
             Kirigami.FormData.label: "Flood labels:"
@@ -2175,7 +2204,7 @@ RowLayout {
             QQC2.CheckBox { id: tsunamiShowInfo; text: "Show, for" }
             QQC2.SpinBox { id: tsunamiInfoHours; enabled: tsunamiShowInfo.checked; from: 1; to: 48; textFromValue: function (v) { return v + " h" }; valueFromText: function (t) { return parseInt(t) || 6 } }
         }
-        QQC2.CheckBox { visible: sec9t.open; id: tsunamiCoast; Kirigami.FormData.label: "Threatened coast:"; enabled: tsunami.checked; text: "Draw the coast under threat between the centre's breakpoints" }
+        WrapCheck { visible: sec9t.open; id: tsunamiCoast; Kirigami.FormData.label: "Threatened coast:"; enabled: tsunami.checked; text: "Draw the coast under threat between the centre's breakpoints" }
         RowLayout {
             visible: sec9t.open
             Kirigami.FormData.label: "Tsunami colours:"
@@ -2205,7 +2234,7 @@ RowLayout {
             KQuickControls.ColorButton { id: tsunamiTextColor; enabled: !tsunamiFollows.checked; showAlphaChannel: false; dialogTitle: "Tsunami label colour" }
         }
         LabelStyle { visible: sec9t.open; id: tsunamiStyle; label: "Tsunami label style:"; enabled: tsunami.checked && tsunamiLabels.currentIndex > 0; plated: tsunamiPlate.checked }
-        QQC2.CheckBox { visible: sec9t.open; id: tsunamiPulse; Kirigami.FormData.label: "Tsunami pulse:"; enabled: tsunami.checked; text: "Rings run out from the epicentre while a threat stands" }
+        WrapCheck { visible: sec9t.open; id: tsunamiPulse; Kirigami.FormData.label: "Tsunami pulse:"; enabled: tsunami.checked; text: "Rings run out from the epicentre while a threat stands" }
         Note { visible: sec9t.open; text: "Label: the level, the earthquake (magnitude and place as the centre names it), how long ago the bulletin was issued. tsunami.gov publishes only each centre's latest message, so the helper remembers every bulletin by event for 36 hours and stands a threat down when a later message does. Public domain (US government)." }
 
         // #################################################################### Space
@@ -2261,7 +2290,7 @@ RowLayout {
             visible: sec9a.open
             Kirigami.FormData.label: "All clear:"
             enabled: airAlerts.checked
-            QQC2.CheckBox { id: alertShowClear; text: "Keep an ended alert as a fading outline for 30 minutes" }
+            WrapCheck { id: alertShowClear; text: "Keep an ended alert as a fading outline for 30 minutes" }
             KQuickControls.ColorButton { id: alertClearColor; enabled: alertShowClear.checked; showAlphaChannel: false; dialogTitle: "All-clear colour" }
         }
         Note { visible: sec9a.open; text: "Time-graded: an alert's first minutes in the new-alert colour, breathing hardest, then the alert colour, then (below) the long-running colour once it has run for hours; the all-clear leaves a cool outline that fades, labelled 'Kyiv · all clear · 12 min'. Only alerts this wallpaper saw begin count as new (or any alert, with a token)." }
@@ -2304,7 +2333,7 @@ RowLayout {
         // ====================================================== Maritime incidents
         SectionHeader { id: sec9m; title: "Maritime incidents"; group: "Civil, space and network"; sourceNames: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)", "Maritime incidents (ReCAAP)"]; twin: maritime; summary: maritime.checked ? "last " + maritimeDays.value + " days · labels: " + maritimeLabels.currentText.toLowerCase() : "Off" }
         Source { visible: sec9m.open; names: ["Maritime incidents (UKMTO)", "Maritime incidents (MDAT-GoG)", "Maritime incidents (ReCAAP)"] }
-        QQC2.CheckBox { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO, MDAT-GoG, ReCAAP)" }
+        WrapCheck { visible: sec9m.open; id: maritime; Kirigami.FormData.label: "Show:"; text: "Maritime security incidents (UKMTO, MDAT-GoG, ReCAAP)" }
         Amount {
             visible: sec9m.open
             Kirigami.FormData.label: "Maritime layer opacity:"
@@ -2341,7 +2370,7 @@ RowLayout {
             QQC2.ComboBox { id: maritimeLabels; model: ["None", "Attacks and worse", "All"] }
             Px { id: maritimeLabelSize; from: 4; to: 24 }
         }
-        QQC2.CheckBox { visible: sec9m.open; id: maritimeCluster; Kirigami.FormData.label: "Runs:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; text: "Three or more close together: one label with the count ('11 attacks · tanker, tug · Strait of Hormuz · 5–11 d')" }
+        WrapCheck { visible: sec9m.open; id: maritimeCluster; Kirigami.FormData.label: "Runs:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; text: "Three or more close together: one label with the count ('11 attacks · tanker, tug · Strait of Hormuz · 5–11 d')" }
         RowLayout {
             visible: sec9m.open
             Kirigami.FormData.label: "Maritime label text:"
@@ -2351,7 +2380,7 @@ RowLayout {
             KQuickControls.ColorButton { id: maritimeTextColor; enabled: !maritimeFollows.checked; showAlphaChannel: false; dialogTitle: "Maritime label colour" }
         }
         LabelStyle { visible: sec9m.open; id: maritimeStyle; label: "Maritime label style:"; enabled: maritime.checked && maritimeLabels.currentIndex > 0; plated: maritimePlate.checked }
-        QQC2.CheckBox { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from a newly reported attack (the window is Ageing and pulses > Newly reported)" }
+        WrapCheck { visible: sec9m.open; id: maritimePulse; Kirigami.FormData.label: "Maritime pulse:"; enabled: maritime.checked; text: "Rings run out from a newly reported attack (the window is Ageing and pulses > Newly reported)" }
         Note { visible: sec9m.open; text: "Label: the incident type, the vessel type (or 'vessel taken'), the sea area as UKMTO names it, how long ago. The data is the Royal Navy's, read from the API behind ukmto.org (Crown copyright); the ship's name is usually withheld by UKMTO and is shown only when given. The Gulf of Guinea comes from MDAT-GoG, the French and Royal Navies' centre for West Africa, through its public site; Asia from the Bay of Bengal to the Philippines from ReCAAP ISC in Singapore, through its interactive incident reports (ship names given, graded CAT 1 to CAT 4)." }
 
 
@@ -2380,7 +2409,7 @@ RowLayout {
             id: satPasses
             Kirigami.FormData.label: "Passes over you:"
             enabled: sats.checked
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 20
+            Layout.preferredWidth: form.fieldRoom(this, Kirigami.Units.gridUnit * 20)
             model: ["Not listed", "The ones you can see, in the widget", "Every pass, seen or not"]
         }
         Note { visible: sec10.open; text: "Experimental. When the ISS or Tiangong will cross the sky over your home place (Essentials), from the same orbital elements: rise, highest point and set with compass directions, in the widget's Satellites group an hour ahead and in the station's bubble. A pass can be seen only when your sky is dark and the station is still in sunlight - the first hours after dusk and before dawn - so the daytime passes are left out unless you ask for every pass. Cloud over your home from the live cloud image is shown beside it as a hint; it never hides a pass." + (homeLat.text === "" || homeLon.text === "" ? " No home place is set yet." : "") }
@@ -2453,7 +2482,7 @@ RowLayout {
             QQC2.ComboBox { id: launchLabels; model: ["None", "Countdown", "Rocket, mission and countdown"] }
             Px { id: launchLabelSize; from: 4; to: 24 }
         }
-        QQC2.CheckBox { visible: sec11.open; id: launchLabelTwoLines; Kirigami.FormData.label: "Launch label mission:"; enabled: launches.checked && launchLabels.currentIndex === 2; text: "On a line of its own, under the rocket and countdown" }
+        WrapCheck { visible: sec11.open; id: launchLabelTwoLines; Kirigami.FormData.label: "Launch label mission:"; enabled: launches.checked && launchLabels.currentIndex === 2; text: "On a line of its own, under the rocket and countdown" }
         RowLayout {
             visible: sec11.open
             Kirigami.FormData.label: "Launch label text:"
@@ -2708,7 +2737,7 @@ RowLayout {
         }
         Source { visible: sec16.open; names: ["Power and load"] }
         Note { visible: sec16.open; text: "CPU busy % is read from /proc/stat; GPU busy % from the driver where it offers one (AMD: sysfs, NVIDIA: nvidia-smi). Intel exposes no busy figure without root, so its GPU clock at the top of its range stands in for 'busy'; with no GPU reading at all the CPU alone decides. The higher of the two counts. A level is entered after two busy polls (40 s) and left after three quiet ones (a minute), so a spike does not flap the map. A game or a render pins the GPU, so it is caught either way; the widget's Map controls tab and Status > Power and load say when the guard is on." }
-        QQC2.CheckBox { visible: sec16.open; id: cacheStill; text: "Render the still part of the map once and reuse it" }
+        WrapCheck { visible: sec16.open; id: cacheStill; text: "Render the still part of the map once and reuse it" }
         Note { visible: sec16.open; text: "Untick only if the map goes blank." }
         QQC2.ComboBox {
             visible: sec16.open
