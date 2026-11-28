@@ -24,7 +24,7 @@ Every GitHub release from 0.48 on carries three assets, built by `scripts/packag
 | Asset | What it is | Goes to |
 |---|---|---|
 | `livemap.zip` | both packages plus `livemap.sh` - the GitHub download the README's install line uses | GitHub only |
-| `livemap-wallpaper-<version>.tar.gz` | the wallpaper package alone, `metadata.json` at the archive root | the **wallpaper plugin** listing |
+| `livemap-wallpaper-<version>.tar.gz` | the wallpaper package alone (with LICENSE; no changelog or script), `metadata.json` at the archive root | the **wallpaper plugin** listing |
 | `livemap-widget-<version>.tar.gz` | the widget package alone | the **widget** listing |
 
 The Store wants one archive per package with `metadata.json` at its root; that is what Plasma hands to
