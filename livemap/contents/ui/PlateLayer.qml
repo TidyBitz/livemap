@@ -9,7 +9,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: overlay
@@ -29,10 +28,8 @@ Item {
     readonly property string request: helper === "" ? "" : "python3 '" + helper + "' plates"
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             if (source.indexOf(overlay.request) !== 0) return;

@@ -15,7 +15,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -128,10 +127,8 @@ Item {
                  color: cfg && !cfg.FireTextFollows ? labelColor : ink, plate: labelPlate, bold: incidentSignificant(it), alpha: 1 };
     }))
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {
@@ -155,10 +152,8 @@ Item {
         triggeredOnStart: true
         onTriggered: exec.connectSource("python3 '" + overlay.helper + "' fires --keep " + overlay.ageEnd + " --stale " + overlay.staleHours + " # " + Date.now())
     }
-    P5Support.DataSource {
+    Exec {
         id: incExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {
@@ -180,10 +175,8 @@ Item {
     }
     onIncidentSourcesChanged: { if (helper !== "" && incidentSources !== "") askIncidents(); else incidents = []; }
     onIncidentMinHaChanged: if (helper !== "" && incidentSources !== "") askIncidents()
-    P5Support.DataSource {
+    Exec {
         id: hotExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {

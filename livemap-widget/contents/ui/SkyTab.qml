@@ -13,7 +13,6 @@ import QtQuick.Layouts
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
-import org.kde.plasma.plasma5support as P5Support
 import org.kde.kirigami as Kirigami
 
 ColumnLayout {
@@ -40,10 +39,8 @@ ColumnLayout {
     Timer { interval: 20 * 60 * 1000; running: sky.active; repeat: true; onTriggered: sky.refresh(true) }
     Timer { interval: 60 * 1000; running: sky.active && sky.ready; repeat: true; onTriggered: sky.tick = Date.now() }   // the now line moves, the ages age
     property real tick: Date.now()
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: function (source, data) {
             disconnectSource(source);
             sky.busy = false;
@@ -132,10 +129,8 @@ ColumnLayout {
         radarBusy = true;
         radarExec.connectSource(helperShell + "radar # " + Date.now());
     }
-    P5Support.DataSource {
+    Exec {
         id: radarExec
-        engine: "executable"
-        connectedSources: []
         onNewData: function (source, data) {
             disconnectSource(source);
             sky.radarBusy = false;

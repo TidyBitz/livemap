@@ -11,7 +11,6 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasma5support as P5Support
 
 ColumnLayout {
     id: panel
@@ -54,10 +53,8 @@ ColumnLayout {
         return out.concat(["", "Wallpaper log:"], logLines).join("\n");
     }
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             if (source.indexOf(" status ") < 0) { panel.check(); return; }      // an update finished: look again

@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasma5support as P5Support
 
 Kirigami.FormLayout {
     id: page
@@ -22,7 +21,7 @@ Kirigami.FormLayout {
         var q = "'" + f.replace(/'/g, "'\\''") + "'";
         return "f=" + q + "; pw-play \"$f\" 2>/dev/null || paplay \"$f\" 2>/dev/null || aplay -q \"$f\" 2>/dev/null";
     }
-    P5Support.DataSource { id: player; engine: "executable"; connectedSources: []; onNewData: (source, data) => disconnectSource(source) }
+    Exec { id: player; onNewData: (source, data) => disconnectSource(source) }
     property alias cfg_RefreshMinutes: refresh.value
     property alias cfg_ShowQuakes: showQuakes.checked
     property alias cfg_ShowVolcanoes: showVolcanoes.checked

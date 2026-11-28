@@ -9,7 +9,6 @@
  */
 import QtQuick
 import QtQuick.Window
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -107,10 +106,8 @@ Item {
         return out;
     })()
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {

@@ -8,7 +8,6 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
-import org.kde.plasma.plasma5support as P5Support
 
 ColumnLayout {
     id: panel
@@ -25,10 +24,8 @@ ColumnLayout {
     }
     onHomeLatChanged: askCoverage()
     onHomeLonChanged: askCoverage()
-    P5Support.DataSource {
+    Exec {
         id: coverageExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { panel.coverage = JSON.parse(data.stdout); } catch (e) { panel.coverage = null; } }
     }
     Component.onCompleted: askCoverage()

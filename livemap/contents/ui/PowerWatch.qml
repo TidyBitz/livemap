@@ -8,7 +8,6 @@
  * alone decides - a game still shows there.
  */
 import QtQuick
-import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: watch
@@ -42,10 +41,8 @@ Item {
     property string savingWhy: ""                 // and why ("load guard: CPU 63 %, GPU ?", "on battery", "paused from the widget")
     property bool helperOk: true
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             var text = String(data.stdout).trim();

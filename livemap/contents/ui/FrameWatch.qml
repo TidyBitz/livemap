@@ -5,7 +5,6 @@
  * is ready. One fetch at a time; a failure is reported in the corner notice and tried again in an hour.
  */
 import QtQuick
-import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: watch
@@ -59,10 +58,8 @@ Item {
         console.warn("livemap frame: building", frameArgs);
         exec.connectSource("python3 '" + helper + "' fetch-frame" + frameArgs + " # " + Date.now());
     }
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             if (source.indexOf("' fetch-frame ") >= 0) {

@@ -6,7 +6,6 @@
  */
 import QtQuick
 import QtQuick.Window
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -89,10 +88,8 @@ Item {
     readonly property bool pulseWanted: pulse && pulsingCount > 0
     property int reports: 0          // only the first few refreshes are written to the journal
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {
