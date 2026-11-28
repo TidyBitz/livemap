@@ -99,6 +99,7 @@ Kirigami.FormLayout {
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         opacity: 0.7
         text: "As a desktop widget, the whole thing - frame included - fades to this opacity once the pointer has been away for that long, so the map shows through, and comes back as the pointer arrives. Untick Fade for a fixed opacity at the slider's value (100 % is the plain Plasma look). In a panel the popup is never faded."
     }
@@ -110,6 +111,7 @@ Kirigami.FormLayout {
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         opacity: 0.7
         text: "Rest the pointer on an event and a bubble beside the widget says what the feed knows: for a storm its class, wind, position and what lies in its path; for a quake its depth, felt reports and intensity; for a flood the full warning and when it ends; for a launch the pad, orbit and status. Pictures are the centre's own graphic where it publishes one at a fixed address - NHC's five-day cone, JTWC's warning chart, the launch's picture - fetched when the bubble opens. Off shows the plain link tooltip instead."
     }
@@ -139,12 +141,13 @@ Kirigami.FormLayout {
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         opacity: 0.7
         text: "One sound per refresh however many events arrive at once; nothing plays for what was already on the list when the widget started. Played with pw-play, paplay or aplay, whichever is installed."
     }
     Kirigami.Separator { Kirigami.FormData.isSection: true; Kirigami.FormData.label: "Live" }
     QQC2.TextField { id: liveUrl; Kirigami.FormData.label: "Live stream:"; Layout.fillWidth: true; placeholderText: "YouTube URL of the stream" }
-    QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
+    QQC2.Label { Layout.fillWidth: true; Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40; wrapMode: Text.Wrap; opacity: 0.7; font.pointSize: Kirigami.Theme.smallFont.pointSize
                  text: "A watch?v= link, a channel's /live page (youtube.com/@sen/live: whatever that channel is broadcasting now, worked out by the helper; Map controls > Sources > Live streams shows what it found), or a link with &list= so the player moves on when a broadcaster restarts under a new id, as NASA does every few months. Below, one more stream per line, Title | URL, in the order the menu lists them." }
     QQC2.TextArea {
         id: liveExtra
@@ -152,19 +155,21 @@ Kirigami.FormLayout {
         Layout.fillWidth: true
         Layout.preferredHeight: Kirigami.Units.gridUnit * 5
         placeholderText: "one per line:  Title | URL"
-        wrapMode: TextEdit.NoWrap
+        wrapMode: TextEdit.WrapAnywhere; Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
     }
     QQC2.CheckBox { id: liveEmbed; Kirigami.FormData.label: "Live tab:"; text: "Always play the stream inside the widget (needs QtWebEngine; unticked, the Live tab offers Play here each time)" }
     QQC2.TextField { id: livePlayer; Kirigami.FormData.label: "External player:"; Layout.fillWidth: true; placeholderText: "command; the URL is appended" }
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         opacity: 0.7
         text: "The Live tab shows the stream. Embedded playback runs a browser engine inside plasmashell (a few hundred MB, GPU time while the popup is open); the external player (mpv with yt-dlp, by default) is much lighter and opens a small always-on-top window. 'Open in browser' always works."
     }
     QQC2.Label {
         Layout.fillWidth: true
         wrapMode: Text.Wrap
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 30; Layout.maximumWidth: Kirigami.Units.gridUnit * 40
         opacity: 0.7
         text: "The widget reads the caches the Live World Map wallpaper keeps and runs its helper; it needs that wallpaper installed (~/.local/share/plasma/wallpapers/io.github.tidybitz.livemap.wallpaper)."
     }

@@ -6,6 +6,13 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.50 - unreleased
 
 ### Fixed
+- The Live tab plays on the desktop: the embedded player, the Sky tab's fetching, the hover ring and the 30 s
+  refresh were all gated on the popup being open, a flag a desktop widget never sets - so "Play here" did nothing
+  there. The desktop counts as shown now. The placeholder says "Player not started" on the desktop, and its
+  Play here button is offered whenever a stream could be embedded.
+- The widget's settings page kept its width to the dialog: the explanatory notes and the streams box asked the
+  form for their full one-line width, so the page grew past the window, labels dropped under their fields and the
+  right edge was cut off. Capped, so the notes wrap and the labels sit beside their fields again.
 - Hovering down the Events list no longer stutters: the hover handshake with the wallpaper (which event to ring on
   the map) was a shell `printf` to write focus.json and a `cat` to read it - two forks of plasmashell, with its 13 GB
   of address space to map, for every row the pointer crossed. Both sides now go through Qt's Settings (focus.ini,
