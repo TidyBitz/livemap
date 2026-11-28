@@ -7,6 +7,7 @@
  * is fetched twice. The controls write mode.json in the data folder; the wallpaper reads it within 20 s.
  */
 import QtQuick
+import QtCore
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
@@ -370,7 +371,7 @@ PlasmoidItem {
     Component.onCompleted: { refresh(); refreshMode(); }
     Timer { interval: Math.max(1, Plasmoid.configuration.RefreshMinutes) * 60000; running: true; repeat: true; onTriggered: { root.refresh(); root.refreshPast(); } }
     onFeedNameChanged: refresh()
-    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); focusItem = null; focusSend.restart(); }
+    onExpandedChanged: { if (root.expanded) { refresh(); refreshMode(); markSeen(); } else bubbleAway(bubbleRow); focusItem = null; focusWrite(true); }
 
     toolTipMainText: "Live World Map"
     toolTipSubText: unread > 0 ? unread + " new events" : (shown.length ? shown.length + " events" : "no events yet")
@@ -389,14 +390,16 @@ PlasmoidItem {
     readonly property int previewMode: Plasmoid.configuration.Preview === undefined ? 2 : Plasmoid.configuration.Preview
     property var bubbleItem: ({})
     property Item bubbleRow: null
-    // ---- the event under the pointer, told to the wallpaper: focus.json in the data folder, which the wallpaper's
-    // FocusLayer reads a few times a second while the popup is open and rings the event on the map. Written by a
-    // shell printf (no interpreter to start), at most every 120 ms while the pointer moves down the list.
+    // ---- the event under the pointer, told to the wallpaper: focus.ini in the data folder, which the wallpaper's
+    // FocusLayer watches and rings the event on the map. Written through Qt's Settings (no process), once the
+    // pointer has rested on a row for 150 ms and only when the target changed - a sweep down the list writes
+    // nothing. Needs QtCore's Settings (Qt 6.2+); without it the map is simply not told.
     readonly property bool hoverHighlight: Plasmoid.configuration.HoverHighlight === undefined ? true : Plasmoid.configuration.HoverHighlight
     property var focusItem: null
+    property string focusLast: ""
     function focusOn(it) { if (!hoverHighlight) return; focusItem = it; focusSend.restart(); }
     function focusOff(it) { if (focusItem === it || it === null) { focusItem = null; focusSend.restart(); } }
-    function focusWrite() {
+    function focusWrite(force) {
         var it = focusItem;
         var doc = { open: root.expanded && root.hoverHighlight, at: Math.round(Date.now() / 1000) };
         if (it && it.lat !== undefined && it.lat !== null && it.lon !== undefined && it.lon !== null) {
@@ -404,13 +407,21 @@ PlasmoidItem {
             doc.title = String(it.title || "").replace(/['\\]/g, "").substring(0, 80);
         }
         var json = JSON.stringify(doc).replace(/'/g, "");
-        focusExec.connectSource('d="${XDG_DATA_HOME:-$HOME/.local/share}/livemap"; mkdir -p "$d"; printf \'%s\' \'' + json + '\' > "$d/focus.json.tmp" && mv -f "$d/focus.json.tmp" "$d/focus.json" # ' + Date.now());
+        var same = json.replace(/"at":\d+/, "") === focusLast.replace(/"at":\d+/, "");
+        if (same && !force) return;                                     // the pointer went nowhere new
+        focusLast = json;
+        if (focusStoreComp.status === Component.Ready) {
+            var s = focusStoreComp.createObject(root, { location: root.focusUrl });
+            if (s) { s.hover = json; if (typeof s.sync === "function") s.sync(); s.destroy(); return; }
+        }
+        console.warn("livemap widget: QtCore.Settings not available, the hover highlight cannot reach the map");
     }
-    Timer { id: focusSend; interval: 120; onTriggered: root.focusWrite() }
+    readonly property url focusUrl: StandardPaths.writableLocation(StandardPaths.GenericDataLocation) + "/livemap/focus.ini"
+    Component { id: focusStoreComp; FocusStore {} }
+    Timer { id: focusSend; interval: 150; onTriggered: root.focusWrite(false) }
     // the wallpaper treats a focus older than two minutes as gone (a crashed or closed widget must not leave a ring):
     // while a row stays hovered, the stamp is refreshed every minute
-    Timer { interval: 60000; repeat: true; running: root.focusItem !== null; onTriggered: root.focusWrite() }
-    Exec { id: focusExec; onNewData: function (source, data) { disconnectSource(source); } }
+    Timer { interval: 60000; repeat: true; running: root.focusItem !== null; onTriggered: root.focusWrite(true) }
     onHoverHighlightChanged: focusSend.restart()
     function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
     function bubbleAway(row) { if (bubbleRow === row) { bubbleTimer.stop(); bubble.visible = false; bubbleRow = null; } }

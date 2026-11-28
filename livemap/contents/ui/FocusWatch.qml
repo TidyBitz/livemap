@@ -1,5 +1,5 @@
 /*
- * Watches focus.json in the data folder without a process: Qt's FolderListModel keeps a file-system watcher on
+ * Watches focus.ini in the data folder without a process: Qt's FolderListModel keeps a file-system watcher on
  * the folder and updates the file's modification time when the widget replaces the file. The FocusLayer reads
  * the file (one `cat`) only when this says it changed, instead of every 400 ms - so an idle desktop spawns
  * nothing at all. Loaded through a Loader so that a system without Qt.labs.folderlistmodel keeps the polling.
@@ -14,7 +14,7 @@ Item {
     FolderListModel {
         id: files
         folder: watch.folder
-        nameFilters: ["focus.json"]
+        nameFilters: ["focus.ini"]
         showDirs: false
         showOnlyReadable: true
     }

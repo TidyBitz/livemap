@@ -3,6 +3,15 @@
 All notable changes to Live World Map. Newest first. Versions before 0.16 were reconstructed from the
 release notes written at the time; their dates are the day the version was handed over.
 
+## 0.50 - unreleased
+
+### Fixed
+- Hovering down the Events list no longer stutters: the hover handshake with the wallpaper (which event to ring on
+  the map) was a shell `printf` to write focus.json and a `cat` to read it - two forks of plasmashell, with its 13 GB
+  of address space to map, for every row the pointer crossed. Both sides now go through Qt's Settings (focus.ini,
+  no process), the widget writes only once the pointer has rested on a row for 150 ms and only when the target
+  changed, and the wallpaper's watcher reads the file in-process. A sweep down the list now costs nothing.
+
 ## 0.49 - 2026-11-27
 
 The release to take if your desktop slowed down a day or two after 0.48: see the first entry under Fixed.

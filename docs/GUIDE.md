@@ -81,7 +81,7 @@ region imagery, the time zone tint, faster cloud stitching), `python3-numpy` (ci
 | The wallpaper package | `~/.local/share/plasma/wallpapers/io.github.tidybitz.livemap.wallpaper/` |
 | The widget package | `~/.local/share/plasma/plasmoids/io.github.tidybitz.livemap.events/` |
 | The helper | `.../livemap.wallpaper/contents/helper/livemap-helper.py` - also what `livemap-helper` runs from a terminal |
-| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps and `classic.jpg`, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`, `sky.json`, `live-urls.json`), `pictures/` the bubble pictures the helper fetched (two weeks), the event memory (`events.json`, `history.json`, `hotspot-days.json`, `air-alerts-history.json`), the files the widget and the wallpaper share (`mode.json`, `layers.json`, `focus.json`), and your saved styles (`styles/*.json`, `styles/original.json` from before styles were first used, `styles/history/` the snapshots taken before every apply) |
+| Downloads and caches | `~/.local/share/livemap/` (`$XDG_DATA_HOME/livemap`): `base/` the monthly maps and `classic.jpg`, `borders/` Natural Earth and PB2002, `frames/` imagery built per view and style (safe to delete; rebuilt on demand), `night.jpg` / `lights.png`, `infrastructure.json`, the feed caches (`last-*.json`, `sky.json`, `live-urls.json`), `pictures/` the bubble pictures the helper fetched (two weeks), the event memory (`events.json`, `history.json`, `hotspot-days.json`, `air-alerts-history.json`), the files the widget and the wallpaper share (`mode.json`, `layers.json`, `focus.ini`), and your saved styles (`styles/*.json`, `styles/original.json` from before styles were first used, `styles/history/` the snapshots taken before every apply) |
 | Your settings | Plasma's own: `~/.config/plasma-org.kde.plasma.desktop-appletsrc` for the wallpaper (per screen and per Activity, so each monitor can have its own layers), the widget's in the same file under its applet |
 | Logs | `journalctl --user -f \| grep -i livemap` - the wallpaper logs what it loads, draws and fails to fetch |
 
@@ -153,7 +153,7 @@ wallpaper's helper and caches; nothing is fetched twice.
       contents/ui/
         main.qml                   the map: framing, the still layer (imagery, clouds, night, lights) and one Loader per live layer
         *Layer.qml                 one file per layer (Quake, Storm, Volcano, Fire, Flood, Tsunami, Alert, Maritime, Sat, Launch, Net, Border, Plate, Infra)
-        FocusLayer.qml             the event the widget points at, marked over everything (focus.json)
+        FocusLayer.qml             the event the widget points at, marked over everything (focus.ini)
         FramePicker.qml, CitySearch.qml   the Essentials frame picker and the home city search
         LabelPass.qml, MapLabel.qml, HaloText.qml   one label layout pass above every layer, and the label itself
         FrameWatch.qml, PowerWatch.qml, CloudWatch.qml   small watchers that run the helper: imagery per view, power and load, clouds
