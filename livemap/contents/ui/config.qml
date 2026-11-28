@@ -699,7 +699,7 @@ RowLayout {
     component Note: QQC2.Label {
         Layout.fillWidth: true
         Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 30)
-        onWidthChanged: if (visible) console.log("livemap-room note x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "page", Math.round(pageArea.width), (text || "").slice(0, 20))
+        onWidthChanged: if (visible) console.warn("livemap-room note x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "page", Math.round(pageArea.width), (text || "").slice(0, 20))
         Layout.maximumWidth: Kirigami.Units.gridUnit * 30
         wrapMode: Text.Wrap
         opacity: 0.7
@@ -710,7 +710,7 @@ RowLayout {
         Layout.fillWidth: true
         Layout.preferredWidth: form.fieldRoom(x, parent, Kirigami.Units.gridUnit * 40)
         Layout.maximumWidth: Kirigami.Units.gridUnit * 40
-        onWidthChanged: if (visible) console.log("livemap-room check x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "implicit", Math.round(implicitWidth), "label", contentItem ? Math.round(contentItem.width) + "/" + Math.round(contentItem.implicitWidth) : "-", text.slice(0, 20))
+        onWidthChanged: if (visible) console.warn("livemap-room check x", Math.round(x), "asked", Math.round(Layout.preferredWidth), "got", Math.round(width), "implicit", Math.round(implicitWidth), "label", contentItem ? Math.round(contentItem.width) + "/" + Math.round(contentItem.implicitWidth) : "-", text.slice(0, 20))
         contentItem: QQC2.Label {
             text: wc.text
             wrapMode: Text.Wrap
@@ -1055,7 +1055,7 @@ RowLayout {
         Layout.fillWidth: true
         implicitHeight: pageForm.implicitHeight
         clip: true
-        onWidthChanged: console.log("livemap-room page", Math.round(width), "form", Math.round(pageForm.width), "implicit", Math.round(pageForm.implicitWidth), "root", Math.round(form.width))
+        onWidthChanged: console.warn("livemap-room page", Math.round(width), "form", Math.round(pageForm.width), "implicit", Math.round(pageForm.implicitWidth), "root", Math.round(form.width))
         Kirigami.FormLayout {
         id: pageForm
         anchors.left: parent.left
