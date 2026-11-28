@@ -6,6 +6,8 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.49 - unreleased
 
 ### Added
+- "Not a warning system": the README's "What it is not" and both Store listings say that the map is for general
+  awareness only and no replacement for official alerts.
 - docs/PUBLISHING.md: the KDE Store routine - account, the two listings with their text, screenshots and tags, the
   update per release, what a Store install does not do. `scripts/package.sh` also builds the two Store archives
   (`livemap-wallpaper-<v>.tar.gz`, `livemap-widget-<v>.tar.gz`, metadata.json at the root) and CI attaches them
