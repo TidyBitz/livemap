@@ -36,7 +36,7 @@ MONTHS = ["january", "february", "march", "april", "may", "june", "july",
 NIGHT_URL = NASA + "/imagerecords/144000/144898/BlackMarble_2016_3km.jpg"
 
 
-VERSION = "0.48"
+VERSION = "0.49"
 
 
 UA = {"User-Agent": "livemap-wallpaper/" + VERSION + " (github.com/TidyBitz/livemap)"}   # identifiable, as the APIs ask
