@@ -578,7 +578,7 @@ PlasmoidItem {
                 spacing: Kirigami.Units.smallSpacing
                 RowLayout {
                     Layout.fillWidth: true
-                    PC3.Label { text: root.inFront.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
+                    PC3.Label { text: root.shown.length + (root.range > 0 ? " past" : "") + " events"; opacity: 0.7; elide: Text.ElideRight }
                     PC3.ComboBox {                            // the groups already sort by kind; "By kind" (2) reads as newest first
                         Layout.fillWidth: true
                         model: ["Newest first", "Most severe first", "Soonest launch first"]
@@ -634,7 +634,7 @@ PlasmoidItem {
                 PC3.Label { visible: root.problem !== ""; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; text: root.problem; color: Kirigami.Theme.negativeTextColor }
                 PC3.Label { visible: root.problems.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; opacity: 0.7; text: root.problems.join("; ") }
                 PlasmaExtras.PlaceholderMessage {
-                    visible: root.inFront.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
+                    visible: root.shown.length === 0 && !root.busy && !root.pastBusy && root.problem === ""
                     Layout.fillWidth: true; Layout.fillHeight: true
                     iconName: root.range > 0 ? "view-history" : "globe"
                     text: root.range > 0 ? "Nothing in this range" : "No events yet"
@@ -643,7 +643,7 @@ PlasmoidItem {
                 }
                 PC3.ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    visible: root.inFront.length > 0 || root.hiddenKinds.length > 0
+                    visible: root.shown.length > 0 || root.hiddenKinds.length > 0
                     ListView {
                         id: list
                         model: root.rows

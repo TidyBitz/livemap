@@ -6,6 +6,8 @@ release notes written at the time; their dates are the day the version was hande
 ## 0.50 - unreleased
 
 ### Fixed
+- The widget's header said "undefined events" and the footer vanished: the 0.49 rename of the desktop flag
+  caught the three places that count the list as well.
 - The widget's settings page scrolls: it is a KCM page now (the way Plasma 6 applets lay out their settings), with the
   form inside, so the wheel moves it and a scroll bar appears when the page is taller than the dialog.
 - The Live tab plays on the desktop: the embedded player, the Sky tab's fetching, the hover ring and the 30 s
