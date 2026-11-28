@@ -74,7 +74,7 @@ ColumnLayout {
     }
     Component.onCompleted: check()
 
-    QQC2.Label { visible: panel.version !== ""; text: "Live World Map " + panel.version + "  \u00b7  what changed: CHANGELOG.md in the download"; opacity: 0.7 }
+    QQC2.Label { visible: panel.version !== ""; text: "Live World Map " + panel.version + "  \u00b7  what changed: github.com/TidyBitz/livemap/blob/main/CHANGELOG.md"; opacity: 0.7 }
     Repeater {
         model: panel.checks
         RowLayout {

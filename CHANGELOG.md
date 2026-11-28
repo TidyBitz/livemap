@@ -16,6 +16,10 @@ release notes written at the time; their dates are the day the version was hande
   (`livemap-wallpaper-<v>.tar.gz`, `livemap-widget-<v>.tar.gz`, metadata.json at the root) and CI attaches them
   to every release beside livemap.zip.
 
+### Changed
+- The Store archives carry the package and its LICENSE only - no CHANGELOG.md, no livemap.sh; the Status page's
+  "what changed" line points at the changelog on GitHub, which is right for both install routes.
+
 ### Fixed
 - Maritime cluster labels read "3 robberies" or "3 × suspicious activity", not "3 robbery/theft ×"; the layer's Show box names all
   three sources.

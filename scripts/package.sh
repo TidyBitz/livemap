@@ -23,6 +23,9 @@ wv="$(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap/metadata.json)"
 ww="$(sed -n 's/.*"Version": *"\([^"]*\)".*/\1/p' livemap-widget/metadata.json)"
 dir="$(dirname "$out")"
 rm -f "$dir/livemap-wallpaper-$wv.tar.gz" "$dir/livemap-widget-$ww.tar.gz"
+# the Store copies carry the package and its LICENSE only: no changelog (it is on GitHub, and the Store has its own
+# changelog tab) and no livemap.sh (a Store install is kpackagetool's job)
+rm -f "$tmp/livemap/CHANGELOG.md" "$tmp/livemap/livemap.sh"
 tar -czf "$dir/livemap-wallpaper-$wv.tar.gz" -C "$tmp/livemap" .
 tar -czf "$dir/livemap-widget-$ww.tar.gz" -C "$tmp/livemap-widget" .
 rm -rf "$tmp"
