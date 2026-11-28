@@ -1056,7 +1056,13 @@ RowLayout {
         Kirigami.FormLayout {
         id: pageForm
         anchors.left: parent.left
-        width: Math.max(implicitWidth, Math.min(pageArea.width, Kirigami.Units.gridUnit * 44))
+        // Kirigami works a wide-mode form's width out from every item it holds, hidden ones included - and every
+        // page of these settings lives in this one form - so the widest row on any page would set the width of
+        // them all. The form is told it is as wide as the page instead: the grid lays out at the room there is,
+        // the fill-width items (notes, wrapping check boxes) take that room, and only a visible row wider than
+        // the page can still run past its edge, by its own excess.
+        implicitWidth: pageArea.width
+        width: pageArea.width
         wideMode: true
 
         // ================================================================= Essentials
