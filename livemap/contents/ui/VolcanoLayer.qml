@@ -11,7 +11,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -93,10 +92,8 @@ Item {
                  alpha: 1 - 0.4 * agedOf(v) };
     })
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {

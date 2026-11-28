@@ -13,7 +13,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -148,10 +147,8 @@ Item {
         return zoneColours[((z % 7) + 7) % 7];
     }
     // the tint image is drawn by the helper on demand (once); asked for whenever the tint is wanted and missing
-    P5Support.DataSource {
+    Exec {
         id: tintExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { var r = JSON.parse(data.stdout); if (r.file) overlay.zoneTintFile = r.file; } catch (e) {} }
     }
     onWantTintChanged: if (wantTint && zoneTintFile === "" && helper !== "") tintExec.connectSource("python3 '" + helper + "' zone-tint # " + Date.now())
@@ -217,10 +214,8 @@ Item {
           + (showLakes ? " --lakes --river-detail " + riverDetail : "") + (lakeRank >= 0 ? " --lake-names " + lakeRank : "") + (seaRank >= 0 ? " --sea-names " + seaRank : "")
     onRequestChanged: if (request !== "") exec.connectSource(request + " # " + Date.now())
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             if (source.indexOf(overlay.request) !== 0) return;               // an answer to an older question

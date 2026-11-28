@@ -21,7 +21,6 @@ import QtQuick.Dialogs
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrols as KQuickControls
-import org.kde.plasma.plasma5support as P5Support
 
 /*
  * Shape: a sidebar on the left (search, then every section as one row: its Show switch, its name, the health of
@@ -803,10 +802,8 @@ RowLayout {
         styleExec.connectSource(styleCmd("save --id " + id + " --name " + quoted(name) + " --includes " + cfg_StyleIncludes
                                          + " --values " + Qt.btoa(JSON.stringify(collectValues(includedBuckets)))));
     }
-    P5Support.DataSource {
+    Exec {
         id: styleExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             var r;
@@ -840,20 +837,16 @@ RowLayout {
     property var widgetInfo: ({})
     property bool widgetBusy: false
     function widgetRun(words) { widgetBusy = true; widgetExec.connectSource("python3 '" + widgetHelper + "' widget " + words + " # " + Date.now()); }
-    P5Support.DataSource {
+    Exec {
         id: widgetExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); form.widgetBusy = false; try { form.widgetInfo = JSON.parse(data.stdout) || ({}); } catch (e) { form.widgetInfo = ({ error: "The helper did not answer: " + String(data.stderr).trim().split("\n").pop() }); } }
     }
     Timer { interval: 1500; running: true; onTriggered: form.widgetRun("") }
     // what the wallpaper is doing about its imagery (helper `frame-state`, written by the wallpaper's FrameWatch):
     // asked every few seconds while this page is open, so a change of base map or view can be watched here
     property var frameState: ({})
-    P5Support.DataSource {
+    Exec {
         id: frameStateExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { form.frameState = JSON.parse(data.stdout) || ({}); } catch (e) {} }
     }
     // The Imagery banner follows the helper's frame-state file. Every 2.5 s is right while a build runs or has just
@@ -883,10 +876,8 @@ RowLayout {
     readonly property string widgetHelper: String(Qt.resolvedUrl("../helper/livemap-helper.py")).replace(/^file:\/\//, "")
     readonly property var widgetHidden: (widgetMode.hide || []).map(function (l) {
         return ({ quakes: "Earthquakes", volcanoes: "Volcanoes", storms: "Storms", fires: "Wildfires", floods: "Floods", tsunami: "Tsunami bulletins", alerts: "Air raid alerts", maritime: "Maritime incidents", sats: "Satellites", launches: "Launches", network: "Network activity" })[l] || l; })
-    P5Support.DataSource {
+    Exec {
         id: modeExec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => { disconnectSource(source); try { form.widgetMode = JSON.parse(data.stdout) || ({}); } catch (e) {} }
     }
     Component.onCompleted: modeExec.connectSource("python3 '" + widgetHelper + "' mode # " + Date.now())

@@ -128,3 +128,13 @@ three optional distro packages, no pip, nothing downloaded is code. A new import
 None required. Every source is free and key-less by choice; the licences and attributions are in `sources.json`
 and shown on the Coverage page. The one optional token is alerts.in.ua's (a free personal one unlocks alert types
 and start times; without it the public mirror is read). A source that starts requiring a key is replaced, not keyed.
+
+## Running the helper from QML: Exec, never a long-lived DataSource
+
+Every shell command the QML runs goes through `Exec.qml` (one copy in each package): `connectSource(cmd)`,
+`onNewData: (source, data) => ...`, `running`. It creates a `P5Support.DataSource` per run and destroys it when
+the output arrives. Do not declare a `P5Support.DataSource` directly and run many different command strings
+through it: each string becomes a property of its data map for good, and the map's meta-object is rebuilt, at a
+cost growing with the count, on every add and every engine-side removal - after a day of polling the main thread
+does nothing else (0.49's fix; see the changelog). The `# Date.now()` suffix on commands stays: the engine caches a
+source by its string for a while, and the suffix is what makes a repeat actually run.

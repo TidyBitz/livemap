@@ -9,7 +9,6 @@
 import QtQuick
 import QtQuick.Window
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -125,10 +124,8 @@ Item {
     // platforms and refineries inside a storm's cone or near its track: [lon, lat, kind, name, storm]; InfraLayer draws them
     property var impacted: []
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {

@@ -17,6 +17,13 @@ release notes written at the time; their dates are the day the version was hande
   to every release beside livemap.zip.
 
 ### Fixed
+- The CPU that crept back after a day or two - and vanished when the widget was re-added or the settings closed -
+  was Plasma's executable DataSource leaking: every command string run through one adds a property to its data
+  map for good, and the map's meta-object is rebuilt, at a cost growing with the count, on every add and every
+  removal. A poll every 20 s with a fresh string each time reaches thousands of entries, and plasmashell's main
+  thread spends itself rebuilding them (three gdb samples, all in DataSource::removeSource ->
+  QQmlPropertyMap::clear -> QMetaObjectBuilder::toMetaObject). Every command now runs through a small Exec
+  component that gives each run a DataSource of its own, destroyed when its output arrives; nothing accumulates.
 - Maritime cluster labels read "3 robberies" or "3 × suspicious activity", not "3 robbery/theft ×"; the layer's Show box names all
   three sources.
 

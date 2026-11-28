@@ -6,7 +6,6 @@
  * source fails, so partial outages degrade gracefully. Own file behind a Loader: a fault here cannot touch the map.
  */
 import QtQuick
-import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: watch
@@ -21,10 +20,8 @@ Item {
     property string note: ""
     property bool busy: false
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             watch.busy = false;

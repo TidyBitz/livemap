@@ -13,7 +13,6 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
-import org.kde.plasma.plasma5support as P5Support
 import org.kde.ksvg as KSvg
 import org.kde.kirigami as Kirigami
 
@@ -289,10 +288,8 @@ PlasmoidItem {
         return s < 3600 ? Math.max(1, Math.round(s / 60)) + " min ago" : s < 172800 ? Math.round(s / 3600) + " h ago" : Math.round(s / 86400) + " d ago";
     }
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             if (source.indexOf('" feed ') >= 0 && source.indexOf(" --since ") >= 0) {
@@ -413,7 +410,7 @@ PlasmoidItem {
     // the wallpaper treats a focus older than two minutes as gone (a crashed or closed widget must not leave a ring):
     // while a row stays hovered, the stamp is refreshed every minute
     Timer { interval: 60000; repeat: true; running: root.focusItem !== null; onTriggered: root.focusWrite() }
-    P5Support.DataSource { id: focusExec; engine: "executable"; connectedSources: []; onNewData: function (source, data) { disconnectSource(source); } }
+    Exec { id: focusExec; onNewData: function (source, data) { disconnectSource(source); } }
     onHoverHighlightChanged: focusSend.restart()
     function bubbleFor(row, it) { bubbleRow = row; bubbleItem = it || ({}); bubbleTimer.restart(); }
     function bubbleAway(row) { if (bubbleRow === row) { bubbleTimer.stop(); bubble.visible = false; bubbleRow = null; } }
@@ -924,10 +921,8 @@ PlasmoidItem {
                 property string resolveNote: ""
                 property var retried: ({})
                 Timer { id: retryTimer; property string url: ""; interval: 4000; onTriggered: if (liveTab.chosenUrl === url) liveTab.resolve(url, true) }
-                P5Support.DataSource {
+                Exec {
                     id: liveExec
-                    engine: "executable"
-                    connectedSources: []
                     onNewData: function (source, data) {
                         disconnectSource(source);
                         var r = {}; for (var k in liveTab.resolved) r[k] = liveTab.resolved[k];

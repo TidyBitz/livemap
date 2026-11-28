@@ -11,7 +11,6 @@
  */
 import QtQuick
 import QtQuick.Shapes
-import org.kde.plasma.plasma5support as P5Support
 
 Item {
     id: layer
@@ -49,13 +48,11 @@ Item {
     // two-millisecond one, every 400 ms while the popup is open and every two seconds otherwise.
     readonly property string path: String(dataDir).replace(/^file:\/\//, "") + "/focus.json"
     function read() {
-        if (reader.connectedSources.length > 0) return;              // the last one has not come back yet
+        if (reader.running > 0) return;              // the last one has not come back yet
         reader.connectSource("cat '" + path.replace(/'/g, "") + "' 2>/dev/null # " + Date.now());
     }
-    P5Support.DataSource {
+    Exec {
         id: reader
-        engine: "executable"
-        connectedSources: []
         onNewData: function (source, data) {
             disconnectSource(source);
             try { layer.target = data.stdout ? JSON.parse(data.stdout) : ({}); } catch (e) { layer.target = ({}); }

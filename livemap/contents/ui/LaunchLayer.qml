@@ -4,7 +4,6 @@
  */
 import QtQuick
 import QtQuick.Window
-import org.kde.plasma.plasma5support as P5Support
 import "geo.js" as Geo
 
 Item {
@@ -74,10 +73,8 @@ Item {
                  text: describe(L), px: imminent(L) ? Math.round(labelPx * 1.25) : labelPx, color: imminent(L) ? Qt.color("#ffd166") : labelColor, plate: labelPlate, bold: soon(L), alpha: 1 };
     })
 
-    P5Support.DataSource {
+    Exec {
         id: exec
-        engine: "executable"
-        connectedSources: []
         onNewData: (source, data) => {
             disconnectSource(source);
             try {
